@@ -1,0 +1,2299 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maulagi Workspace</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg: #eef2f7;
+        --card: #ffffff;
+        --dark: #0f172a;
+        --dark2: #1e293b;
+        --blue: #2563eb;
+        --green: #10b981;
+        --red: #ef4444;
+        --orange: #f59e0b;
+        --gray: #64748b;
+        --gray2: #94a3b8;
+        --gray3: #cbd5e1;
+        --border: #e2e8f0;
+        --radius: 16px;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        background:
+          radial-gradient(circle at top left, rgba(37,99,235,0.08), transparent 24%),
+          radial-gradient(circle at top right, rgba(16,185,129,0.08), transparent 20%),
+          var(--bg);
+        color: var(--dark);
+        font-family: 'Inter', system-ui, sans-serif;
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+      }
+      #loadingScreen {
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        z-index: 999;
+        transition: opacity 0.35s;
+      }
+      #loadingScreen.hide { opacity: 0; pointer-events: none; }
+      .loading-spinner {
+        width: 44px;
+        height: 44px;
+        border: 3px solid var(--border);
+        border-top-color: var(--blue);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+      .loading-label {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--gray2);
+        letter-spacing: -0.01em;
+      }
+      .app { display: none; min-height: 100vh; flex-direction: column; }
+      .app.show { display: flex; }
+      .shell-header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 18px 14px;
+        background: linear-gradient(135deg, #0f172a 0%, #16365c 100%);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.14);
+      }
+      .back-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 11px;
+        border: 1.5px solid rgba(255,255,255,0.15);
+        background: rgba(255,255,255,0.08);
+        color: rgba(255,255,255,0.78);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        flex-shrink: 0;
+        transition: 0.2s;
+      }
+      .back-btn:hover { background: rgba(255,255,255,0.14); color: white; }
+      .sh-info { flex: 1; min-width: 0; }
+      .sh-title {
+        font-size: clamp(1rem, 2vw, 1.18rem);
+        font-weight: 800;
+        color: white;
+        letter-spacing: -0.02em;
+      }
+      .sh-sub {
+        font-size: 0.72rem;
+        font-weight: 500;
+        color: rgba(255,255,255,0.58);
+        margin-top: 2px;
+      }
+      .workspace-sync-wrap {
+        display: flex;
+        justify-content: center;
+        padding: 10px 18px 0;
+      }
+      .workspace-sync-banner {
+        width: min(100%, 720px);
+        min-height: 46px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.94);
+        border: 1px solid rgba(226,232,240,0.95);
+        box-shadow: 0 10px 22px rgba(15,23,42,0.08);
+      }
+      .workspace-sync-banner[data-tone="ok"] {
+        background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%);
+        border-color: rgba(34,197,94,0.22);
+      }
+      .workspace-sync-banner[data-tone="warn"] {
+        background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+        border-color: rgba(245,158,11,0.22);
+      }
+      .workspace-sync-banner[data-tone="error"] {
+        background: linear-gradient(180deg, #fff1f2 0%, #ffe4e6 100%);
+        border-color: rgba(239,68,68,0.2);
+      }
+      .workspace-sync-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #94a3b8;
+        box-shadow: 0 0 0 6px rgba(148,163,184,0.14);
+        flex-shrink: 0;
+      }
+      .workspace-sync-banner[data-tone="ok"] .workspace-sync-dot {
+        background: #16a34a;
+        box-shadow: 0 0 0 6px rgba(34,197,94,0.15);
+      }
+      .workspace-sync-banner[data-tone="warn"] .workspace-sync-dot {
+        background: #d97706;
+        box-shadow: 0 0 0 6px rgba(245,158,11,0.15);
+      }
+      .workspace-sync-banner[data-tone="error"] .workspace-sync-dot {
+        background: #dc2626;
+        box-shadow: 0 0 0 6px rgba(239,68,68,0.14);
+      }
+      .workspace-sync-copy {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .workspace-sync-main {
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: var(--dark);
+        letter-spacing: -0.01em;
+      }
+      .workspace-sync-sub {
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: var(--gray);
+      }
+      .status-chip {
+        appearance: none;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(16,185,129,0.14);
+        border: 1px solid rgba(16,185,129,0.25);
+        color: #bbf7d0;
+        font-size: 0.72rem;
+        font-weight: 700;
+        white-space: nowrap;
+        font-family: 'Inter', sans-serif;
+        line-height: 1;
+        transition: 0.2s;
+      }
+      .status-chip.clickable {
+        cursor: pointer;
+        box-shadow: 0 8px 18px rgba(15,23,42,0.12);
+      }
+      .status-chip.clickable:hover {
+        background: rgba(16,185,129,0.22);
+        border-color: rgba(16,185,129,0.4);
+        color: #dcfce7;
+      }
+      .status-chip:disabled {
+        cursor: default;
+        opacity: 0.88;
+      }
+      .quick-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 220;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        background: rgba(15,23,42,0.58);
+        backdrop-filter: blur(6px);
+      }
+      .quick-modal.show { display: flex; }
+      .quick-panel {
+        width: 100%;
+        max-width: 420px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        border: 1px solid rgba(226,232,240,0.95);
+        border-radius: 22px;
+        box-shadow: 0 24px 48px rgba(15,23,42,0.18);
+        overflow: hidden;
+      }
+      .quick-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 16px 14px;
+        border-bottom: 1px solid rgba(226,232,240,0.9);
+      }
+      .quick-head-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .quick-head-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+        color: #15803d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        flex-shrink: 0;
+      }
+      .quick-head-title {
+        font-size: 0.9rem;
+        font-weight: 800;
+        color: var(--dark);
+        letter-spacing: -0.02em;
+      }
+      .quick-head-sub {
+        font-size: 0.7rem;
+        color: var(--gray2);
+        margin-top: 2px;
+      }
+      .quick-close {
+        width: 32px;
+        height: 32px;
+        border: 1px solid var(--border);
+        border-radius: 50%;
+        background: #f8fafc;
+        color: var(--gray);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: 0.15s;
+      }
+      .quick-close:hover {
+        background: #eef2f7;
+        color: var(--dark);
+      }
+      .quick-body {
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .quick-hero {
+        border-radius: 18px;
+        padding: 15px;
+        background:
+          radial-gradient(circle at top right, rgba(37,99,235,0.14), transparent 34%),
+          linear-gradient(135deg, #0f172a 0%, #15375f 100%);
+        color: white;
+      }
+      .quick-hero-label {
+        font-size: 0.66rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(191,219,254,0.82);
+      }
+      .quick-hero-time {
+        font-size: 1.28rem;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+        margin-top: 6px;
+      }
+      .quick-hero-name {
+        font-size: 0.86rem;
+        font-weight: 700;
+        margin-top: 6px;
+        color: rgba(255,255,255,0.92);
+      }
+      .quick-hero-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .quick-hero-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 34px;
+        padding: 7px 11px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.16);
+        color: white;
+      }
+      .quick-hero-chip-label {
+        font-size: 0.58rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(191,219,254,0.78);
+      }
+      .quick-hero-chip-value {
+        font-size: 0.76rem;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .quick-hero-chip.amount .quick-hero-chip-value {
+        font-size: 0.9rem;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+      }
+      .quick-proof {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .quick-proof-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .quick-proof-label {
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--gray2);
+      }
+      .quick-proof-badge {
+        font-size: 0.62rem;
+        font-weight: 800;
+        color: #2563eb;
+        background: #dbeafe;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        padding: 4px 9px;
+      }
+      .quick-proof-box {
+        border-radius: 16px;
+        border: 1px solid rgba(226,232,240,0.95);
+        background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+        overflow: hidden;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 10px 24px rgba(15,23,42,0.05);
+      }
+      .quick-proof-box img {
+        display: block;
+        width: 100%;
+        max-height: 220px;
+        object-fit: contain;
+        background: linear-gradient(180deg, #e2e8f0 0%, #f8fafc 100%);
+      }
+      .quick-proof-empty {
+        padding: 14px 16px;
+        font-size: 0.76rem;
+        color: var(--gray2);
+        text-align: center;
+      }
+      .quick-actions {
+        display: block;
+        margin-top: 2px;
+      }
+      .quick-btn {
+        width: 100%;
+        height: 40px;
+        border-radius: 12px;
+        border: none;
+        font-size: 0.78rem;
+        font-weight: 800;
+        font-family: 'Inter', sans-serif;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        cursor: pointer;
+      }
+      .quick-btn.primary {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #ffffff;
+        box-shadow: 0 12px 22px rgba(37,99,235,0.24);
+      }
+      .quick-btn.primary:hover { filter: brightness(1.04); }
+      .quick-btn.ghost {
+        background: #f8fafc;
+        color: var(--gray);
+        border: 1px solid var(--border);
+      }
+      .quick-btn.ghost:hover {
+        background: #eef2f7;
+        color: var(--dark);
+      }
+      @media (max-width: 520px) {
+        .quick-hero-meta {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .quick-hero-chip {
+          justify-content: space-between;
+        }
+      }
+      .shell-header-actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .shell-tool {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 38px;
+        padding: 0 12px;
+        border-radius: 11px;
+        border: 1.5px solid rgba(255,255,255,0.15);
+        background: rgba(255,255,255,0.08);
+        color: rgba(255,255,255,0.82);
+        font-size: 0.76rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: 0.2s;
+        font-family: 'Inter', sans-serif;
+        white-space: nowrap;
+      }
+      .shell-tool:hover { background: rgba(255,255,255,0.14); color: white; }
+      .shell-tool.upload { color: #bbf7d0; border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.12); }
+      .shell-tool.upload:hover { background: rgba(16,185,129,0.2); }
+      .shell-tool.download { color: #bfdbfe; border-color: rgba(96,165,250,0.28); background: rgba(37,99,235,0.14); }
+      .shell-tool.download:hover { background: rgba(37,99,235,0.22); }
+      .workspace {
+        width: 100%;
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        flex: 1;
+      }
+      .tab-row {
+        display: flex;
+        gap: 6px;
+        background: rgba(255,255,255,0.75);
+        border: 1px solid rgba(226,232,240,0.9);
+        backdrop-filter: blur(12px);
+        border-radius: 18px;
+        padding: 6px;
+        box-shadow: 0 10px 24px rgba(15,23,42,0.05);
+        position: sticky;
+        top: 76px;
+        z-index: 50;
+      }
+      .tab-btn {
+        flex: 1;
+        border: none;
+        border-radius: 12px;
+        background: transparent;
+        color: var(--gray);
+        padding: 11px 10px;
+        font-size: 0.8rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: 0.2s;
+        font-family: 'Inter', sans-serif;
+      }
+      .tab-btn.active {
+        background: var(--dark);
+        color: white;
+        box-shadow: 0 8px 18px rgba(15,23,42,0.18);
+      }
+      .tab-btn:not(.active):hover { background: #f8fafc; }
+      .tab-panel { display: none; }
+      .tab-panel.active { display: block; }
+      .section-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .section-head h2 {
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--dark);
+        letter-spacing: -0.02em;
+        margin: 0;
+      }
+      .section-head p {
+        font-size: 0.76rem;
+        color: var(--gray2);
+        margin: 2px 0 0;
+      }
+      .refresh-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        border: 1.5px solid var(--border);
+        background: var(--card);
+        color: var(--gray);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: 0.15s;
+      }
+      .refresh-btn:hover { background: #f8fafc; color: var(--dark); }
+      .refresh-btn.spinning i { animation: spin 0.7s linear infinite; }
+      .overview-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .overview-card {
+        background: var(--card);
+        border-radius: var(--radius);
+        padding: 14px;
+        border: 1px solid var(--border);
+        box-shadow: 0 6px 20px rgba(15,23,42,0.05);
+        position: relative;
+        overflow: hidden;
+      }
+      .overview-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+      }
+      .overview-card.blue::before { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+      .overview-card.green::before { background: linear-gradient(90deg, #10b981, #34d399); }
+      .overview-card.orange::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+      .overview-card.red::before { background: linear-gradient(90deg, #ef4444, #f87171); }
+      .oc-label {
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--gray2);
+      }
+      .oc-value {
+        font-size: clamp(0.96rem, 1.6vw, 1.28rem);
+        font-weight: 900;
+        letter-spacing: -0.03em;
+        color: var(--dark);
+        margin-top: 8px;
+        line-height: 1.12;
+        word-break: break-word;
+      }
+      .oc-meta {
+        font-size: 0.72rem;
+        color: var(--gray);
+        margin-top: 6px;
+        line-height: 1.45;
+      }
+      .chart-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr 1fr;
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .chart-card {
+        background: var(--card);
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        box-shadow: 0 6px 20px rgba(15,23,42,0.05);
+        padding: 14px;
+      }
+      .trend-card {
+        margin-top: 12px;
+        position: relative;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at top right, rgba(37,99,235,0.16), transparent 26%),
+          radial-gradient(circle at left center, rgba(16,185,129,0.12), transparent 30%),
+          linear-gradient(180deg, #ffffff 0%, #f7fbff 58%, #eef5ff 100%);
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        box-shadow: 0 16px 34px rgba(15,23,42,0.08);
+        padding: 16px;
+      }
+      .trend-card::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(120deg, rgba(255,255,255,0.3), transparent 35%),
+          linear-gradient(180deg, rgba(255,255,255,0.35), transparent 30%);
+        pointer-events: none;
+      }
+      .trend-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        position: relative;
+        z-index: 1;
+      }
+      .trend-head h3 {
+        font-size: 0.92rem;
+        font-weight: 800;
+        color: var(--dark);
+        letter-spacing: -0.02em;
+        margin: 0;
+      }
+      .trend-head p {
+        font-size: 0.74rem;
+        color: var(--gray2);
+        margin: 4px 0 0;
+      }
+      .trend-legend {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+        position: relative;
+        z-index: 1;
+      }
+      .trend-legend-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        background: rgba(255,255,255,0.82);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(226,232,240,0.9);
+        border-radius: 14px;
+        padding: 12px;
+        box-shadow: 0 12px 24px rgba(15,23,42,0.06);
+      }
+      .trend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        margin-top: 4px;
+        flex-shrink: 0;
+        box-shadow: 0 0 0 5px rgba(255,255,255,0.85);
+      }
+      .trend-dot.total { background: #2563eb; }
+      .trend-dot.noncod { background: #10b981; }
+      .trend-dot.dfod { background: #f59e0b; }
+      .trend-series-caption {
+        font-size: 0.67rem;
+        font-weight: 700;
+        color: var(--gray);
+        margin-top: 4px;
+      }
+      .trend-series-label {
+        font-size: 0.66rem;
+        font-weight: 800;
+        color: var(--gray2);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .trend-series-value {
+        font-size: 1rem;
+        font-weight: 900;
+        color: var(--dark);
+        margin-top: 4px;
+        letter-spacing: -0.02em;
+      }
+      .trend-series-delta {
+        font-size: 0.7rem;
+        font-weight: 700;
+        margin-top: 4px;
+      }
+      .trend-series-delta.up { color: var(--green); }
+      .trend-series-delta.down { color: var(--red); }
+      .trend-series-delta.flat { color: var(--gray); }
+      .trend-chart-wrap {
+        margin-top: 14px;
+        position: relative;
+        background: linear-gradient(180deg, #0f172a 0%, #16243b 100%);
+        border: 1px solid rgba(148,163,184,0.18);
+        border-radius: 16px;
+        padding: 12px;
+        overflow-x: auto;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 18px 36px rgba(15,23,42,0.14);
+      }
+      .trend-chart-wrap::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at top left, rgba(96,165,250,0.18), transparent 25%),
+          radial-gradient(circle at bottom right, rgba(16,185,129,0.16), transparent 24%);
+        pointer-events: none;
+      }
+      .trend-chart-inner {
+        min-width: 860px;
+        position: relative;
+        z-index: 1;
+      }
+      .trend-svg {
+        width: 100%;
+        height: auto;
+        display: block;
+        font-family: 'Inter', sans-serif;
+      }
+      .trend-grid-line {
+        stroke: rgba(148,163,184,0.18);
+        stroke-width: 1;
+        stroke-dasharray: 3 4;
+      }
+      .trend-axis-label {
+        fill: #64748b;
+        font-size: 9px;
+        font-weight: 700;
+      }
+      .trend-current-band { fill: rgba(255,255,255,0.06); }
+      .trend-area { opacity: 0.3; }
+      .trend-area.total { fill: url(#trendAreaTotal); }
+      .trend-area.noncod { fill: url(#trendAreaNoncod); }
+      .trend-area.dfod { fill: url(#trendAreaDfod); }
+      .trend-line {
+        fill: none;
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        filter: drop-shadow(0 2px 6px rgba(15,23,42,0.3));
+      }
+      .trend-line.total { stroke: #2563eb; }
+      .trend-line.noncod { stroke: #10b981; }
+      .trend-line.dfod { stroke: #f59e0b; }
+      .trend-point { stroke: #0f172a; stroke-width: 4; }
+      .trend-point.current {
+        stroke: #ffffff;
+        stroke-width: 4;
+        filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));
+      }
+      .trend-point.total { fill: #2563eb; }
+      .trend-point.noncod { fill: #10b981; }
+      .trend-point.dfod { fill: #f59e0b; }
+      .trend-point-label {
+        fill: rgba(255,255,255,0.92);
+        font-size: 10px;
+        font-weight: 800;
+      }
+      .trend-period-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+        position: relative;
+        z-index: 1;
+      }
+      .trend-period-item {
+        background: rgba(255,255,255,0.86);
+        border: 1px solid rgba(226,232,240,0.9);
+        border-radius: 14px;
+        padding: 12px;
+        box-shadow: 0 10px 18px rgba(15,23,42,0.05);
+      }
+      .trend-period-item.current {
+        background: linear-gradient(180deg, #eff6ff, #ffffff);
+        border-color: rgba(96,165,250,0.55);
+        box-shadow: 0 14px 24px rgba(37,99,235,0.08);
+      }
+      .trend-period-item .tp-label {
+        font-size: 0.68rem;
+        font-weight: 800;
+        color: var(--gray2);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .trend-period-item .tp-value {
+        font-size: 0.86rem;
+        font-weight: 900;
+        color: var(--dark);
+        letter-spacing: -0.02em;
+        margin-top: 6px;
+        line-height: 1.28;
+      }
+      .trend-period-item .tp-meta {
+        font-size: 0.7rem;
+        color: var(--gray);
+        margin-top: 6px;
+        line-height: 1.45;
+      }
+      .daily-compare-grid {
+        min-width: 980px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 16px;
+        position: relative;
+        z-index: 1;
+      }
+      .daily-panel {
+        --panel-accent: #60a5fa;
+        --panel-accent-soft: rgba(96,165,250,0.16);
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%);
+        border: 1px solid rgba(226,232,240,0.95);
+        border-radius: 20px;
+        padding: 14px;
+        box-shadow: 0 18px 30px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.82);
+      }
+      .daily-panel::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--panel-accent), rgba(255,255,255,0));
+      }
+      .daily-panel::after {
+        content: '';
+        position: absolute;
+        width: 140px;
+        height: 140px;
+        top: -48px;
+        right: -44px;
+        background: radial-gradient(circle, var(--panel-accent-soft) 0%, rgba(255,255,255,0) 72%);
+        pointer-events: none;
+      }
+      .daily-panel.total {
+        --panel-accent: #60a5fa;
+        --panel-accent-soft: rgba(96,165,250,0.18);
+      }
+      .daily-panel.noncod {
+        --panel-accent: #22c55e;
+        --panel-accent-soft: rgba(34,197,94,0.16);
+      }
+      .daily-panel.dfod {
+        --panel-accent: #f59e0b;
+        --panel-accent-soft: rgba(245,158,11,0.18);
+      }
+      .daily-panel-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+        position: relative;
+        z-index: 1;
+      }
+      .daily-panel-title {
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--dark);
+      }
+      .daily-panel-sub {
+        font-size: 0.68rem;
+        color: var(--gray);
+        margin-top: 5px;
+        font-weight: 600;
+      }
+      .daily-panel-series {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 10px;
+        position: relative;
+        z-index: 1;
+      }
+      .daily-series-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.78);
+        border: 1px solid rgba(226,232,240,0.95);
+        color: var(--gray);
+        font-size: 0.62rem;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+      }
+      .daily-series-chip .line {
+        width: 16px;
+        height: 3px;
+        border-radius: 999px;
+        flex-shrink: 0;
+        background: var(--series-color, #94a3b8);
+      }
+      .daily-panel-delta {
+        font-size: 0.68rem;
+        font-weight: 800;
+        text-align: right;
+        white-space: nowrap;
+        margin-top: 2px;
+      }
+      .daily-panel-delta.up { color: #15803d; }
+      .daily-panel-delta.down { color: #dc2626; }
+      .daily-panel-delta.flat { color: var(--gray); }
+      .daily-panel-value {
+        font-size: 0.92rem;
+        font-weight: 900;
+        color: var(--dark);
+        text-align: right;
+        line-height: 1.3;
+      }
+      .daily-panel-stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+        position: relative;
+        z-index: 1;
+      }
+      .daily-stat {
+        background: rgba(255,255,255,0.78);
+        border: 1px solid rgba(226,232,240,0.95);
+        border-radius: 12px;
+        padding: 8px 10px;
+      }
+      .daily-stat-label {
+        font-size: 0.58rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--gray2);
+      }
+      .daily-stat-value {
+        font-size: 0.66rem;
+        font-weight: 900;
+        color: var(--dark);
+        margin-top: 4px;
+        line-height: 1.35;
+      }
+      .daily-panel-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed rgba(148,163,184,0.4);
+        font-size: 0.66rem;
+        color: var(--gray);
+      }
+      .daily-panel-meta strong {
+        display: block;
+        color: var(--dark);
+        font-size: 0.7rem;
+        margin-top: 4px;
+      }
+      .daily-svg {
+        width: 100%;
+        height: auto;
+        display: block;
+        background: linear-gradient(180deg, #0f172a 0%, #162033 52%, #0d1a2d 100%);
+        border: 1px solid rgba(148,163,184,0.14);
+        border-radius: 16px;
+        padding: 10px 10px 8px 0;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 12px 28px rgba(15,23,42,0.18);
+      }
+      .daily-svg .trend-grid-line {
+        stroke: rgba(148,163,184,0.12);
+        stroke-dasharray: 3 4;
+      }
+      .daily-svg .trend-axis-label {
+        fill: rgba(203,213,225,0.7);
+        font-size: 8.5px;
+        font-weight: 700;
+      }
+      .trend-focus-line {
+        stroke: rgba(148,163,184,0.22);
+        stroke-width: 1;
+        stroke-dasharray: 4 4;
+      }
+      .trend-line-glow {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        opacity: 0.35;
+      }
+      .trend-point.minor {
+        stroke: rgba(15,23,42,0.5);
+        stroke-width: 2;
+        opacity: 1;
+        filter: drop-shadow(0 0 3px rgba(255,255,255,0.12));
+      }
+      .trend-point.end {
+        stroke: #ffffff;
+        stroke-width: 3;
+        filter: drop-shadow(0 0 8px rgba(255,255,255,0.28)) drop-shadow(0 4px 12px rgba(15,23,42,0.3));
+      }
+      .trend-end-label {
+        fill: rgba(255,255,255,0.92);
+        font-size: 8.5px;
+        font-weight: 800;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+      }
+      .compare-pills {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+        position: relative;
+        z-index: 1;
+        flex-wrap: wrap;
+      }
+      .compare-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(226,232,240,0.95);
+        background: rgba(255,255,255,0.72);
+        box-shadow: 0 6px 12px rgba(15,23,42,0.05);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .compare-pill .cp-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        flex-shrink: 0;
+      }
+      .compare-pill.previous {
+        background: rgba(15,23,42,0.06);
+        border: 1px solid rgba(148,163,184,0.28);
+        color: var(--gray);
+      }
+      .compare-pill.previous .cp-dot { background: #94a3b8; }
+      .compare-pill.current {
+        background: rgba(37,99,235,0.12);
+        border: 1px solid rgba(37,99,235,0.22);
+        color: #1d4ed8;
+      }
+      .compare-pill.current .cp-dot { background: #2563eb; }
+      .compare-pill.range {
+        background: rgba(15,23,42,0.05);
+        border: 1px solid rgba(148,163,184,0.2);
+        color: var(--gray);
+      }
+      .compare-pill.range .cp-dot { background: #0f172a; }
+      .compare-shell {
+        min-width: 920px;
+        display: grid;
+        grid-template-columns: 128px 1fr;
+        gap: 16px;
+        margin-top: 16px;
+        align-items: stretch;
+        position: relative;
+        z-index: 1;
+      }
+      .compare-scale {
+        position: relative;
+        min-height: 330px;
+      }
+      .compare-scale-label {
+        position: absolute;
+        right: 0;
+        transform: translateY(50%);
+        font-size: 0.64rem;
+        font-weight: 800;
+        color: #cbd5e1;
+        white-space: nowrap;
+      }
+      .compare-board {
+        position: relative;
+        min-height: 330px;
+        border-radius: 20px;
+        background: linear-gradient(180deg, #0f172a 0%, #18263e 100%);
+        border: 1px solid rgba(148,163,184,0.18);
+        overflow: hidden;
+        padding: 22px 22px 20px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 18px 36px rgba(15,23,42,0.14);
+      }
+      .compare-board::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at top left, rgba(96,165,250,0.14), transparent 24%),
+          radial-gradient(circle at bottom right, rgba(16,185,129,0.12), transparent 22%);
+        pointer-events: none;
+      }
+      .compare-grid-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: rgba(148,163,184,0.18);
+      }
+      .compare-groups {
+        position: relative;
+        z-index: 1;
+        height: 100%;
+        min-height: 286px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+        align-items: end;
+      }
+      .compare-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 14px;
+        height: 100%;
+      }
+      .compare-columns {
+        width: 100%;
+        height: 248px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        align-items: end;
+      }
+      .compare-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        height: 100%;
+      }
+      .compare-bar-wrap {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+      }
+      .compare-bar {
+        position: relative;
+        width: 100%;
+        min-height: 18px;
+        border-radius: 18px 18px 10px 10px;
+        border: 1px solid rgba(255,255,255,0.2);
+        box-shadow: 0 18px 28px rgba(15,23,42,0.28);
+      }
+      .compare-bar::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: linear-gradient(180deg, rgba(255,255,255,0.34), transparent 42%);
+        pointer-events: none;
+      }
+      .compare-bar.total.previous { background: linear-gradient(180deg, #93c5fd, #2563eb); opacity: 0.58; }
+      .compare-bar.total.current { background: linear-gradient(180deg, #60a5fa, #1d4ed8); }
+      .compare-bar.noncod.previous { background: linear-gradient(180deg, #86efac, #10b981); opacity: 0.58; }
+      .compare-bar.noncod.current { background: linear-gradient(180deg, #4ade80, #059669); }
+      .compare-bar.dfod.previous { background: linear-gradient(180deg, #fde68a, #f59e0b); opacity: 0.58; }
+      .compare-bar.dfod.current { background: linear-gradient(180deg, #fcd34d, #d97706); }
+      .compare-bar-value {
+        position: absolute;
+        left: 50%;
+        top: -42px;
+        transform: translateX(-50%);
+        padding: 6px 8px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.96);
+        color: var(--dark);
+        font-size: 0.69rem;
+        font-weight: 800;
+        white-space: nowrap;
+        box-shadow: 0 10px 20px rgba(15,23,42,0.16);
+      }
+      .compare-col-label {
+        font-size: 0.66rem;
+        font-weight: 800;
+        color: rgba(226,232,240,0.9);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        text-align: center;
+      }
+      .compare-group-label {
+        font-size: 0.74rem;
+        font-weight: 900;
+        color: rgba(255,255,255,0.96);
+        text-align: center;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+      }
+      .chart-title {
+        font-size: 0.84rem;
+        font-weight: 800;
+        color: var(--dark);
+        letter-spacing: -0.01em;
+      }
+      .chart-sub {
+        font-size: 0.72rem;
+        color: var(--gray2);
+        margin-top: 2px;
+      }
+      .bar-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .bar-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .bar-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .bar-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--dark);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .bar-value {
+        font-size: 0.72rem;
+        font-weight: 800;
+        color: var(--gray);
+        white-space: nowrap;
+      }
+      .bar-meta {
+        font-size: 0.66rem;
+        color: var(--gray2);
+      }
+      .bar-track {
+        width: 100%;
+        height: 10px;
+        border-radius: 999px;
+        background: #edf2f7;
+        overflow: hidden;
+      }
+      .bar-fill {
+        height: 100%;
+        border-radius: 999px;
+      }
+      .fill-blue { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+      .fill-green { background: linear-gradient(90deg, #10b981, #34d399); }
+      .fill-orange { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+      .insight-card {
+        margin-top: 12px;
+        background: linear-gradient(135deg, #eff6ff, #ecfeff);
+        border: 1px solid #bfdbfe;
+      }
+      .insight-list {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .insight-item {
+        background: rgba(255,255,255,0.8);
+        border-radius: 12px;
+        padding: 12px;
+        border: 1px solid rgba(191,219,254,0.7);
+      }
+      .insight-item .ii-label {
+        font-size: 0.68rem;
+        font-weight: 800;
+        color: var(--gray2);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .insight-item .ii-value {
+        font-size: 0.96rem;
+        font-weight: 900;
+        color: var(--dark);
+        margin-top: 6px;
+      }
+      .empty-note {
+        margin-top: 14px;
+        border-radius: 12px;
+        background: #f8fafc;
+        border: 1px dashed var(--gray3);
+        color: var(--gray2);
+        text-align: center;
+        padding: 22px 14px;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+      .frame-wrap {
+        background: rgba(255,255,255,0.7);
+        border-radius: 18px;
+        border: 1px solid rgba(226,232,240,0.9);
+        padding: 10px;
+        box-shadow: 0 10px 24px rgba(15,23,42,0.05);
+      }
+      .embedded-frame {
+        width: 100%;
+        min-height: calc(100vh - 196px);
+        border: none;
+        border-radius: 14px;
+        background: transparent;
+      }
+      @media (max-width: 1200px) {
+        .chart-grid { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 900px) {
+        .overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .insight-list { grid-template-columns: 1fr; }
+        .trend-legend { grid-template-columns: 1fr; }
+        .trend-period-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .compare-shell { min-width: 860px; }
+        .daily-compare-grid { min-width: 900px; }
+      }
+      @media (max-width: 640px) {
+        .shell-header { padding: 14px 14px 12px; }
+        .workspace-sync-wrap { padding: 10px 12px 0; }
+        .workspace-sync-banner {
+          border-radius: 16px;
+          align-items: flex-start;
+        }
+        .workspace { padding: 12px; }
+        .tab-row { top: 70px; }
+        .overview-grid { grid-template-columns: 1fr; }
+        .tab-btn { font-size: 0.74rem; padding: 10px 8px; }
+        .embedded-frame { min-height: calc(100vh - 186px); }
+        .shell-header-actions { width: 100%; margin-left: 0; }
+        .shell-tool { flex: 1; justify-content: center; }
+        .trend-period-grid { grid-template-columns: 1fr; }
+        .compare-shell { min-width: 780px; }
+        .daily-compare-grid { min-width: 820px; }
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div id="loadingScreen">
+      <div class="loading-spinner"></div>
+      <div class="loading-label">Memuat workspace...</div>
+    </div>
+
+    <div class="app" id="app">
+      <header class="shell-header">
+        <a href="/" class="back-btn" onclick="logoutWorkspace(event)"><i class="bi bi-arrow-left"></i></a>
+        <div class="sh-info">
+          <div class="sh-title">Maulagi Workspace</div>
+          <div class="sh-sub" id="workspaceStatus">Memuat ringkasan...</div>
+        </div>
+        <div class="shell-header-actions">
+          <button class="status-chip" id="statusChip" type="button" onclick="openLatestTransferModal()" disabled>Aktif</button>
+          <button class="shell-tool upload" id="shellUploadBtn" onclick="openWorkspaceUpload()" title="Upload file shipment"><i class="bi bi-file-earmark-arrow-up"></i><span>Upload</span></button>
+          <button class="shell-tool download" id="shellDownloadBtn" onclick="downloadWorkspaceFile()" title="Download rekap shipment"><i class="bi bi-download"></i><span>Download</span></button>
+        </div>
+      </header>
+
+      <div class="workspace-sync-wrap">
+        <div class="workspace-sync-banner" id="workspaceSyncBanner" data-tone="warn" aria-live="polite">
+          <span class="workspace-sync-dot"></span>
+          <div class="workspace-sync-copy">
+            <div class="workspace-sync-main" id="workspaceSyncMain">Memeriksa sinkron MauKirim...</div>
+            <div class="workspace-sync-sub" id="workspaceSyncSub">Status NONCOD dan DFOD akan tampil di sini.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="quick-modal" id="latestTransferModal" onclick="handleLatestTransferOverlay(event)">
+        <div class="quick-panel">
+          <div class="quick-head">
+            <div class="quick-head-left">
+              <div class="quick-head-icon"><i class="bi bi-clock-history"></i></div>
+              <div>
+                <div class="quick-head-title">Transfer Terakhir</div>
+                <div class="quick-head-sub">Detail transfer terakhir yang masuk hari ini</div>
+              </div>
+            </div>
+          </div>
+          <div class="quick-body">
+            <div class="quick-hero">
+              <div class="quick-hero-label">Transfer terakhir</div>
+              <div class="quick-hero-time" id="latestTransferTime">-</div>
+              <div class="quick-hero-name" id="latestTransferCabang">-</div>
+              <div class="quick-hero-meta">
+                <div class="quick-hero-chip">
+                  <span class="quick-hero-chip-label">Bank</span>
+                  <span class="quick-hero-chip-value" id="latestTransferBank">-</span>
+                </div>
+                <div class="quick-hero-chip amount">
+                  <span class="quick-hero-chip-label">Nominal</span>
+                  <span class="quick-hero-chip-value" id="latestTransferNominal">-</span>
+                </div>
+              </div>
+            </div>
+            <div class="quick-proof">
+              <div class="quick-proof-head">
+                <div class="quick-proof-label">Bukti Transfer</div>
+                <div class="quick-proof-badge" id="latestTransferProofBadge">Langsung</div>
+              </div>
+              <div class="quick-proof-box">
+                <img id="latestTransferProofImg" src="" alt="Bukti transfer terakhir" style="display:none">
+                <div class="quick-proof-empty" id="latestTransferProofEmpty">Bukti transfer tidak tersedia.</div>
+              </div>
+            </div>
+            <div class="quick-actions">
+              <button class="quick-btn ghost" type="button" onclick="closeLatestTransferModal()">Tutup</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <main class="workspace">
+        <div class="tab-row">
+          <button class="tab-btn active" id="tab-dashboard" onclick="setTab('dashboard')"><i class="bi bi-bar-chart-line me-1"></i>DASHBOARD</button>
+          <button class="tab-btn" id="tab-noncod" onclick="setTab('noncod')"><i class="bi bi-table me-1"></i>NONCOD</button>
+          <button class="tab-btn" id="tab-dfod" onclick="setTab('dfod')"><i class="bi bi-grid-1x2 me-1"></i>DFOD</button>
+          <button class="tab-btn" id="tab-admin" onclick="setTab('admin')"><i class="bi bi-sliders me-1"></i>ADMIN</button>
+        </div>
+
+        <section class="tab-panel active" id="panel-dashboard">
+          <div class="section-head">
+            <div>
+              <h2>Grafik Operasional</h2>
+            </div>
+            <button class="refresh-btn" id="refreshOverviewBtn" onclick="loadOverview(true)" title="Refresh grafik"><i class="bi bi-arrow-clockwise"></i></button>
+          </div>
+
+          <div class="overview-grid">
+            <div class="overview-card blue">
+              <div class="oc-label">Cabang Aktif</div>
+              <div class="oc-value" id="ovBranches">-</div>
+              <div class="oc-meta" id="ovBranchesMeta">Menghitung data...</div>
+            </div>
+            <div class="overview-card orange">
+              <div class="oc-label">Transaksi Bulan Ini</div>
+              <div class="oc-value" id="ovTransactions">-</div>
+              <div class="oc-meta" id="ovTransactionsMeta">Menghitung data...</div>
+            </div>
+            <div class="overview-card green">
+              <div class="oc-label">Transfer Bulan Ini</div>
+              <div class="oc-value" id="ovTotalMonth">-</div>
+              <div class="oc-meta" id="ovTotalMonthMeta">Menghitung data...</div>
+            </div>
+            <div class="overview-card red">
+              <div class="oc-label">Total Omset</div>
+              <div class="oc-value" id="ovCoverage">-</div>
+              <div class="oc-meta" id="ovCoverageMeta">Menghitung data...</div>
+            </div>
+          </div>
+
+          <div class="trend-card">
+            <div class="trend-head">
+              <div>
+                <h3 id="trendTitle">Perbandingan Harian Bulan Sebelumnya vs Bulan Aktif</h3>
+              </div>
+            </div>
+            <div class="trend-legend" id="trendLegend"></div>
+            <div class="trend-chart-wrap" id="trendChart"></div>
+            <div class="trend-period-grid" id="trendPeriods"></div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="panel-noncod">
+          <div class="frame-wrap">
+            <iframe id="frameNoncod" class="embedded-frame" title="Noncod Workspace" loading="lazy" data-src="/noncod.html?embed=1&mode=noncod" onload="handleEmbeddedFrameLoad('frameNoncod')"></iframe>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="panel-dfod">
+          <div class="frame-wrap">
+            <iframe id="frameDfod" class="embedded-frame" title="DFOD Workspace" loading="lazy" data-src="/noncod.html?embed=1&mode=dfod" onload="handleEmbeddedFrameLoad('frameDfod')"></iframe>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="panel-admin">
+          <div class="frame-wrap">
+            <iframe id="frameAdmin" class="embedded-frame" title="Admin Workspace" loading="lazy" data-src="/admin.html?embed=1"></iframe>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const SESSION_TIMEOUT = 60 * 60 * 1000;
+      const SESSION_CHECK_INTERVAL = 5000;
+      let currentTab = 'dashboard';
+      let refreshTimer = null;
+      let lastShipmentTab = 'noncod';
+      let pendingShellAction = null;
+
+      function hasActiveSession(prefix) {
+        const ts = parseInt(sessionStorage.getItem(prefix + 'AuthTs') || '0');
+        return !!sessionStorage.getItem(prefix + 'Auth') && ts && (Date.now() - ts <= SESSION_TIMEOUT);
+      }
+
+      function getActiveSessionPrefix() {
+        if (hasActiveSession('admin')) return 'admin';
+        if (hasActiveSession('dash')) return 'dash';
+        return '';
+      }
+
+      function setSessionTs(prefix = getActiveSessionPrefix()) {
+        if (!prefix) return;
+        sessionStorage.setItem(prefix + 'AuthTs', String(Date.now()));
+      }
+
+      function isSessionExpired(prefix = getActiveSessionPrefix()) {
+        if (!prefix) return true;
+        const ts = parseInt(sessionStorage.getItem(prefix + 'AuthTs') || '0');
+        return !ts || (Date.now() - ts > SESSION_TIMEOUT);
+      }
+
+      function isAdminWorkspace() {
+        return getActiveSessionPrefix() === 'admin';
+      }
+
+      function applyWorkspaceRoleUi() {
+        const adminMode = isAdminWorkspace();
+        document.getElementById('shellUploadBtn').style.display = adminMode ? '' : 'none';
+        document.getElementById('tab-admin').style.display = adminMode ? '' : 'none';
+        document.getElementById('panel-admin').style.display = adminMode ? '' : 'none';
+      }
+
+      function clearWorkspaceSessions() {
+        sessionStorage.removeItem('dashAuth');
+        sessionStorage.removeItem('dashAuthTs');
+        sessionStorage.removeItem('dashToken');
+        sessionStorage.removeItem('adminAuth');
+        sessionStorage.removeItem('adminAuthTs');
+        sessionStorage.removeItem('adminToken');
+      }
+
+      function doLogout() {
+        clearWorkspaceSessions();
+        location.replace('/');
+      }
+
+      function logoutWorkspace(event) {
+        event.preventDefault();
+        doLogout();
+      }
+
+      setInterval(() => {
+        const prefix = getActiveSessionPrefix();
+        if (prefix && isSessionExpired(prefix)) doLogout();
+      }, SESSION_CHECK_INTERVAL);
+
+      function hideLoading() {
+        document.getElementById('loadingScreen').classList.add('hide');
+        setTimeout(() => {
+          document.getElementById('loadingScreen').style.display = 'none';
+          document.getElementById('app').classList.add('show');
+        }, 250);
+      }
+
+      function getCurrentPeriode() {
+        return new Date().toLocaleDateString('en-CA', {
+          timeZone: 'Asia/Makassar',
+          year: 'numeric',
+          month: '2-digit'
+        }).slice(0, 7);
+      }
+
+      function getPeriodeLabel(periode) {
+        const bulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        const parts = String(periode || '').split('-');
+        if (parts.length !== 2) return periode || '-';
+        const idx = parseInt(parts[1], 10) - 1;
+        return (bulan[idx] || '-') + ' ' + parts[0];
+      }
+
+      function getPeriodeShortLabel(periode) {
+        const bulan = ['JAN','FEB','MAR','APR','MEI','JUN','JUL','AGU','SEP','OKT','NOV','DES'];
+        const parts = String(periode || '').split('-');
+        if (parts.length !== 2) return String(periode || '-').toUpperCase();
+        const idx = parseInt(parts[1], 10) - 1;
+        return (bulan[idx] || '-') + ' ' + parts[0];
+      }
+
+      function getRecentPeriodes(count, endPeriode = getCurrentPeriode()) {
+        const parts = String(endPeriode || '').split('-');
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        if (!year || !month) return [endPeriode];
+        const pad = value => String(value).padStart(2, '0');
+        const periods = [];
+        for (let offset = count - 1; offset >= 0; offset--) {
+          const dt = new Date(year, month - 1 - offset, 1);
+          periods.push(dt.getFullYear() + '-' + pad(dt.getMonth() + 1));
+        }
+        return periods;
+      }
+
+      function createMetric() {
+        return { grandOngkir: 0, grandTotal: 0, totalResi: 0, cabangCount: 0 };
+      }
+
+      function createSummaryGroup() {
+        return { noncod: createMetric(), dfod: createMetric(), all: createMetric() };
+      }
+
+      function fmtNominal(value) {
+        return 'Rp ' + Number(value || 0).toLocaleString('id-ID');
+      }
+
+      function fmtNominalCompact(value) {
+        const amount = Number(value || 0);
+        const absAmount = Math.abs(amount);
+        if (absAmount >= 1000000000) {
+          return 'Rp ' + (amount / 1000000000).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' M';
+        }
+        if (absAmount >= 1000000) {
+          return 'Rp ' + (amount / 1000000).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' jt';
+        }
+        if (absAmount >= 1000) {
+          return 'Rp ' + (amount / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' rb';
+        }
+        return 'Rp ' + amount.toLocaleString('id-ID');
+      }
+
+      function fmtCount(value) {
+        return Number(value || 0).toLocaleString('id-ID');
+      }
+
+      function getSyncTimeLabel(syncInfo) {
+        if (!syncInfo || !syncInfo.syncedAt) return '';
+        try {
+          return new Date(syncInfo.syncedAt).toLocaleTimeString('id-ID', {
+            timeZone: 'Asia/Makassar',
+            hour: '2-digit',
+            minute: '2-digit'
+          }) + ' WITA';
+        } catch {
+          return '';
+        }
+      }
+
+      function updateWorkspaceSyncBanner(syncInfo) {
+        const banner = document.getElementById('workspaceSyncBanner');
+        const main = document.getElementById('workspaceSyncMain');
+        const sub = document.getElementById('workspaceSyncSub');
+        if (!banner || !main || !sub) return;
+
+        if (!syncInfo) {
+          banner.dataset.tone = 'warn';
+          main.textContent = 'Status sinkron belum tersedia';
+          sub.textContent = 'Tunggu overview selesai dimuat.';
+          return;
+        }
+
+        const timeLabel = getSyncTimeLabel(syncInfo);
+        const stats = syncInfo.stats || {};
+        const statParts = [];
+        if (stats.noncod != null) statParts.push('NONCOD ' + fmtCount(stats.noncod) + ' resi');
+        if (stats.dfod != null) statParts.push('DFOD ' + fmtCount(stats.dfod) + ' resi');
+        const statsText = statParts.length ? statParts.join(' · ') : 'Status resi tidak tersedia';
+
+        if (syncInfo.error) {
+          banner.dataset.tone = 'error';
+          main.textContent = 'Sync MauKirim gagal, memakai data terakhir';
+          sub.textContent = statsText;
+          return;
+        }
+        if (!syncInfo.enabled) {
+          banner.dataset.tone = 'warn';
+          main.textContent = 'Auto-sync MauKirim belum aktif';
+          sub.textContent = 'Isi MAUKIRIM_WA dan MAUKIRIM_PASS di environment.';
+          return;
+        }
+        if (!syncInfo.eligible) {
+          banner.dataset.tone = 'warn';
+          main.textContent = 'Periode ini memakai data tersimpan';
+          sub.textContent = statsText;
+          return;
+        }
+        if (syncInfo.source === 'manual_upload') {
+          banner.dataset.tone = 'warn';
+          main.textContent = 'Data shipment berasal dari upload manual' + (timeLabel ? ' · ' + timeLabel : '');
+          sub.textContent = statsText;
+          return;
+        }
+
+        banner.dataset.tone = 'ok';
+        main.textContent = (syncInfo.performed ? 'Baru sinkron dari MauKirim' : 'Sinkron MauKirim aktif') + (timeLabel ? ' · ' + timeLabel : '');
+        sub.textContent = statsText;
+      }
+
+      let latestTransferDetail = null;
+
+      function setTrendHeading(title) {
+        const titleEl = document.getElementById('trendTitle');
+        if (titleEl) titleEl.textContent = title;
+      }
+
+      function setLatestTransferChip(detail) {
+        latestTransferDetail = detail || null;
+        const chip = document.getElementById('statusChip');
+        if (!chip) return;
+        if (!detail) {
+          chip.textContent = 'Belum ada transfer hari ini';
+          chip.disabled = true;
+          chip.classList.remove('clickable');
+          chip.title = '';
+          return;
+        }
+        chip.textContent = 'Transfer terakhir ' + (detail.jam || '-');
+        chip.disabled = false;
+        chip.classList.add('clickable');
+        chip.title = 'Klik untuk lihat detail transfer terakhir';
+      }
+
+      function openLatestTransferModal() {
+        if (!latestTransferDetail) return;
+        document.getElementById('latestTransferTime').textContent = latestTransferDetail.jam || '-';
+        document.getElementById('latestTransferCabang').textContent = latestTransferDetail.cabang || '-';
+        document.getElementById('latestTransferBank').textContent = latestTransferDetail.bank || '-';
+        document.getElementById('latestTransferNominal').textContent = fmtNominal(latestTransferDetail.nominal || 0);
+        const proofImg = document.getElementById('latestTransferProofImg');
+        const proofEmpty = document.getElementById('latestTransferProofEmpty');
+        const hasProof = !!latestTransferDetail.bukti;
+        if (hasProof) {
+          proofImg.src = latestTransferDetail.bukti;
+          proofImg.style.display = 'block';
+          proofEmpty.style.display = 'none';
+        } else {
+          proofImg.removeAttribute('src');
+          proofImg.style.display = 'none';
+          proofEmpty.style.display = 'block';
+        }
+        document.getElementById('latestTransferModal').classList.add('show');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeLatestTransferModal() {
+        document.getElementById('latestTransferModal').classList.remove('show');
+        document.getElementById('latestTransferProofImg').removeAttribute('src');
+        document.body.style.overflow = '';
+      }
+
+      function handleLatestTransferOverlay(event) {
+        if (event.target && event.target.id === 'latestTransferModal') closeLatestTransferModal();
+      }
+
+      function setDefaultTrendHeading() {
+        const periode = getCurrentPeriode();
+        const [prevPeriode] = getRecentPeriodes(2, periode);
+        setTrendHeading('Perbandingan Harian ' + getPeriodeLabel(prevPeriode) + ' vs ' + getPeriodeLabel(periode));
+      }
+
+      function buildTrendAreaPath(points, baselineY) {
+        if (!points.length) return '';
+        return 'M' + points[0].x.toFixed(2) + ' ' + baselineY.toFixed(2) + ' ' +
+          points.map(point => 'L' + point.x.toFixed(2) + ' ' + point.y.toFixed(2)).join(' ') + ' ' +
+          'L' + points[points.length - 1].x.toFixed(2) + ' ' + baselineY.toFixed(2) + ' Z';
+      }
+
+      function smoothPath(coords) {
+        if (coords.length < 2) return coords.map((p,i) => (i===0?'M':'L')+p.x.toFixed(2)+' '+p.y.toFixed(2)).join(' ');
+        if (coords.length === 2) return 'M'+coords[0].x.toFixed(2)+' '+coords[0].y.toFixed(2)+' L'+coords[1].x.toFixed(2)+' '+coords[1].y.toFixed(2);
+        const t = 0.35;
+        let d = 'M'+coords[0].x.toFixed(2)+' '+coords[0].y.toFixed(2);
+        for (let i = 0; i < coords.length - 1; i++) {
+          const p0 = coords[Math.max(i-1,0)];
+          const p1 = coords[i];
+          const p2 = coords[i+1];
+          const p3 = coords[Math.min(i+2, coords.length-1)];
+          const cp1x = p1.x + (p2.x - p0.x) * t;
+          const cp1y = p1.y + (p2.y - p0.y) * t;
+          const cp2x = p2.x - (p3.x - p1.x) * t;
+          const cp2y = p2.y - (p3.y - p1.y) * t;
+          d += ' C'+cp1x.toFixed(2)+','+cp1y.toFixed(2)+' '+cp2x.toFixed(2)+','+cp2y.toFixed(2)+' '+p2.x.toFixed(2)+','+p2.y.toFixed(2);
+        }
+        return d;
+      }
+
+      function smoothAreaPath(coords, baselineY) {
+        if (!coords.length) return '';
+        const linePath = smoothPath(coords);
+        return linePath + ' L'+coords[coords.length-1].x.toFixed(2)+' '+baselineY.toFixed(2)+' L'+coords[0].x.toFixed(2)+' '+baselineY.toFixed(2)+' Z';
+      }
+
+      function escHtml(value) {
+        return String(value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function formatDelta(current, previous) {
+        const now = Number(current || 0);
+        const prev = Number(previous || 0);
+        if (!prev && !now) return { text: 'Stabil 0%', cls: 'flat' };
+        if (!prev) return { text: 'Naik +100%', cls: 'up' };
+        const pct = ((now - prev) / prev) * 100;
+        if (Math.abs(pct) < 0.05) return { text: 'Stabil 0%', cls: 'flat' };
+        const sign = pct > 0 ? '+' : '';
+        return {
+          text: (pct > 0 ? 'Naik ' : 'Turun ') + sign + pct.toLocaleString('id-ID', { maximumFractionDigits: 1 }) + '%',
+          cls: pct > 0 ? 'up' : 'down'
+        };
+      }
+
+      function getMaxDailyDay(dayMap) {
+        return Math.max(0, ...Object.keys(dayMap || {}).map(key => parseInt(key, 10) || 0));
+      }
+
+      function extractDailyTotals(byDay, periode) {
+        const prefix = String(periode || '') + '-';
+        const result = {};
+        Object.keys(byDay || {}).forEach(day => {
+          if (!String(day).startsWith(prefix)) return;
+          const dayNum = parseInt(String(day).slice(8, 10), 10);
+          if (!dayNum) return;
+          const totals = Object.values(byDay[day] || {}).reduce((acc, item) => {
+            acc.ongkir += Number(item.ongkir || 0);
+            acc.total += Number(item.total || 0);
+            acc.resi += Number(item.resi || 0);
+            return acc;
+          }, { ongkir: 0, total: 0, resi: 0 });
+          result[dayNum] = totals;
+        });
+        return result;
+      }
+
+      function hasDailyRows(dayMap) {
+        return Object.keys(dayMap || {}).length > 0;
+      }
+
+      function sumDailyMetric(dayMap, metric) {
+        return Object.values(dayMap || {}).reduce((sum, item) => sum + Number((item && item[metric]) || 0), 0);
+      }
+
+      function getPeakDailyPoint(values, dayLabels) {
+        const numbers = (values || []).map(value => Number(value || 0));
+        const maxValue = Math.max(0, ...numbers);
+        if (!maxValue) return { day: '-', value: 0 };
+        const index = numbers.indexOf(maxValue);
+        return { day: dayLabels[index] || '-', value: maxValue };
+      }
+
+      function mergeDailyMetric(dayMapA, dayMapB, metric) {
+        const keys = new Set([...Object.keys(dayMapA || {}), ...Object.keys(dayMapB || {})]);
+        const merged = {};
+        keys.forEach(key => {
+          merged[key] = Number((dayMapA[key] && dayMapA[key][metric]) || 0) + Number((dayMapB[key] && dayMapB[key][metric]) || 0);
+        });
+        return merged;
+      }
+
+      async function fetchShipmentModeDataset(periode, mode) {
+        try {
+          const res = await fetch('/api/noncod?periode=' + encodeURIComponent(periode) + '&mode=' + encodeURIComponent(mode));
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.error || ('Gagal memuat ' + mode + ' ' + periode));
+          return { periode, mode, byDay: json.byDay || {}, monthSummary: json.monthSummary || createSummaryGroup(), syncInfo: json.syncInfo || null };
+        } catch (err) {
+          return { periode, mode, byDay: {}, monthSummary: createSummaryGroup(), syncInfo: { error: err.message }, error: err.message };
+        }
+      }
+
+      function renderTrendOverview(compareData) {
+        const legendEl = document.getElementById('trendLegend');
+        const chartEl = document.getElementById('trendChart');
+        const periodsEl = document.getElementById('trendPeriods');
+        const metricDefs = [
+          { key: 'total', label: 'Total Omset', currentColor: '#60a5fa', previousColor: '#475569' },
+          { key: 'noncod', label: 'NONCOD', currentColor: '#4ade80', previousColor: '#475569' },
+          { key: 'dfod', label: 'DFOD', currentColor: '#fbbf24', previousColor: '#475569' },
+        ];
+
+        if (!compareData || !compareData.dayLabels || !compareData.dayLabels.length) {
+          setDefaultTrendHeading();
+          legendEl.innerHTML = '';
+          chartEl.innerHTML = '<div class="empty-note">Belum ada data shipment untuk grafik periode terakhir.</div>';
+          periodsEl.innerHTML = '';
+          return;
+        }
+
+        setTrendHeading('Perbandingan Harian ' + compareData.previousLabel + ' vs ' + compareData.currentLabel);
+
+        legendEl.innerHTML = metricDefs.map(item => {
+          const value = Number(compareData.currentTotals[item.key] || 0);
+          const delta = formatDelta(value, compareData.previousTotals[item.key] || 0);
+          return '<div class="trend-legend-item">' +
+            '<span class="trend-dot ' + (item.key === 'total' ? 'total' : item.key) + '"></span>' +
+            '<div>' +
+              '<div class="trend-series-label">' + item.label + '</div>' +
+              '<div class="trend-series-value">' + fmtNominalCompact(value) + '</div>' +
+              '<div class="trend-series-caption">' + escHtml(compareData.currentLabel) + ' vs ' + escHtml(compareData.previousLabel) + '</div>' +
+              '<div class="trend-series-delta ' + delta.cls + '">' + delta.text + '</div>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+
+        const comparePills = '<div class="compare-pills">' +
+          '<span class="compare-pill previous"><span class="cp-dot"></span>' + escHtml(compareData.previousLabel) + '</span>' +
+          '<span class="compare-pill current"><span class="cp-dot"></span>' + escHtml(compareData.currentLabel) + '</span>' +
+          '<span class="compare-pill range"><span class="cp-dot"></span>Hari 1-' + compareData.dayLabels[compareData.dayLabels.length - 1] + '</span>' +
+        '</div>';
+
+        const panelHtml = metricDefs.map(item => {
+          const previousPoints = compareData.daily[item.key].previous;
+          const currentPoints = compareData.daily[item.key].current;
+          const previousPeak = getPeakDailyPoint(previousPoints, compareData.dayLabels);
+          const currentPeak = getPeakDailyPoint(currentPoints, compareData.dayLabels);
+          const maxValue = Math.max(1, ...previousPoints, ...currentPoints);
+          const dayCount = compareData.dayLabels.length;
+          const width = Math.max(320, 44 * dayCount);
+          const height = 260;
+          const left = 46;
+          const right = 16;
+          const top = 18;
+          const bottom = 34;
+          const plotWidth = width - left - right;
+          const plotHeight = height - top - bottom;
+          const stepX = dayCount > 1 ? plotWidth / (dayCount - 1) : 0;
+          const getX = index => dayCount > 1 ? left + (stepX * index) : left + (plotWidth / 2);
+          const getY = value => top + plotHeight - ((Number(value || 0) / maxValue) * plotHeight);
+          const yTickCount = 5;
+          const yTicks = Array.from({length: yTickCount + 1}, (_, i) => Math.round(maxValue * (i / yTickCount)));
+          const grid = yTicks.map(value => {
+            const y = getY(value);
+            return '<line class="trend-grid-line" x1="' + left + '" y1="' + y.toFixed(2) + '" x2="' + (width - right) + '" y2="' + y.toFixed(2) + '"></line>' +
+              (value > 0 ? '<text class="trend-axis-label" x="' + (left - 6) + '" y="' + (y + 3).toFixed(2) + '" text-anchor="end">' + escHtml(fmtNominalCompact(value)) + '</text>' : '');
+          }).join('');
+          const xTicks = compareData.dayLabels.map((label, index) => '<text class="trend-axis-label" x="' + getX(index).toFixed(2) + '" y="' + (height - 10) + '" text-anchor="middle">' + escHtml(String(label)) + '</text>').join('');
+          const prevCoords = previousPoints.map((value, index) => ({ x: getX(index), y: getY(value), value }));
+          const currCoords = currentPoints.map((value, index) => ({ x: getX(index), y: getY(value), value }));
+          const baseY = top + plotHeight;
+          const prevAreaD = smoothAreaPath(prevCoords, baseY);
+          const currAreaD = smoothAreaPath(currCoords, baseY);
+          const prevPathD = smoothPath(prevCoords);
+          const currPathD = smoothPath(currCoords);
+          const prevMinorDots = prevCoords.slice(0, -1).map(p => '<circle class="trend-point minor" cx="' + p.x.toFixed(2) + '" cy="' + p.y.toFixed(2) + '" r="3" fill="' + item.previousColor + '"></circle>').join('');
+          const currMinorDots = currCoords.slice(0, -1).map(p => '<circle class="trend-point minor" cx="' + p.x.toFixed(2) + '" cy="' + p.y.toFixed(2) + '" r="3.2" fill="' + item.currentColor + '"></circle>').join('');
+          const prevEnd = prevCoords.length ? prevCoords[prevCoords.length - 1] : null;
+          const currEnd = currCoords.length ? currCoords[currCoords.length - 1] : null;
+          const prevEndDot = prevEnd ? '<circle class="trend-point end" cx="' + prevEnd.x.toFixed(2) + '" cy="' + prevEnd.y.toFixed(2) + '" r="5" fill="' + item.previousColor + '"></circle>' + '<text class="trend-end-label" x="' + (prevEnd.x + 1).toFixed(2) + '" y="' + (prevEnd.y - 9).toFixed(2) + '" text-anchor="middle">' + escHtml(fmtNominalCompact(prevEnd.value)) + '</text>' : '';
+          const currEndDot = currEnd ? '<circle class="trend-point end" cx="' + currEnd.x.toFixed(2) + '" cy="' + currEnd.y.toFixed(2) + '" r="5.5" fill="' + item.currentColor + '"></circle>' + '<text class="trend-end-label" x="' + (currEnd.x + 1).toFixed(2) + '" y="' + (currEnd.y - 9).toFixed(2) + '" text-anchor="middle">' + escHtml(fmtNominalCompact(currEnd.value)) + '</text>' : '';
+          const focusX = getX(dayCount - 1);
+          const prevGradId = 'gPrev' + item.key;
+          const currGradId = 'gCurr' + item.key;
+          const delta = formatDelta(compareData.currentTotals[item.key], compareData.previousTotals[item.key]);
+          return '<div class="daily-panel ' + item.key + '">' +
+            '<div class="daily-panel-head">' +
+              '<div>' +
+                '<div class="daily-panel-title">' + item.label + '</div>' +
+                '<div class="daily-panel-sub">Hari 1-' + compareData.dayLabels[compareData.dayLabels.length - 1] + ' · ' + escHtml(compareData.previousShortLabel) + ' vs ' + escHtml(compareData.currentShortLabel) + '</div>' +
+              '</div>' +
+              '<div>' +
+                '<div class="daily-panel-value">' + fmtNominalCompact(compareData.currentTotals[item.key]) + '</div>' +
+                '<div class="daily-panel-delta ' + delta.cls + '">' + delta.text + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="daily-panel-series">' +
+              '<span class="daily-series-chip" style="--series-color:' + item.previousColor + '"><span class="line"></span>' + escHtml(compareData.previousShortLabel) + '</span>' +
+              '<span class="daily-series-chip" style="--series-color:' + item.currentColor + '"><span class="line"></span>' + escHtml(compareData.currentShortLabel) + '</span>' +
+            '</div>' +
+            '<svg class="daily-svg" viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="xMidYMid meet">' +
+              '<defs>' +
+                '<linearGradient id="' + prevGradId + '" x1="0" y1="0" x2="0" y2="1">' +
+                  '<stop offset="0%" stop-color="' + item.previousColor + '" stop-opacity="0.28"></stop>' +
+                  '<stop offset="60%" stop-color="' + item.previousColor + '" stop-opacity="0.06"></stop>' +
+                  '<stop offset="100%" stop-color="' + item.previousColor + '" stop-opacity="0"></stop>' +
+                '</linearGradient>' +
+                '<linearGradient id="' + currGradId + '" x1="0" y1="0" x2="0" y2="1">' +
+                  '<stop offset="0%" stop-color="' + item.currentColor + '" stop-opacity="0.38"></stop>' +
+                  '<stop offset="60%" stop-color="' + item.currentColor + '" stop-opacity="0.08"></stop>' +
+                  '<stop offset="100%" stop-color="' + item.currentColor + '" stop-opacity="0"></stop>' +
+                '</linearGradient>' +
+              '</defs>' +
+              grid +
+              '<line class="trend-focus-line" x1="' + focusX.toFixed(2) + '" y1="' + top + '" x2="' + focusX.toFixed(2) + '" y2="' + baseY + '"></line>' +
+              '<path class="trend-area" d="' + prevAreaD + '" fill="url(#' + prevGradId + ')"></path>' +
+              '<path class="trend-area" d="' + currAreaD + '" fill="url(#' + currGradId + ')"></path>' +
+              '<path class="trend-line-glow" d="' + prevPathD + '" style="stroke:' + item.previousColor + ';stroke-width:10"></path>' +
+              '<path class="trend-line-glow" d="' + currPathD + '" style="stroke:' + item.currentColor + ';stroke-width:12"></path>' +
+              '<path class="trend-line" d="' + prevPathD + '" style="stroke:' + item.previousColor + ';stroke-width:2.8;opacity:0.7"></path>' +
+              '<path class="trend-line" d="' + currPathD + '" style="stroke:' + item.currentColor + ';stroke-width:3.5"></path>' +
+              prevMinorDots +
+              currMinorDots +
+              prevEndDot +
+              currEndDot +
+              xTicks +
+            '</svg>' +
+            '<div class="daily-panel-stats">' +
+              '<div class="daily-stat">' +
+                '<div class="daily-stat-label">Puncak ' + escHtml(compareData.previousShortLabel) + '</div>' +
+                '<div class="daily-stat-value">Hari ' + previousPeak.day + ' · ' + fmtNominalCompact(previousPeak.value) + '</div>' +
+              '</div>' +
+              '<div class="daily-stat">' +
+                '<div class="daily-stat-label">Puncak ' + escHtml(compareData.currentShortLabel) + '</div>' +
+                '<div class="daily-stat-value">Hari ' + currentPeak.day + ' · ' + fmtNominalCompact(currentPeak.value) + '</div>' +
+              '</div>' +
+              '<div class="daily-stat">' +
+                '<div class="daily-stat-label">Rata-rata / Hari</div>' +
+                '<div class="daily-stat-value">' + fmtNominalCompact(Math.round(compareData.currentTotals[item.key] / Math.max(compareData.dayLabels.length, 1))) + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="daily-panel-meta">' +
+              '<div>' + escHtml(compareData.previousLabel) + '<strong>' + fmtNominalCompact(compareData.previousTotals[item.key]) + '</strong></div>' +
+              '<div style="text-align:right">' + escHtml(compareData.currentLabel) + '<strong>' + fmtNominalCompact(compareData.currentTotals[item.key]) + '</strong></div>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+
+        chartEl.innerHTML = comparePills + '<div class="daily-compare-grid">' + panelHtml + '</div>';
+
+        periodsEl.innerHTML = compareData.summaryCards.map((row, index) => '<div class="trend-period-item' + (index === compareData.summaryCards.length - 1 ? ' current' : '') + '">' +
+          '<div class="tp-label">' + escHtml(row.label) + '</div>' +
+          '<div class="tp-value">' + fmtNominalCompact(row.total) + '</div>' +
+          '<div class="tp-meta">NONCOD ' + fmtNominalCompact(row.noncod) + '<br>DFOD ' + fmtNominalCompact(row.dfod) + '<br>Hari 1-' + compareData.dayLabels[compareData.dayLabels.length - 1] + '</div>' +
+        '</div>').join('');
+      }
+
+      function renderBars(targetId, items, colorClass, formatter, emptyText) {
+        const el = document.getElementById(targetId);
+        if (!el) return;
+        if (!items.length) {
+          el.innerHTML = '<div class="empty-note">' + escHtml(emptyText) + '</div>';
+          return;
+        }
+        const max = Math.max(...items.map(item => item.value), 1);
+        el.innerHTML = items.map(item => {
+          const width = Math.max(6, Math.round((item.value / max) * 100));
+          return '<div class="bar-item">' +
+            '<div class="bar-head">' +
+              '<div class="bar-label" title="' + escHtml(item.label) + '">' + escHtml(item.label) + '</div>' +
+              '<div class="bar-value">' + formatter(item.value) + '</div>' +
+            '</div>' +
+            (item.meta ? '<div class="bar-meta">' + escHtml(item.meta) + '</div>' : '') +
+            '<div class="bar-track"><div class="bar-fill ' + colorClass + '" style="width:' + width + '%"></div></div>' +
+          '</div>';
+        }).join('');
+      }
+
+      function loadFrame(frameId) {
+        const frame = document.getElementById(frameId);
+        if (frame && !frame.src) frame.src = frame.dataset.src;
+      }
+
+      function getShipmentTargetTab() {
+        return currentTab === 'dfod' ? 'dfod' : currentTab === 'noncod' ? 'noncod' : lastShipmentTab;
+      }
+
+      function getShipmentFrameId(tab) {
+        return tab === 'dfod' ? 'frameDfod' : 'frameNoncod';
+      }
+
+      function runEmbeddedAction(tab, action) {
+        const frame = document.getElementById(getShipmentFrameId(tab));
+        if (!frame || !frame.contentWindow) return false;
+        const fnName = action === 'upload' ? 'toggleUpload' : 'downloadXlsx';
+        const fn = frame.contentWindow[fnName];
+        if (typeof fn !== 'function') return false;
+        fn.call(frame.contentWindow);
+        return true;
+      }
+
+      function triggerShipmentAction(action) {
+        if (action === 'upload' && !isAdminWorkspace()) return;
+        const targetTab = getShipmentTargetTab();
+        if (currentTab !== 'noncod' && currentTab !== 'dfod') {
+          setTab(targetTab);
+          if (runEmbeddedAction(targetTab, action)) {
+            pendingShellAction = null;
+            return;
+          }
+          pendingShellAction = { tab: targetTab, action };
+          loadFrame(getShipmentFrameId(targetTab));
+          return;
+        }
+        if (runEmbeddedAction(targetTab, action)) return;
+        pendingShellAction = { tab: targetTab, action };
+        loadFrame(getShipmentFrameId(targetTab));
+      }
+
+      function openWorkspaceUpload() {
+        triggerShipmentAction('upload');
+      }
+
+      function downloadWorkspaceFile() {
+        triggerShipmentAction('download');
+      }
+
+      function handleEmbeddedFrameLoad(frameId) {
+        if (!pendingShellAction) return;
+        const targetFrameId = getShipmentFrameId(pendingShellAction.tab);
+        if (frameId !== targetFrameId) return;
+        if (runEmbeddedAction(pendingShellAction.tab, pendingShellAction.action)) {
+          pendingShellAction = null;
+        }
+      }
+
+      function setTab(tab, updateHash = true) {
+        const validTabs = isAdminWorkspace() ? ['dashboard', 'noncod', 'dfod', 'admin'] : ['dashboard', 'noncod', 'dfod'];
+        currentTab = validTabs.includes(tab) ? tab : 'dashboard';
+        if (currentTab === 'noncod' || currentTab === 'dfod') lastShipmentTab = currentTab;
+        validTabs.forEach(name => {
+          document.getElementById('tab-' + name).classList.toggle('active', name === currentTab);
+          document.getElementById('panel-' + name).classList.toggle('active', name === currentTab);
+        });
+        if (updateHash) history.replaceState(null, '', '#' + currentTab);
+        if (currentTab === 'noncod') loadFrame('frameNoncod');
+        if (currentTab === 'dfod') loadFrame('frameDfod');
+        if (currentTab === 'admin' && isAdminWorkspace()) loadFrame('frameAdmin');
+        if (currentTab === 'dashboard') loadOverview(false);
+      }
+
+      function applyHashTab() {
+        const hash = (location.hash || '#dashboard').replace('#', '');
+        setTab(hash, false);
+      }
+
+      async function loadOverview(forceSpin) {
+        const btn = document.getElementById('refreshOverviewBtn');
+        if (forceSpin) btn.classList.add('spinning');
+        try {
+          const periode = getCurrentPeriode();
+          const [prevPeriode] = getRecentPeriodes(2, periode);
+          const [dashRes, currentNoncod, currentDfod, prevNoncod, prevDfod] = await Promise.all([
+            fetch('/api/dashboard'),
+            fetchShipmentModeDataset(periode, 'noncod'),
+            fetchShipmentModeDataset(periode, 'dfod'),
+            fetchShipmentModeDataset(prevPeriode, 'noncod'),
+            fetchShipmentModeDataset(prevPeriode, 'dfod')
+          ]);
+
+          const dashJson = await dashRes.json();
+          if (!dashRes.ok) throw new Error(dashJson.error || 'Gagal memuat dashboard');
+
+          const byCabang = dashJson.byCabang || {};
+          const todayList = dashJson.todayList || [];
+          const branchTotals = [];
+          let monthTotal = 0;
+          let monthTransactions = 0;
+
+          Object.keys(byCabang).forEach(cabang => {
+            const list = (byCabang[cabang].list || []).filter(item => item.periode === periode);
+            if (!list.length) return;
+            const total = list.reduce((sum, item) => sum + (item.nominal || 0), 0);
+            monthTotal += total;
+            monthTransactions += list.length;
+            branchTotals.push({ label: cabang, value: total, meta: list.length + ' transaksi' });
+          });
+
+          branchTotals.sort((a, b) => b.value - a.value);
+
+          const currentNoncodDays = extractDailyTotals(currentNoncod.byDay, periode);
+          const currentDfodDays = extractDailyTotals(currentDfod.byDay, periode);
+          let previousNoncodDays = extractDailyTotals(prevNoncod.byDay, prevPeriode);
+          let previousDfodDays = extractDailyTotals(prevDfod.byDay, prevPeriode);
+          if (!hasDailyRows(previousNoncodDays)) previousNoncodDays = extractDailyTotals(currentNoncod.byDay, prevPeriode);
+          if (!hasDailyRows(previousDfodDays)) previousDfodDays = extractDailyTotals(currentDfod.byDay, prevPeriode);
+
+          const currentMaxDay = Math.max(getMaxDailyDay(currentNoncodDays), getMaxDailyDay(currentDfodDays));
+          const previousMaxDay = Math.max(getMaxDailyDay(previousNoncodDays), getMaxDailyDay(previousDfodDays));
+          const dayLimit = currentMaxDay || previousMaxDay;
+          const dayLabels = Array.from({ length: dayLimit }, (_, index) => index + 1);
+
+          const currentSeries = {
+            noncod: dayLabels.map(day => Number((currentNoncodDays[day] && currentNoncodDays[day].ongkir) || 0)),
+            dfod: dayLabels.map(day => Number((currentDfodDays[day] && currentDfodDays[day].ongkir) || 0)),
+          };
+          currentSeries.total = currentSeries.noncod.map((value, index) => value + currentSeries.dfod[index]);
+
+          const previousSeries = {
+            noncod: dayLabels.map(day => Number((previousNoncodDays[day] && previousNoncodDays[day].ongkir) || 0)),
+            dfod: dayLabels.map(day => Number((previousDfodDays[day] && previousDfodDays[day].ongkir) || 0)),
+          };
+          previousSeries.total = previousSeries.noncod.map((value, index) => value + previousSeries.dfod[index]);
+
+          const totalNoncod = sumDailyMetric(currentNoncodDays, 'ongkir');
+          const totalDfod = sumDailyMetric(currentDfodDays, 'ongkir');
+          const totalOmset = totalNoncod + totalDfod;
+
+          const compareData = dayLimit ? {
+            previousLabel: getPeriodeLabel(prevPeriode),
+            previousShortLabel: getPeriodeShortLabel(prevPeriode),
+            currentLabel: getPeriodeLabel(periode),
+            currentShortLabel: getPeriodeShortLabel(periode),
+            dayLabels,
+            currentTotals: {
+              total: currentSeries.total.reduce((sum, value) => sum + value, 0),
+              noncod: currentSeries.noncod.reduce((sum, value) => sum + value, 0),
+              dfod: currentSeries.dfod.reduce((sum, value) => sum + value, 0),
+            },
+            previousTotals: {
+              total: previousSeries.total.reduce((sum, value) => sum + value, 0),
+              noncod: previousSeries.noncod.reduce((sum, value) => sum + value, 0),
+              dfod: previousSeries.dfod.reduce((sum, value) => sum + value, 0),
+            },
+            daily: {
+              total: { previous: previousSeries.total, current: currentSeries.total },
+              noncod: { previous: previousSeries.noncod, current: currentSeries.noncod },
+              dfod: { previous: previousSeries.dfod, current: currentSeries.dfod },
+            },
+            summaryCards: [
+              { label: getPeriodeShortLabel(prevPeriode), total: previousSeries.total.reduce((sum, value) => sum + value, 0), noncod: previousSeries.noncod.reduce((sum, value) => sum + value, 0), dfod: previousSeries.dfod.reduce((sum, value) => sum + value, 0) },
+              { label: getPeriodeShortLabel(periode), total: currentSeries.total.reduce((sum, value) => sum + value, 0), noncod: currentSeries.noncod.reduce((sum, value) => sum + value, 0), dfod: currentSeries.dfod.reduce((sum, value) => sum + value, 0) },
+            ]
+          } : null;
+
+          document.getElementById('workspaceStatus').textContent = 'Periode aktif: ' + getPeriodeLabel(periode) + ' · Update ' + (dashJson.lastUpdate || '-');
+          updateWorkspaceSyncBanner(currentNoncod.syncInfo || currentDfod.syncInfo || null);
+          setLatestTransferChip(dashJson.todayList && dashJson.todayList.length ? dashJson.todayList[dashJson.todayList.length - 1] : null);
+
+          document.getElementById('ovBranches').textContent = Number(branchTotals.length).toLocaleString('id-ID');
+          document.getElementById('ovBranchesMeta').textContent = 'Cabang dengan transfer pada ' + getPeriodeLabel(periode);
+
+          document.getElementById('ovTransactions').textContent = Number(monthTransactions).toLocaleString('id-ID');
+          document.getElementById('ovTransactionsMeta').textContent = 'Total transaksi pada periode aktif';
+
+          document.getElementById('ovTotalMonth').textContent = fmtNominal(monthTotal);
+          document.getElementById('ovTotalMonthMeta').textContent = getPeriodeLabel(periode) + ' · ' + fmtNominal(monthTotal);
+
+          document.getElementById('ovCoverage').textContent = fmtNominal(totalOmset);
+          document.getElementById('ovCoverageMeta').textContent = totalOmset > 0
+            ? ('NONCOD ' + fmtNominal(totalNoncod) + ' · DFOD ' + fmtNominal(totalDfod))
+            : 'Omset shipment belum tersedia';
+
+          renderTrendOverview(compareData);
+        } catch (err) {
+          document.getElementById('workspaceStatus').textContent = 'Gagal memuat overview: ' + err.message;
+          updateWorkspaceSyncBanner({ error: err.message });
+          setLatestTransferChip(null);
+          document.getElementById('statusChip').textContent = 'Perlu refresh';
+          renderTrendOverview(null);
+        } finally {
+          btn.classList.remove('spinning');
+        }
+      }
+
+      async function boot() {
+        const activePrefix = getActiveSessionPrefix();
+        if (!activePrefix || isSessionExpired(activePrefix)) {
+          clearWorkspaceSessions();
+          try {
+            const targetRole = location.hash === '#admin' ? 'admin' : 'dashboard';
+            const authKey = targetRole === 'admin' ? 'admin_password' : 'dashboard_password';
+            const res = await fetch('/api/auth?key=' + authKey);
+            const json = await res.json();
+            if (json.hasPassword) {
+              location.replace('/');
+              return;
+            }
+            if (targetRole === 'admin') {
+              sessionStorage.setItem('adminAuth', '1');
+              sessionStorage.setItem('adminToken', '');
+              setSessionTs('admin');
+            } else {
+              sessionStorage.setItem('dashAuth', '1');
+              sessionStorage.setItem('dashToken', '');
+              setSessionTs('dash');
+            }
+          } catch {
+            location.replace('/');
+            return;
+          }
+        }
+
+        applyWorkspaceRoleUi();
+        setDefaultTrendHeading();
+        hideLoading();
+        applyHashTab();
+        await loadOverview(false);
+        if (refreshTimer) clearInterval(refreshTimer);
+        refreshTimer = setInterval(() => {
+          if (currentTab === 'dashboard') loadOverview(false);
+        }, 180000);
+      }
+
+      window.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeLatestTransferModal();
+      });
+      window.addEventListener('hashchange', applyHashTab);
+      window.onload = boot;
+    </script>
+  </body>
+</html>

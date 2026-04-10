@@ -1,0 +1,1909 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg: #f0f2f7; --card: #ffffff; --dark: #0f172a; --dark2: #1e293b;
+        --blue: #3b82f6; --green: #10b981; --red: #ef4444; --orange: #f59e0b;
+        --gray: #64748b; --gray2: #94a3b8; --gray3: #cbd5e1; --border: #e2e8f0; --radius: 14px;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background: var(--bg); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; padding: 0 0 40px; color: var(--dark); -webkit-font-smoothing: antialiased; }
+      body.embed { padding-bottom: 0; }
+      body.embed .top-bar a:first-child { display: none; }
+      body.embed .page-wrap { max-width: none; padding-top: 16px; }
+
+      /* ── Top Bar ── */
+      .top-bar {
+        background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+        padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+        position: sticky; top: 0; z-index: 10;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      }
+      .top-bar a { width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.7); text-decoration: none; flex-shrink: 0; transition: 0.2s; backdrop-filter: blur(4px); }
+      .top-bar a:hover { background: rgba(255,255,255,0.15); color: white; }
+      .top-bar h1 { font-size: 1rem; font-weight: 800; margin: 0; color: white; flex: 1; letter-spacing: -0.02em; }
+
+      /* ── Landing ── */
+      .page-wrap { max-width: 500px; margin: 0 auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 12px; }
+      @media (min-width: 768px) { .page-wrap { max-width: 700px; padding: 24px 24px; } }
+      @media (min-width: 1024px) { .page-wrap { max-width: 900px; } }
+      .welcome-text { font-size: 0.8rem; color: var(--gray2); font-weight: 500; padding: 0 2px; }
+
+      .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .menu-grid .menu-wide { grid-column: 1 / -1; }
+
+      .menu-card { background: var(--card); border-radius: var(--radius); padding: 18px 16px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer; display: flex; flex-direction: column; gap: 8px; transition: all 0.18s; text-align: left; width: 100%; position: relative; overflow: hidden; }
+      .menu-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+      .mc-blue .menu-card::before, .menu-card.mc-blue::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+      .mc-amber .menu-card::before, .menu-card.mc-amber::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+      .mc-green .menu-card::before, .menu-card.mc-green::before { background: linear-gradient(90deg, #10b981, #34d399); }
+      .mc-slate .menu-card::before, .menu-card.mc-slate::before { background: linear-gradient(90deg, #64748b, #94a3b8); }
+      .menu-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.09); }
+      .menu-card:active { transform: translateY(0); }
+      .menu-card .mc-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
+      .menu-card .mc-title { font-size: 0.9rem; font-weight: 800; color: var(--dark); margin: 0; letter-spacing: -0.01em; }
+      .menu-card .mc-sub { font-size: 0.7rem; color: var(--gray2); font-weight: 500; }
+      .mc-blue .mc-icon { background: #dbeafe; color: #2563eb; }
+      .mc-amber .mc-icon { background: #fef3c7; color: #d97706; }
+      .mc-green .mc-icon { background: #dcfce7; color: #16a34a; }
+      .mc-slate .mc-icon { background: #f1f5f9; color: var(--gray); }
+
+      /* ── Base Modal Overlay ── */
+      .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.52); backdrop-filter: blur(4px); z-index: 100; align-items: flex-end; justify-content: center; padding: 0; }
+      .modal-overlay.show { display: flex; }
+      @media (min-width: 540px) { .modal-overlay { align-items: center; padding: 16px; } }
+
+      .modal-panel { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-width: 500px; max-height: 92vh; display: flex; flex-direction: column; animation: slideUp 0.22s ease; overflow: hidden; }
+      @media (min-width: 540px) { .modal-panel { border-radius: 20px; max-height: 86vh; } }
+      @media (min-width: 768px) { .modal-panel { max-width: 640px; } }
+      @keyframes slideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+      .modal-head { padding: 14px 16px 12px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+      .modal-head-left { display: flex; align-items: center; gap: 10px; }
+      .modal-head-icon { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+      .modal-head h2 { font-size: 0.92rem; font-weight: 800; color: var(--dark); margin: 0; letter-spacing: -0.01em; }
+      .modal-head .modal-sub { font-size: 0.7rem; color: var(--gray2); }
+      .modal-close { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border); background: #f8fafc; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--gray); font-size: 0.85rem; flex-shrink: 0; transition: 0.15s; }
+      .modal-close:hover { background: #f1f5f9; color: var(--dark); }
+
+      .modal-body { padding: 14px 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+      .modal-body::-webkit-scrollbar { width: 3px; }
+      .modal-body::-webkit-scrollbar-thumb { background: var(--gray3); border-radius: 4px; }
+
+      /* ── Cabang Modal ── */
+      .search-wrap { position: relative; }
+      .search-wrap i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--gray2); font-size: 0.9rem; pointer-events: none; }
+      .search-wrap input { width: 100%; border-radius: 10px; border: 1.5px solid var(--border); padding: 9px 12px 9px 34px; font-size: 0.82rem; background: #f8fafc; color: var(--dark2); font-family: 'Inter', sans-serif; }
+      .search-wrap input:focus { border-color: var(--blue); outline: none; background: var(--card); }
+
+      .cabang-list { display: flex; flex-direction: column; gap: 5px; }
+      .area-group { margin-bottom: 4px; }
+      .area-header { font-size: 0.68rem; font-weight: 800; color: var(--gray); letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 2px 5px; border-bottom: 1px solid #f1f5f9; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+      .area-badge { background: #f1f5f9; border-radius: 6px; padding: 2px 8px; font-size: 0.66rem; color: var(--gray2); }
+      .area-header.sultra .area-badge { background: #dbeafe; color: #2563eb; }
+      .area-header.mks .area-badge { background: #fef9c3; color: #ca8a04; }
+      .area-header.cust .area-badge { background: #fce7f3; color: #db2777; }
+
+      .cabang-item { display: flex; align-items: center; gap: 8px; padding: 9px 10px; background: #f8fafc; border-radius: 10px; border: 1px solid #f1f5f9; }
+      .cabang-item .c-num { font-size: 0.68rem; font-weight: 700; color: var(--gray2); width: 20px; flex-shrink: 0; text-align: right; }
+      .cabang-item .c-info { flex: 1; min-width: 0; }
+      .cabang-item .c-name { font-size: 0.82rem; font-weight: 700; color: var(--dark2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .cabang-item .c-area-tag { font-size: 0.6rem; font-weight: 700; border-radius: 6px; padding: 1px 6px; display: inline-block; margin-top: 1px; background: #f1f5f9; color: var(--gray); }
+      .cabang-item .c-actions { display: flex; gap: 4px; flex-shrink: 0; }
+      .c-btn { width: 28px; height: 28px; border: none; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; cursor: pointer; transition: 0.15s; }
+      .c-btn-edit { background: #eff6ff; color: var(--blue); }
+      .c-btn-edit:hover { background: #dbeafe; }
+      .c-btn-del { background: #fff1f2; color: #f87171; }
+      .c-btn-del:hover { background: #fee2e2; color: #dc2626; }
+
+      /* Inline edit mode */
+      .cabang-item.editing { background: #fffbeb; border-color: #fde68a; flex-wrap: wrap; gap: 6px; }
+      .edit-fields { display: flex; gap: 6px; flex: 1; min-width: 0; }
+      .edit-fields input, .edit-fields select { border-radius: 8px; border: 1.5px solid #fde68a; font-size: 0.78rem; padding: 6px 9px; background: var(--card); font-family: 'Inter', sans-serif; color: var(--dark); }
+      .edit-fields input { flex: 1; min-width: 0; }
+      .edit-fields select { width: 110px; flex-shrink: 0; }
+      .edit-fields input:focus, .edit-fields select:focus { border-color: var(--orange); outline: none; }
+      .c-btn-save { background: #dcfce7; color: #16a34a; }
+      .c-btn-save:hover { background: #bbf7d0; }
+      .c-btn-cancel { background: #f1f5f9; color: var(--gray); }
+      .c-btn-cancel:hover { background: var(--border); }
+
+      /* Tambah Cabang form (bottom of modal) */
+      .add-cabang-form { border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 4px; }
+      .add-cabang-form .form-label { font-size: 0.72rem; font-weight: 700; color: var(--gray); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+      .add-cabang-form select, .add-cabang-form input[type=text] { width: 100%; border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.85rem; padding: 10px 12px; background: #f8fafc; color: var(--dark); font-family: 'Inter', sans-serif; margin-bottom: 8px; }
+      .add-cabang-form select:focus, .add-cabang-form input[type=text]:focus { border-color: var(--blue); outline: none; background: var(--card); }
+      .btn-add-cabang { width: auto; border-radius: 10px; background: var(--blue); color: white; border: none; padding: 11px 16px; font-size: 0.88rem; font-weight: 700; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+      .btn-add-cabang:hover { background: #2563eb; }
+      .btn-add-cabang:disabled { background: var(--gray2); cursor: not-allowed; }
+
+      .empty-state { text-align: center; padding: 28px 0; color: var(--gray2); font-size: 0.82rem; }
+      .empty-state i { font-size: 2rem; display: block; margin-bottom: 8px; color: var(--gray3); }
+
+      /* ── Transfer Modal ── */
+      .periode-bar { display: flex; align-items: center; gap: 8px; }
+      .periode-bar label { font-size: 0.75rem; font-weight: 700; color: var(--gray); white-space: nowrap; }
+      .periode-bar select { border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.82rem; padding: 8px 10px; color: var(--dark); background: #f8fafc; flex: 1; font-family: 'Inter', sans-serif; font-weight: 600; }
+      .tr-helper { display: flex; align-items: flex-start; gap: 10px; background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #fde68a; border-radius: 12px; padding: 11px 12px; }
+      .tr-helper .th-icon { width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,0.65); color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+      .tr-helper .th-body { flex: 1; min-width: 0; }
+      .tr-helper .th-title { font-size: 0.78rem; font-weight: 800; color: #92400e; letter-spacing: -0.01em; }
+      .tr-helper .th-sub { font-size: 0.7rem; line-height: 1.45; color: #a16207; margin-top: 2px; }
+      .tr-summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+      .tr-sum-card { background: #f8fafc; border-radius: 10px; padding: 8px 10px; text-align: center; border: 1px solid #f1f5f9; }
+      .today-summary .tr-sum-card:nth-child(1) { background: linear-gradient(135deg, #ffedd5, #fed7aa); border-color: #fdba74; }
+      .today-summary .tr-sum-card:nth-child(2) { background: linear-gradient(135deg, #fee2e2, #fecaca); border-color: #fca5a5; }
+      .today-summary .tr-sum-card:nth-child(3) { background: linear-gradient(135deg, #dbeafe, #bfdbfe); border-color: #93c5fd; }
+      .tr-sum-card .tsv { font-size: 0.82rem; font-weight: 800; }
+      .tr-sum-card .tsl { font-size: 0.6rem; font-weight: 600; color: var(--gray2); margin-top: 1px; }
+      .tr-list { display: flex; flex-direction: column; gap: 6px; }
+      .tr-item { background: #ffffff; border-radius: 10px; border: 1px solid var(--border); overflow: hidden; }
+      .tr-item:nth-child(even) { background: #f0f7ff; border-color: #bfdbfe; }
+      .tr-item-main { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
+      .tr-item-icon { width: 33px; height: 33px; border-radius: 9px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; }
+      .tr-item-body { flex: 1; min-width: 0; }
+      .tr-item-top { display: flex; align-items: center; gap: 5px; margin-bottom: 1px; }
+      .tr-item-cabang { font-size: 0.8rem; font-weight: 700; color: var(--dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .tr-item-bank { font-size: 0.6rem; font-weight: 700; background: var(--blue); color: white; border-radius: 6px; padding: 1px 6px; flex-shrink: 0; letter-spacing: 0.3px; }
+      .tr-item-meta { font-size: 0.67rem; color: var(--gray2); }
+      .tr-item-meta .tm-label { color: #b45309; font-weight: 800; }
+      .tr-item-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+      .tr-item-nominal { font-size: 0.84rem; font-weight: 800; color: var(--blue); white-space: nowrap; }
+      .tr-dup-flag { font-size: 0.58rem; font-weight: 800; background: #fee2e2; color: #dc2626; border-radius: 999px; padding: 2px 7px; letter-spacing: 0.04em; text-transform: uppercase; }
+      .btn-proof-tr { font-size: 0.63rem; font-weight: 700; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 2px 8px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px; transition: 0.15s; }
+      .btn-proof-tr:hover { background: #dbeafe; }
+      .btn-split-item { font-size: 0.63rem; font-weight: 700; color: #d97706; background: #fef9c3; border: 1px solid #fde68a; border-radius: 6px; padding: 2px 9px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px; transition: 0.15s; }
+      .btn-split-item:hover { background: #fef08a; }
+      .btn-del-tr { font-size: 0.63rem; font-weight: 700; color: #dc2626; background: #fee2e2; border: 1px solid #fecaca; border-radius: 6px; padding: 2px 8px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px; transition: 0.15s; }
+      .btn-del-tr:hover { background: #fecaca; }
+
+      .proof-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.82); z-index: 260; align-items: center; justify-content: center; padding: 18px; overflow: auto; }
+      .proof-overlay.show { display: flex; }
+      .proof-panel { width: 100%; max-width: 960px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+      #proofImg { width: auto; height: auto; max-width: 100%; max-height: 78vh; object-fit: contain; border-radius: 14px; border: 5px solid white; box-shadow: 0 14px 36px rgba(0,0,0,0.35); transition: transform 0.25s ease; }
+      .proof-stage { position: relative; display: inline-flex; align-items: center; justify-content: center; max-width: 100%; max-height: 78vh; overflow: visible; }
+      .proof-actions { position: absolute; top: 14px; right: 14px; display: flex; align-items: center; gap: 8px; z-index: 2; visibility: hidden; }
+      .proof-btn { width: 42px; height: 42px; border: none; border-radius: 50%; background: rgba(255,255,255,0.96); color: var(--dark); box-shadow: 0 10px 28px rgba(0,0,0,0.25); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 1rem; padding: 0; }
+      .proof-btn:hover { background: white; }
+      .proof-error { display: none; color: white; padding: 24px; font-weight: 600; text-align: center; }
+      @media (max-width: 640px) {
+        .proof-overlay { padding: 14px; }
+        .proof-actions { gap: 6px; }
+        .proof-actions { top: 10px; right: 10px; }
+        .proof-btn { width: 40px; height: 40px; }
+      }
+
+      /* ── Filter bar transfer ── */
+      .tr-filters { display: flex; gap: 6px; align-items: center; }
+      .trf-search-wrap { position: relative; flex: 1; }
+      .trf-search-wrap i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--gray2); font-size: 0.82rem; pointer-events: none; }
+      .trf-search-wrap input { width: 100%; border-radius: 10px; border: 1.5px solid var(--border); padding: 7px 10px 7px 30px; font-size: 0.78rem; background: #f8fafc; color: var(--dark2); font-family: 'Inter', sans-serif; }
+      .trf-search-wrap input:focus { border-color: var(--orange); outline: none; background: var(--card); }
+      .trf-date { border-radius: 10px; border: 1.5px solid var(--border); padding: 7px 9px; font-size: 0.78rem; background: #f8fafc; color: var(--dark2); font-family: 'Inter', sans-serif; width: 130px; flex-shrink: 0; }
+      .trf-date:focus { border-color: var(--orange); outline: none; background: var(--card); }
+      .trf-clear { width: 30px; height: 30px; border-radius: 8px; border: 1.5px solid var(--border); background: #f8fafc; color: var(--gray2); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.72rem; flex-shrink: 0; transition: 0.15s; }
+      .trf-clear:hover { background: #fee2e2; border-color: #fecaca; color: #dc2626; }
+      .trf-clear.active { background: #fee2e2; border-color: #fecaca; color: #dc2626; }
+
+      /* ── Edit tgl inline ── */
+      .tr-item.tr-editing { background: #fffbeb; border-color: #fde68a; }
+      .tr-edit-bar { display: flex; align-items: center; gap: 6px; padding: 0 12px 10px 12px; flex-wrap: wrap; }
+      .tr-edit-bar input[type=date] { border-radius: 8px; border: 1.5px solid #fde68a; padding: 6px 9px; font-size: 0.78rem; background: var(--card); font-family: 'Inter', sans-serif; color: var(--dark); flex: 1; min-width: 120px; }
+      .tr-edit-bar input[type=date]:focus { border-color: var(--orange); outline: none; }
+      .tr-edit-bar input[type=text] { border-radius: 8px; border: 1.5px solid #fde68a; padding: 6px 9px; font-size: 0.78rem; background: var(--card); font-family: 'Inter', sans-serif; color: var(--dark); flex: 2; min-width: 100px; }
+      .tr-edit-bar input[type=text]:focus { border-color: var(--orange); outline: none; }
+      .tr-edit-label { font-size: 0.65rem; font-weight: 700; color: #92400e; white-space: nowrap; }
+      .tr-edit-actions { display: flex; gap: 4px; }
+      .tr-ebtn { height: 28px; border-radius: 8px; border: none; font-size: 0.72rem; font-weight: 700; cursor: pointer; padding: 0 10px; transition: 0.15s; }
+      .tr-ebtn-save { background: #dcfce7; color: #16a34a; }
+      .tr-ebtn-save:hover { background: #bbf7d0; }
+      .tr-ebtn-cancel { background: #f1f5f9; color: var(--gray); }
+      .tr-ebtn-cancel:hover { background: var(--border); }
+      .btn-edit-tr { font-size: 0.63rem; font-weight: 700; color: var(--gray); background: #f1f5f9; border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px; transition: 0.15s; }
+      .btn-edit-tr:hover { background: var(--border); }
+
+      /* ── Settings Modal ── */
+      .card-pw { background: #f8fafc; border-radius: 12px; padding: 14px; border: 1px solid #f1f5f9; }
+      .card-pw h3 { font-size: 0.82rem; font-weight: 700; color: var(--dark); margin: 0 0 2px; display: flex; align-items: center; gap: 6px; }
+      .card-pw .pw-sub { font-size: 0.7rem; color: var(--gray2); margin-bottom: 10px; }
+      .card-pw .form-control { border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.83rem; padding: 9px 12px; background: var(--card); width: 100%; margin-bottom: 7px; font-family: 'Inter', sans-serif; }
+      .card-pw .form-control:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(245,158,11,0.1); background: var(--card); outline: none; }
+      .btn-pw { width: 100%; border-radius: 10px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; padding: 10px; font-size: 0.85rem; font-weight: 700; transition: all 0.2s; box-shadow: 0 4px 14px rgba(245,158,11,0.25); }
+      .btn-pw:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(245,158,11,0.35); }
+      .btn-pw:disabled { background: var(--gray2); cursor: not-allowed; box-shadow: none; transform: none; }
+      .verify-panel { max-width: 360px; }
+      .verify-note { background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #fde68a; border-radius: 12px; padding: 12px; display: flex; gap: 10px; align-items: flex-start; color: #92400e; font-size: 0.74rem; font-weight: 600; line-height: 1.45; }
+      .verify-note i { font-size: 0.95rem; color: #d97706; margin-top: 1px; }
+      .verify-input { width: 100%; border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.84rem; padding: 10px 12px; background: var(--card); font-family: 'Inter', sans-serif; }
+      .verify-input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(245,158,11,0.1); outline: none; }
+      .verify-error { min-height: 18px; font-size: 0.74rem; color: var(--red); }
+
+      /* ── Split Sub-Modal ── */
+      .split-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.6); backdrop-filter: blur(3px); z-index: 200; align-items: center; justify-content: center; padding: 16px; }
+      .split-overlay.show { display: flex; }
+      .split-modal { background: var(--card); border-radius: var(--radius); width: 100%; max-width: 400px; box-shadow: 0 16px 60px rgba(0,0,0,0.2); animation: popIn 0.18s ease; overflow: hidden; border: 1px solid var(--border); }
+      @keyframes popIn { from { transform: scale(0.93); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+      .split-head { padding: 14px 16px 12px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: flex-start; justify-content: space-between; }
+      .split-head h3 { font-size: 0.9rem; font-weight: 800; color: var(--dark); margin: 0 0 2px; letter-spacing: -0.01em; }
+      .split-head .sh-sub { font-size: 0.7rem; color: var(--gray2); }
+      .split-close { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border); background: #f8fafc; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--gray); font-size: 0.8rem; flex-shrink: 0; }
+      .split-body { padding: 12px 16px; max-height: 60vh; overflow-y: auto; }
+      .split-note { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; display: flex; align-items: flex-start; gap: 8px; font-size: 0.73rem; font-weight: 600; color: #92400e; line-height: 1.45; }
+      .split-note i { font-size: 0.9rem; color: #d97706; margin-top: 1px; flex-shrink: 0; }
+      .split-orig { background: #f8fafc; border-radius: 10px; padding: 9px 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); }
+      .split-orig .so-body { flex: 1; min-width: 0; }
+      .split-orig .so-cabang { font-size: 0.8rem; font-weight: 700; color: var(--dark); }
+      .split-orig .so-sub { font-size: 0.68rem; color: var(--gray); }
+      .split-orig .so-nom { font-size: 0.85rem; font-weight: 800; color: var(--blue); white-space: nowrap; }
+      .split-rlabel { font-size: 0.72rem; font-weight: 700; color: var(--gray); margin-bottom: 7px; }
+      .split-rhead { display: grid; grid-template-columns: 1fr 1fr 26px; gap: 6px; padding: 0 2px; margin-bottom: 5px; }
+      .split-rhead .srh { font-size: 0.62rem; font-weight: 800; color: var(--gray2); text-transform: uppercase; letter-spacing: 0.05em; }
+      .split-rhead .srh:last-child { text-align: center; }
+      .rincian-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: center; margin-bottom: 6px; }
+      .rincian-row input { border-radius: 8px; border: 1.5px solid var(--border); font-size: 0.78rem; padding: 7px 9px; background: #f8fafc; font-family: 'Inter', sans-serif; color: var(--dark); width: 100%; }
+      .rincian-row input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(245,158,11,0.1); outline: none; background: var(--card); }
+      .btn-del-row { width: 26px; height: 26px; border-radius: 50%; background: #fee2e2; color: #dc2626; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; font-size: 0.72rem; }
+      .btn-add-row { width: 100%; border: 1.5px dashed var(--gray3); border-radius: 8px; background: var(--card); color: var(--gray2); font-size: 0.75rem; font-weight: 600; padding: 6px; cursor: pointer; transition: 0.15s; display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 2px; }
+      .btn-add-row:hover { border-color: var(--orange); color: #d97706; background: #fffbeb; }
+      .sisa-bar { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 7px 11px; display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 0.75rem; font-weight: 700; }
+      .sisa-bar .sb-label { color: #15803d; }
+      .sisa-bar .sb-val { color: #16a34a; }
+      .sisa-bar.danger { background: #fef2f2; border-color: #fecaca; }
+      .sisa-bar.danger .sb-label, .sisa-bar.danger .sb-val { color: #dc2626; }
+      .split-foot { padding: 10px 16px; border-top: 1px solid #f1f5f9; display: flex; gap: 8px; }
+      .btn-split-cancel { flex: 1; border-radius: 10px; border: 1.5px solid var(--border); background: var(--card); color: var(--gray); font-size: 0.82rem; font-weight: 700; padding: 9px; cursor: pointer; }
+      .btn-split-confirm { flex: 2; border-radius: 10px; border: none; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; font-size: 0.82rem; font-weight: 700; padding: 9px; cursor: pointer; transition: 0.15s; box-shadow: 0 4px 14px rgba(245,158,11,0.25); }
+      .btn-split-confirm:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(245,158,11,0.35); }
+      .btn-split-confirm:disabled { background: var(--gray2); cursor: not-allowed; box-shadow: none; transform: none; }
+
+      /* ── Monitor Transfer ── */
+      .today-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04); overflow: hidden; }
+      .today-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; }
+      .today-head-left { display: flex; align-items: center; gap: 10px; }
+      .today-head-icon { width: 36px; height: 36px; border-radius: 10px; background: #ffedd5; color: #ea580c; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+      .today-title { font-size: 0.9rem; font-weight: 800; color: var(--dark); letter-spacing: -0.01em; }
+      .today-sub { font-size: 0.7rem; color: var(--gray2); margin-top: 1px; }
+      .today-refresh { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--border); background: #f8fafc; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--gray); font-size: 0.85rem; transition: 0.15s; }
+      .today-refresh:hover { background: #e2e8f0; color: var(--dark); }
+      .today-refresh.spinning i { animation: spin 0.7s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .today-summary { padding: 0 16px 10px; grid-template-columns: 1fr 1fr 1fr; }
+      .today-body { padding: 0 16px 14px; }
+      .today-sec { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 8px 0 5px; display: flex; align-items: center; gap: 6px; border-bottom: 1.5px solid #f1f5f9; margin-bottom: 4px; }
+      .today-sec.blue { color: #2563eb; border-color: #93c5fd; }
+      .today-sec.green { color: #15803d; border-color: #bbf7d0; }
+      .today-sec.amber { color: #c2410c; border-color: #fdba74; }
+      .today-sec.red { color: #dc2626; border-color: #fecaca; }
+      .today-sec .sec-badge { border-radius: 20px; padding: 1px 8px; font-size: 0.63rem; }
+      .today-sec.blue .sec-badge { background: #dbeafe; color: #2563eb; }
+      .today-sec.green .sec-badge { background: #dcfce7; color: #16a34a; }
+      .today-sec.amber .sec-badge { background: #ffedd5; color: #ea580c; }
+      .today-sec.red .sec-badge { background: #fee2e2; color: #dc2626; }
+      .mon-item { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #f8fafc; gap: 8px; }
+      .mon-item:last-child { border-bottom: none; }
+      .mon-item-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+      .mon-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+      .mon-dot.green { background: #22c55e; }
+      .mon-dot.red { background: #f87171; }
+      .mon-info { min-width: 0; }
+      .mon-name { font-size: 0.8rem; font-weight: 700; color: var(--dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .mon-meta { font-size: 0.64rem; color: var(--gray2); }
+      .mon-nom { font-size: 0.8rem; font-weight: 800; color: var(--green); white-space: nowrap; flex-shrink: 0; }
+      .mon-empty { font-size: 0.78rem; color: var(--gray2); padding: 8px 0 4px; }
+      .mon-section-head { font-size: 0.72rem; font-weight: 800; padding: 5px 0 6px; letter-spacing: 0.04em; display: flex; align-items: center; gap: 5px; }
+      .mon-green { color: #15803d; border-bottom: 2px solid #bbf7d0; }
+      .mon-red { color: #dc2626; border-bottom: 2px solid #fecaca; }
+      .mon-badge { border-radius: 20px; padding: 1px 8px; font-size: 0.65rem; font-weight: 700; }
+      .mon-badge-green { background: #dcfce7; color: #16a34a; }
+      .mon-badge-red { background: #fee2e2; color: #dc2626; }
+      .mon-empty { font-size: 0.78rem; color: var(--gray2); padding: 8px 2px; }
+      .mon-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 8px 2px; border-bottom: 1px solid #f8fafc; gap: 8px; }
+      .mon-item:last-child { border-bottom: none; }
+      .mon-item-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+      .mon-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+      .mon-dot.blue { background: #3b82f6; }
+      .mon-dot.green { background: #22c55e; }
+      .mon-dot.amber { background: #f59e0b; }
+      .mon-dot.red { background: #f87171; }
+      .mon-info { min-width: 0; }
+      .mon-name { font-size: 0.8rem; font-weight: 700; color: var(--dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .mon-meta { font-size: 0.65rem; color: var(--gray2); }
+      .mon-nom { font-size: 0.8rem; font-weight: 800; color: var(--green); white-space: nowrap; flex-shrink: 0; }
+      .mon-nom.blue { color: #2563eb; }
+      .mon-nom.amber { color: #d97706; }
+      .mon-nom.red { color: #dc2626; }
+      .mon-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+      .mon-actions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+
+      /* ── Toast ── */
+      .toast-box { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--dark2); color: white; padding: 10px 20px; border-radius: 12px; font-size: 0.82rem; font-weight: 600; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+      .toast-box.show { opacity: 1; }
+      .toast-box.success { background: #16a34a; }
+      .toast-box.error { background: #dc2626; }
+
+      /* ── Log Modal ── */
+      .log-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; justify-content:center; align-items:flex-start; padding:40px 12px; }
+      .log-overlay.show { display:flex; }
+      .log-panel { background:var(--card); border-radius:14px; width:100%; max-width:600px; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.3); }
+      .log-head { padding:14px 16px; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border); }
+      .log-head-icon { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:#fef2f2; color:#dc2626; font-size:1.1rem; }
+      .log-head-title { flex:1; font-weight:700; font-size:0.9rem; color:var(--dark); }
+      .log-head-actions { display:flex; gap:6px; }
+      .log-head-actions button { border:none; background:#f1f5f9; border-radius:8px; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--gray); font-size:0.85rem; transition:0.15s; }
+      .log-head-actions button:hover { background:#e2e8f0; color:var(--dark); }
+      .log-body { flex:1; overflow-y:auto; padding:10px 14px; }
+      .log-empty { text-align:center; padding:30px; color:var(--gray2); font-size:0.82rem; }
+      .log-item { padding:8px 0; border-bottom:1px solid #f8fafc; font-size:0.78rem; }
+      .log-item:last-child { border-bottom:none; }
+      .log-time { color:var(--gray2); font-size:0.7rem; }
+      .log-src { display:inline-block; background:#fee2e2; color:#dc2626; padding:1px 6px; border-radius:4px; font-size:0.68rem; font-weight:600; margin:0 4px; }
+      .log-msg { color:var(--dark); word-break:break-word; }
+      .log-meta { color:var(--gray2); font-size:0.68rem; margin-top:2px; word-break:break-word; }
+    </style>
+  </head>
+  <body>
+
+    <div class="top-bar">
+      <a href="/"><i class="bi bi-arrow-left"></i></a>
+      <h1><i class="bi bi-shield-lock-fill text-warning me-2"></i>Admin Panel</h1>
+      <a href="#" onclick="event.preventDefault();openLogs()" title="Error Log"><i class="bi bi-journal-x"></i></a>
+      <a href="#" onclick="event.preventDefault();openSettingsGate()" title="Pengaturan"><i class="bi bi-gear-fill"></i></a>
+    </div>
+
+    <div class="page-wrap">
+      <div class="welcome-text">Kelola cabang di sini. Transfer yang tidak cocok dipantau langsung di bawah.</div>
+      <div class="menu-grid">
+        <button class="menu-card mc-blue menu-wide" onclick="openModal('modalCabang'); loadCabangModal()">
+          <div class="mc-icon"><i class="bi bi-building"></i></div>
+          <div>
+            <div class="mc-title">Kelola Cabang</div>
+            <div class="mc-sub">Tambah, edit & hapus</div>
+          </div>
+        </button>
+      </div>
+
+      <!-- ── Monitor Mismatch NONCOD ── -->
+      <div class="today-card">
+        <div class="today-head">
+          <div class="today-head-left">
+            <div class="today-head-icon"><i class="bi bi-shuffle"></i></div>
+            <div>
+              <div class="today-title">Transfer Tidak Cocok</div>
+              <div class="today-sub" id="mismatchDateLabel">Memuat...</div>
+            </div>
+          </div>
+          <button class="today-refresh" id="mismatchRefreshBtn" onclick="loadMismatchMonitor()" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
+        </div>
+        <div class="today-summary tr-summary" id="mismatchSummary" style="display:none">
+          <div class="tr-sum-card"><div class="tsv" id="mismatchSuspect" style="color:#c2410c">-</div><div class="tsl">Salah Tgl?</div></div>
+          <div class="tr-sum-card"><div class="tsv" id="mismatchOpen" style="color:#dc2626">-</div><div class="tsl">Belum Cocok</div></div>
+          <div class="tr-sum-card"><div class="tsv" id="mismatchPending" style="color:#2563eb">-</div><div class="tsl">Belum Transfer</div></div>
+        </div>
+        <div id="mismatchContent">
+          <div class="empty-state" style="padding:20px 0"><span class="spinner-border spinner-border-sm"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Modal: Kelola Cabang ══ -->
+    <div class="modal-overlay" id="modalCabang" onclick="handleModalOverlay(event,'modalCabang')">
+      <div class="modal-panel">
+        <div class="modal-head">
+          <div class="modal-head-left">
+            <div class="modal-head-icon" style="background:#dbeafe;color:#2563eb"><i class="bi bi-building"></i></div>
+            <div>
+              <h2>Kelola Cabang</h2>
+              <div class="modal-sub" id="cabangCount">Memuat...</div>
+            </div>
+          </div>
+          <div class="modal-close" onclick="closeModal('modalCabang')"><i class="bi bi-x"></i></div>
+        </div>
+        <div class="modal-body">
+          <div class="add-cabang-form">
+            <div class="form-label"><i class="bi bi-plus-circle-fill text-primary"></i> Tambah Cabang Baru</div>
+            <div style="display:flex;gap:8px;align-items:stretch">
+              <select id="inputArea" oninput="toggleAddBtn()" style="flex:0 0 auto;width:140px;margin-bottom:0">
+                <option value="">-- Area --</option>
+                <option value="SULTRA">SULTRA</option>
+                <option value="MKS OUTER">MKS OUTER</option>
+                <option value="CUSTUMER">CUSTUMER</option>
+              </select>
+              <input type="text" id="inputCabang" placeholder="Nama cabang baru..." autocomplete="off" maxlength="100" oninput="toggleAddBtn()" onkeydown="if(event.key==='Enter')addCabang()" style="flex:1;margin-bottom:0">
+              <button class="btn-add-cabang" id="btnAdd" onclick="addCabang()" disabled style="flex:0 0 auto;white-space:nowrap;width:auto;padding-left:14px;padding-right:14px">
+                <i class="bi bi-plus-lg"></i> Tambah
+              </button>
+            </div>
+          </div>
+          <div class="search-wrap" style="margin-top:10px">
+            <i class="bi bi-search"></i>
+            <input type="text" id="searchCabang" placeholder="Cari nama cabang..." oninput="renderCabangList()">
+          </div>
+          <div id="cabangList">
+            <div class="empty-state"><span class="spinner-border spinner-border-sm"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Modal: Kelola Transfer ══ -->
+    <div class="modal-overlay" id="modalTransfer" onclick="handleModalOverlay(event,'modalTransfer')">
+      <div class="modal-panel">
+        <div class="modal-head">
+          <div class="modal-head-left">
+            <div class="modal-head-icon" style="background:#fef3c7;color:#d97706"><i class="bi bi-arrow-left-right"></i></div>
+            <div>
+              <h2>Kelola Transfer</h2>
+                <div class="modal-sub">Lihat, edit tanggal, dan sinkronkan transfer ke NONCOD</div>
+            </div>
+          </div>
+          <div class="modal-close" onclick="closeModal('modalTransfer')"><i class="bi bi-x"></i></div>
+        </div>
+        <div class="modal-body">
+          <div class="periode-bar">
+            <label><i class="bi bi-calendar-month me-1"></i>Periode</label>
+            <select id="periodeSelect" onchange="loadTransfers()"></select>
+          </div>
+          <div class="tr-helper">
+            <div class="th-icon"><i class="bi bi-diagram-3-fill"></i></div>
+            <div class="th-body">
+              <div class="th-title">Tujuan utamanya: samakan tanggal transfer dengan tanggal NONCOD</div>
+              <div class="th-sub">Gunakan <strong>Edit Tgl</strong> jika seluruh nominal hanya untuk satu tanggal NONCOD. Gunakan <strong>Split Tgl</strong> jika satu bukti transfer membayar beberapa tanggal NONCOD atau pickup.</div>
+            </div>
+          </div>
+          <div class="tr-filters" id="trFilters" style="display:none">
+            <div class="trf-search-wrap">
+              <i class="bi bi-search"></i>
+              <input type="text" id="trSearchCabang" placeholder="Cari cabang..." oninput="applyTrFilter()">
+            </div>
+            <input type="date" id="trSearchTgl" class="trf-date">
+            <button class="trf-clear" id="trClearFilter" onclick="clearTrFilter()" title="Reset filter"><i class="bi bi-x-lg"></i></button>
+          </div>
+          <div class="tr-summary" id="trSummary" style="display:none">
+            <div class="tr-sum-card"><div class="tsv text-primary" id="trTotal">-</div><div class="tsl">Total</div></div>
+            <div class="tr-sum-card"><div class="tsv text-success" id="trTranaksi">-</div><div class="tsl">Transaksi</div></div>
+            <div class="tr-sum-card"><div class="tsv text-warning" id="trCabang">-</div><div class="tsl">Cabang</div></div>
+          </div>
+          <div class="tr-list" id="trList">
+            <div class="empty-state"><i class="bi bi-calendar3"></i>Pilih periode untuk melihat data</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Modal: Pengaturan ══ -->
+    <div class="modal-overlay" id="modalAdminVerify" onclick="handleModalOverlay(event,'modalAdminVerify')">
+      <div class="modal-panel verify-panel">
+        <div class="modal-head">
+          <div class="modal-head-left">
+            <div class="modal-head-icon" style="background:#fef3c7;color:#d97706"><i class="bi bi-shield-lock-fill"></i></div>
+            <div>
+              <h2>Verifikasi Pengaturan</h2>
+              <div class="modal-sub">Gunakan password admin sebelum membuka pengaturan</div>
+            </div>
+          </div>
+          <div class="modal-close" onclick="closeModal('modalAdminVerify')"><i class="bi bi-x"></i></div>
+        </div>
+        <div class="modal-body">
+          <div class="verify-note">
+            <i class="bi bi-key-fill"></i>
+            <div>Kelola cabang dan transfer tetap bisa dari workspace. Bagian <strong>Pengaturan</strong> dikunci terpisah agar perubahan password tetap memakai akses admin.</div>
+          </div>
+          <input type="password" class="verify-input" id="adminVerifyPw" placeholder="Password admin..." oninput="clearAdminVerifyError()" onkeydown="if(event.key==='Enter')submitAdminVerify()">
+          <div class="verify-error" id="adminVerifyErr"></div>
+          <button class="btn-pw" id="btnAdminVerify" onclick="submitAdminVerify()">
+            <i class="bi bi-unlock-fill me-1"></i>Buka Pengaturan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="modalSettings" onclick="handleModalOverlay(event,'modalSettings')">
+      <div class="modal-panel">
+        <div class="modal-head">
+          <div class="modal-head-left">
+            <div class="modal-head-icon" style="background:#f1f5f9;color:#64748b"><i class="bi bi-gear-fill"></i></div>
+            <div>
+              <h2>Pengaturan</h2>
+              <div class="modal-sub">Keamanan & password</div>
+            </div>
+          </div>
+          <div class="modal-close" onclick="closeModal('modalSettings')"><i class="bi bi-x"></i></div>
+        </div>
+        <div class="modal-body">
+
+          <!-- Buat Password -->
+          <div class="card-pw" id="cardBuatPw">
+            <h3><i class="bi bi-key-fill text-warning"></i> Buat Password</h3>
+            <div class="pw-sub">Buat password baru untuk admin panel</div>
+            <input type="password" class="form-control" id="pwBaru1" placeholder="Password baru..." oninput="checkPwBuat()">
+            <input type="password" class="form-control" id="pwBaru2" placeholder="Ulangi password..." oninput="checkPwBuat()">
+            <div id="pwBuatError" style="font-size:0.75rem;color:#ef4444;margin-bottom:8px;display:none"></div>
+            <button class="btn-pw" id="btnBuatPw" onclick="buatPassword()" disabled>
+              <i class="bi bi-check-lg me-1"></i>Simpan Password
+            </button>
+          </div>
+
+          <!-- Ganti Password Admin -->
+          <div class="card-pw" id="cardGantiPw" style="display:none">
+            <h3><i class="bi bi-arrow-repeat text-warning"></i> Ganti Password Admin</h3>
+            <div class="pw-sub">Masukkan password lama lalu password baru</div>
+            <input type="password" class="form-control" id="pwLama" placeholder="Password lama..." oninput="checkPwGanti()">
+            <input type="password" class="form-control" id="pwBaru3" placeholder="Password baru..." oninput="checkPwGanti()">
+            <input type="password" class="form-control" id="pwBaru4" placeholder="Ulangi password baru..." oninput="checkPwGanti()">
+            <div id="pwGantiError" style="font-size:0.75rem;color:#ef4444;margin-bottom:8px;display:none"></div>
+            <button class="btn-pw" id="btnGantiPw" onclick="gantiPassword()" disabled>
+              <i class="bi bi-arrow-repeat me-1"></i>Ganti Password
+            </button>
+          </div>
+
+          <div style="border-top:1px solid #f1f5f9;margin:4px 0"></div>
+
+          <!-- Buat Password Viewer -->
+          <div class="card-pw" id="cardBuatDashPw">
+            <h3><i class="bi bi-speedometer2 text-primary"></i> Buat Password Viewer</h3>
+            <div class="pw-sub">Password untuk akun view dan download</div>
+            <input type="password" class="form-control" id="dashPwBaru1" placeholder="Password baru..." oninput="checkDashPwBuat()">
+            <input type="password" class="form-control" id="dashPwBaru2" placeholder="Ulangi password..." oninput="checkDashPwBuat()">
+            <div id="dashPwBuatError" style="font-size:0.75rem;color:#ef4444;margin-bottom:8px;display:none"></div>
+            <button class="btn-pw" id="btnBuatDashPw" onclick="buatDashPassword()" disabled style="background:#2563eb">
+              <i class="bi bi-check-lg me-1"></i>Simpan Password
+            </button>
+          </div>
+
+          <!-- Ganti Password Viewer -->
+          <div class="card-pw" id="cardGantiDashPw" style="display:none">
+            <h3><i class="bi bi-speedometer2 text-primary"></i> Ganti Password Viewer</h3>
+            <div class="pw-sub">Ganti password akun viewer</div>
+            <input type="password" class="form-control" id="dashPwLama" placeholder="Password lama..." oninput="checkDashPwGanti()">
+            <input type="password" class="form-control" id="dashPwBaru3" placeholder="Password baru..." oninput="checkDashPwGanti()">
+            <input type="password" class="form-control" id="dashPwBaru4" placeholder="Ulangi password baru..." oninput="checkDashPwGanti()">
+            <div id="dashPwGantiError" style="font-size:0.75rem;color:#ef4444;margin-bottom:8px;display:none"></div>
+            <button class="btn-pw" id="btnGantiDashPw" onclick="gantiDashPassword()" disabled style="background:#2563eb">
+              <i class="bi bi-arrow-repeat me-1"></i>Ganti Password
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Sub-Modal: Split Transaksi ══ -->
+    <div class="split-overlay" id="splitOverlay">
+      <div class="split-modal">
+        <div class="split-head">
+          <div>
+            <h3><i class="bi bi-scissors me-1 text-warning"></i>Split Tanggal Transfer</h3>
+            <div class="sh-sub">Pecah 1 transfer agar tiap baris mengikuti tanggal NONCOD atau pickup</div>
+          </div>
+          <div class="split-close" onclick="closeSplit()"><i class="bi bi-x"></i></div>
+        </div>
+        <div class="split-body">
+          <div class="split-note"><i class="bi bi-info-circle-fill"></i><div>Bukti transfer, bank, dan cabang tetap sama. Yang dipecah hanya <strong>tanggal</strong> dan <strong>nominal rincian</strong> supaya rekap harian sesuai dengan data NONCOD.</div></div>
+          <div class="split-orig" id="splitOrigInfo"></div>
+          <div class="split-rlabel">Rincian yang akan disimpan</div>
+          <div class="split-rhead">
+            <div class="srh">Tanggal NONCOD</div>
+            <div class="srh">Nominal</div>
+            <div class="srh">&nbsp;</div>
+          </div>
+          <div id="rincianList"></div>
+          <button class="btn-add-row" onclick="addRincianRow()"><i class="bi bi-plus-circle"></i> Tambah Tanggal</button>
+          <div class="sisa-bar" id="sisaBar"></div>
+        </div>
+        <div class="split-foot">
+          <button class="btn-split-cancel" onclick="closeSplit()">Batal</button>
+          <button class="btn-split-confirm" id="btnSplitConfirm" onclick="doSplit()"><i class="bi bi-scissors me-1"></i>Simpan Sinkronisasi</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="proof-overlay" id="proofOverlay" onclick="handleProofOverlay(event)">
+      <div class="proof-panel">
+        <div class="proof-stage" id="proofStage">
+          <img src="" id="proofImg" onload="handleProofLoad()" onerror="handleProofError()">
+          <div class="proof-error" id="proofErr"><i class="bi bi-image-fill" style="font-size:2rem;display:block;margin-bottom:8px"></i>Gambar bukti tidak dapat ditampilkan</div>
+          <div class="proof-actions" id="proofActions">
+            <button class="proof-btn" onclick="rotateProof()" title="Putar gambar" aria-label="Putar gambar"><i class="bi bi-arrow-clockwise"></i></button>
+            <button class="proof-btn" onclick="closeProof()" title="Tutup bukti" aria-label="Tutup bukti"><i class="bi bi-x-lg"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-box" id="toast"></div>
+    <script>
+      const EMBED_MODE = new URLSearchParams(location.search).get('embed') === '1' || window.self !== window.top;
+      if (EMBED_MODE) document.body.classList.add('embed');
+
+      let cabangData = [];
+
+      function hasActiveSession(prefix) {
+        const ts = parseInt(sessionStorage.getItem(prefix + 'AuthTs') || '0');
+        return !!sessionStorage.getItem(prefix + 'Auth') && ts && (Date.now() - ts <= 60 * 60 * 1000);
+      }
+
+      function getOpsToken() {
+        return sessionStorage.getItem('adminToken') || '';
+      }
+
+      function getSessionPrefix() {
+        return hasActiveSession('admin') ? 'admin' : '';
+      }
+
+      function clearSession(prefix) {
+        if (!prefix) return;
+        sessionStorage.removeItem(prefix + 'Auth');
+        sessionStorage.removeItem(prefix + 'AuthTs');
+        sessionStorage.removeItem(prefix + 'Token');
+      }
+
+      function clearAllSessions() {
+        clearSession('dash');
+        clearSession('admin');
+      }
+
+      function exitWorkspace() {
+        clearAllSessions();
+        try {
+          if (window.top && window.top !== window.self) {
+            window.top.location.replace('/');
+            return;
+          }
+        } catch {}
+        location.replace('/');
+      }
+
+      // ── Modal helpers ──
+      function openModal(id) {
+        document.getElementById(id).classList.add('show');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeModal(id) {
+        document.getElementById(id).classList.remove('show');
+        document.body.style.overflow = '';
+      }
+      function handleModalOverlay(e, id) {
+        if (e.target === document.getElementById(id)) closeModal(id);
+      }
+
+      function clearAdminVerifyError() {
+        const errEl = document.getElementById('adminVerifyErr');
+        errEl.textContent = '';
+      }
+
+      function openSettingsModal() {
+        openModal('modalSettings');
+        refreshPwCards();
+      }
+
+      async function openSettingsGate() {
+        if (hasActiveSession('admin')) {
+          openSettingsModal();
+          return;
+        }
+
+        try {
+          const res = await fetch('/api/auth?key=admin_password');
+          const json = await res.json();
+          if (json && !json.hasPassword) {
+            openSettingsModal();
+            return;
+          }
+        } catch {
+          showToast('Gagal memeriksa password admin', 'error');
+          return;
+        }
+
+        document.getElementById('adminVerifyPw').value = '';
+        clearAdminVerifyError();
+        openModal('modalAdminVerify');
+        setTimeout(() => document.getElementById('adminVerifyPw').focus(), 50);
+      }
+
+      async function submitAdminVerify() {
+        const pwEl = document.getElementById('adminVerifyPw');
+        const errEl = document.getElementById('adminVerifyErr');
+        const btn = document.getElementById('btnAdminVerify');
+        const password = pwEl.value;
+        if (!password) {
+          errEl.textContent = 'Masukkan password admin';
+          return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Memverifikasi...';
+
+        try {
+          const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'verify', password, key: 'admin_password' })
+          });
+          const json = await res.json();
+          if (!res.ok) {
+            errEl.textContent = json.error || 'Password admin salah';
+            pwEl.select();
+            return;
+          }
+
+          sessionStorage.setItem('adminAuth', '1');
+          sessionStorage.setItem('adminAuthTs', String(Date.now()));
+          sessionStorage.setItem('adminToken', json.token || '');
+          document.getElementById('modalAdminVerify').classList.remove('show');
+          openSettingsModal();
+        } catch {
+          errEl.textContent = 'Kesalahan jaringan, coba lagi';
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-unlock-fill me-1"></i>Buka Pengaturan';
+        }
+      }
+
+      // ── Password ──
+      async function refreshPwCards() {
+        try {
+          const [adminRes, dashRes] = await Promise.all([
+            fetch('/api/auth?key=admin_password'),
+            fetch('/api/auth?key=dashboard_password'),
+          ]);
+          const adminJson = await adminRes.json();
+          const dashJson = await dashRes.json();
+          document.getElementById('cardBuatPw').style.display = adminJson.hasPassword ? 'none' : 'block';
+          document.getElementById('cardGantiPw').style.display = adminJson.hasPassword ? 'block' : 'none';
+          document.getElementById('cardBuatDashPw').style.display = dashJson.hasPassword ? 'none' : 'block';
+          document.getElementById('cardGantiDashPw').style.display = dashJson.hasPassword ? 'block' : 'none';
+        } catch { /* tampilkan default jika gagal */ }
+      }
+
+      function checkPwBuat() {
+        const p1 = document.getElementById('pwBaru1').value;
+        const p2 = document.getElementById('pwBaru2').value;
+        const errEl = document.getElementById('pwBuatError');
+        const btn = document.getElementById('btnBuatPw');
+        if (p1.length > 0 && p1.length < 8) { errEl.textContent = 'Password minimal 8 karakter'; errEl.style.display = 'block'; btn.disabled = true; return; }
+        if (p2 && p1 !== p2) { errEl.textContent = 'Password tidak cocok'; errEl.style.display = 'block'; btn.disabled = true; return; }
+        errEl.style.display = 'none';
+        btn.disabled = !(p1.length >= 8 && p1 === p2);
+      }
+
+      async function buatPassword() {
+        const btn = document.getElementById('btnBuatPw');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Menyimpan...';
+        try {
+          const res = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', password: document.getElementById('pwBaru1').value, key: 'admin_password' }) });
+          const json = await res.json();
+          if (!res.ok) { document.getElementById('pwBuatError').textContent = json.error; document.getElementById('pwBuatError').style.display = 'block'; }
+          else { document.getElementById('pwBaru1').value = ''; document.getElementById('pwBaru2').value = ''; showToast('Password berhasil dibuat', 'success'); refreshPwCards(); }
+        } catch { showToast('Kesalahan jaringan', 'error'); }
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Simpan Password';
+        btn.disabled = false;
+      }
+
+      function checkPwGanti() {
+        const lama = document.getElementById('pwLama').value;
+        const p3 = document.getElementById('pwBaru3').value;
+        const p4 = document.getElementById('pwBaru4').value;
+        const errEl = document.getElementById('pwGantiError');
+        const btn = document.getElementById('btnGantiPw');
+        if (p3.length > 0 && p3.length < 8) { errEl.textContent = 'Password baru minimal 8 karakter'; errEl.style.display = 'block'; btn.disabled = true; return; }
+        if (p4 && p3 !== p4) { errEl.textContent = 'Password baru tidak cocok'; errEl.style.display = 'block'; btn.disabled = true; return; }
+        errEl.style.display = 'none';
+        btn.disabled = !(lama && p3.length >= 8 && p3 === p4);
+      }
+
+      async function gantiPassword() {
+        const btn = document.getElementById('btnGantiPw');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Menyimpan...';
+        try {
+          const res = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'change', password: document.getElementById('pwLama').value, newPassword: document.getElementById('pwBaru3').value, key: 'admin_password' }) });
+          const json = await res.json();
+          if (!res.ok) { document.getElementById('pwGantiError').textContent = json.error; document.getElementById('pwGantiError').style.display = 'block'; }
+          else {
+            document.getElementById('pwLama').value = '';
+            document.getElementById('pwBaru3').value = '';
+            document.getElementById('pwBaru4').value = '';
+            document.getElementById('pwGantiError').style.display = 'none';
+            showToast('Password admin berhasil diganti', 'success');
+            clearSession('admin');
+          }
+        } catch { showToast('Kesalahan jaringan', 'error'); }
+        btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Ganti Password';
+        btn.disabled = false;
+      }
+
+      // ── Viewer Password ──
+      function checkDashPwBuat() {
+        const p1 = document.getElementById('dashPwBaru1').value;
+        const p2 = document.getElementById('dashPwBaru2').value;
+        const errEl = document.getElementById('dashPwBuatError');
+        const btn = document.getElementById('btnBuatDashPw');
+        if (p1.length > 0 && p1.length < 8) { errEl.textContent = 'Password minimal 8 karakter'; errEl.style.display = 'block'; btn.disabled = true; return; }
+        if (p2 && p1 !== p2) { errEl.textContent = 'Password tidak cocok'; errEl.style.display = 'block'; btn.disabled = true; return; }
+        errEl.style.display = 'none';
+        btn.disabled = !(p1.length >= 8 && p1 === p2);
+      }
+
+      async function buatDashPassword() {
+        const btn = document.getElementById('btnBuatDashPw');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Menyimpan...';
+        try {
+          const res = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', password: document.getElementById('dashPwBaru1').value, key: 'dashboard_password' }) });
+          const json = await res.json();
+          if (!res.ok) { document.getElementById('dashPwBuatError').textContent = json.error; document.getElementById('dashPwBuatError').style.display = 'block'; }
+          else { document.getElementById('dashPwBaru1').value = ''; document.getElementById('dashPwBaru2').value = ''; showToast('Password viewer berhasil dibuat', 'success'); refreshPwCards(); }
+        } catch { showToast('Kesalahan jaringan', 'error'); }
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Simpan Password';
+        btn.disabled = false;
+      }
+
+      function checkDashPwGanti() {
+        const lama = document.getElementById('dashPwLama').value;
+        const p3 = document.getElementById('dashPwBaru3').value;
+        const p4 = document.getElementById('dashPwBaru4').value;
+        const errEl = document.getElementById('dashPwGantiError');
+        const btn = document.getElementById('btnGantiDashPw');
+        if (p3.length > 0 && p3.length < 8) { errEl.textContent = 'Password baru minimal 8 karakter'; errEl.style.display = 'block'; btn.disabled = true; return; }
+        if (p4 && p3 !== p4) { errEl.textContent = 'Password baru tidak cocok'; errEl.style.display = 'block'; btn.disabled = true; return; }
+        errEl.style.display = 'none';
+        btn.disabled = !(lama && p3.length >= 8 && p3 === p4);
+      }
+
+      async function gantiDashPassword() {
+        const btn = document.getElementById('btnGantiDashPw');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Menyimpan...';
+        try {
+          const res = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'change', password: document.getElementById('dashPwLama').value, newPassword: document.getElementById('dashPwBaru3').value, key: 'dashboard_password' }) });
+          const json = await res.json();
+          if (!res.ok) { document.getElementById('dashPwGantiError').textContent = json.error; document.getElementById('dashPwGantiError').style.display = 'block'; }
+          else { document.getElementById('dashPwLama').value = ''; document.getElementById('dashPwBaru3').value = ''; document.getElementById('dashPwBaru4').value = ''; document.getElementById('dashPwGantiError').style.display = 'none'; showToast('Password viewer berhasil diganti', 'success'); }
+        } catch { showToast('Kesalahan jaringan', 'error'); }
+        btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Ganti Password';
+        btn.disabled = false;
+      }
+
+      // ── Kelola Cabang ──
+      async function loadCabangModal() {
+        document.getElementById('cabangCount').textContent = 'Memuat...';
+        try {
+          const res = await fetch('/api/cabang');
+          const json = await res.json();
+          cabangData = json.cabang || [];
+          renderCabangList();
+        } catch { showToast('Gagal memuat data cabang', 'error'); }
+      }
+
+      function toggleAddBtn() {
+        const nama = document.getElementById('inputCabang').value.trim();
+        const area = document.getElementById('inputArea').value;
+        document.getElementById('btnAdd').disabled = !nama || !area;
+      }
+
+      async function addCabang() {
+        const input = document.getElementById('inputCabang');
+        const val = input.value.trim();
+        if (!val) return;
+        const btn = document.getElementById('btnAdd');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Menyimpan...';
+        try {
+          const res = await fetch('/api/cabang', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': getOpsToken() }, body: JSON.stringify({ nama: val, area: document.getElementById('inputArea').value }) });
+          const json = await res.json();
+          if (!res.ok) { showToast(json.error || 'Gagal menambah cabang', 'error'); }
+          else { input.value = ''; document.getElementById('inputArea').value = ''; showToast('Cabang berhasil ditambahkan', 'success'); await loadCabangModal(); }
+        } catch { showToast('Terjadi kesalahan jaringan', 'error'); }
+        finally { btn.innerHTML = '<i class="bi bi-plus-lg"></i> Tambah Cabang'; btn.disabled = !document.getElementById('inputCabang').value.trim(); }
+      }
+
+      async function deleteCabang(id, name) {
+        if (!confirm(`Hapus "${name}"?`)) return;
+        try {
+          const res = await fetch(`/api/cabang?id=${id}`, { method: 'DELETE', headers: { 'X-Admin-Token': getOpsToken() } });
+          const json = await res.json();
+          if (!res.ok) { showToast(json.error || 'Gagal menghapus cabang', 'error'); }
+          else { showToast('Cabang dihapus', 'success'); await loadCabangModal(); }
+        } catch { showToast('Terjadi kesalahan jaringan', 'error'); }
+      }
+
+      function startEditCabang(id) {
+        const item = document.getElementById('ci-' + id);
+        if (!item) return;
+        const c = cabangData.find(x => x.id === id);
+        if (!c) return;
+        item.classList.add('editing');
+        item.innerHTML = `
+          <div class="edit-fields">
+            <input type="text" id="editNama-${id}" value="${escHtmlAdmin(c.nama)}" maxlength="100" placeholder="Nama cabang">
+            <select id="editArea-${id}">
+              <option value="SULTRA"${c.area==='SULTRA'?' selected':''}>SULTRA</option>
+              <option value="MKS OUTER"${c.area==='MKS OUTER'?' selected':''}>MKS OUTER</option>
+              <option value="CUSTUMER"${c.area==='CUSTUMER'?' selected':''}>CUSTUMER</option>
+            </select>
+          </div>
+          <div class="c-actions">
+            <button class="c-btn c-btn-save" onclick="saveEditCabang(${id})" title="Simpan"><i class="bi bi-check-lg"></i></button>
+            <button class="c-btn c-btn-cancel" onclick="renderCabangList()" title="Batal"><i class="bi bi-x-lg"></i></button>
+          </div>`;
+        document.getElementById('editNama-' + id).focus();
+      }
+
+      async function saveEditCabang(id) {
+        const nama = document.getElementById('editNama-' + id).value.trim();
+        const area = document.getElementById('editArea-' + id).value;
+        if (!nama) { showToast('Nama tidak boleh kosong', 'error'); return; }
+        try {
+          const res = await fetch('/api/cabang', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': getOpsToken() }, body: JSON.stringify({ id, nama, area }) });
+          const json = await res.json();
+          if (!res.ok) { showToast(json.error || 'Gagal mengubah cabang', 'error'); }
+          else { showToast('Cabang diperbarui', 'success'); await loadCabangModal(); }
+        } catch { showToast('Terjadi kesalahan jaringan', 'error'); }
+      }
+
+      function renderCabangList() {
+        const q = document.getElementById('searchCabang').value.trim().toLowerCase();
+        const filtered = cabangData.filter(c => c.nama.toLowerCase().includes(q));
+        const el = document.getElementById('cabangList');
+        const total = cabangData.length;
+        document.getElementById('cabangCount').textContent = total + ' cabang terdaftar';
+
+        if (filtered.length === 0) {
+          el.innerHTML = `<div class="empty-state"><i class="bi bi-inbox"></i>${q ? 'Tidak ditemukan' : 'Belum ada cabang terdaftar'}</div>`;
+          return;
+        }
+
+        const groups = {};
+        filtered.forEach(c => { const a = c.area || 'LAINNYA'; if (!groups[a]) groups[a] = []; groups[a].push(c); });
+        const areaOrder = ['SULTRA', 'MKS OUTER', 'CUSTUMER', 'LAINNYA'];
+        const areaClass = { 'SULTRA': 'sultra', 'MKS OUTER': 'mks', 'CUSTUMER': 'cust' };
+        const areaColor = { 'SULTRA': '#dbeafe', 'MKS OUTER': '#fef9c3', 'CUSTUMER': '#fce7f3', 'LAINNYA': '#f1f5f9' };
+        const areaTextColor = { 'SULTRA': '#2563eb', 'MKS OUTER': '#ca8a04', 'CUSTUMER': '#db2777', 'LAINNYA': '#64748b' };
+
+        const sorted = Object.keys(groups).sort((a, b) => {
+          const ia = areaOrder.indexOf(a); const ib = areaOrder.indexOf(b);
+          return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+        });
+
+        let html = ''; let globalIdx = 1;
+        sorted.forEach(area => {
+          const cls = areaClass[area] || '';
+          const bg = areaColor[area] || '#f1f5f9';
+          const tc = areaTextColor[area] || '#64748b';
+          html += `<div class="area-group"><div class="area-header ${cls}">${area} <span class="area-badge">${groups[area].length}</span></div>`;
+          groups[area].forEach(c => {
+            html += `<div class="cabang-item" id="ci-${c.id}">
+              <span class="c-num">${globalIdx++}</span>
+              <div class="c-info">
+                <div class="c-name">${escHtmlAdmin(c.nama)}</div>
+                <span class="c-area-tag" style="background:${bg};color:${tc}">${area}</span>
+              </div>
+              <div class="c-actions">
+                <button class="c-btn c-btn-edit" onclick="startEditCabang(${c.id})" title="Edit"><i class="bi bi-pencil"></i></button>
+                <button class="c-btn c-btn-del" onclick="deleteCabang(${c.id}, '${c.nama.replace(/'/g,"\\'")}')" title="Hapus"><i class="bi bi-trash3"></i></button>
+              </div>
+            </div>`;
+          });
+          html += `</div>`;
+        });
+
+        el.innerHTML = html;
+      }
+
+      // ── Kelola Transfer ──
+      let splitTarget = null;
+      let allTransfers = []; // cache data dari API
+      let duplicateTransferIds = new Set();
+      const BULAN_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+      function initPeriodeSelect() {
+        const sel = document.getElementById('periodeSelect');
+        if (sel.options.length > 1) return; // sudah di-init
+        const now = new Date();
+        sel.innerHTML = '<option value="">-- Pilih Periode --</option>';
+        for (let i = 0; i < 3; i++) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const val = d.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit' }).slice(0, 7);
+          const label = BULAN_ID[d.getMonth()] + ' ' + d.getFullYear();
+          const o = document.createElement('option');
+          o.value = val; o.textContent = label;
+          sel.appendChild(o);
+        }
+        const defaultVal = now.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit' }).slice(0, 7);
+        sel.value = defaultVal;
+        loadTransfers();
+      }
+
+      async function loadTransfers() {
+        const periode = document.getElementById('periodeSelect').value;
+        const listEl = document.getElementById('trList');
+        const sumEl = document.getElementById('trSummary');
+        const filterBar = document.getElementById('trFilters');
+        if (!periode) {
+          listEl.innerHTML = '<div class="empty-state"><i class="bi bi-calendar3"></i>Pilih periode untuk melihat data</div>';
+          sumEl.style.display = 'none'; filterBar.style.display = 'none'; allTransfers = []; return;
+        }
+        listEl.innerHTML = '<div class="empty-state"><span class="spinner-border spinner-border-sm me-2"></span>Memuat...</div>';
+        try {
+          const res = await fetch('/api/transfer?periode=' + periode, { headers: { 'X-Admin-Token': getOpsToken() } });
+          const json = await res.json();
+          if (!res.ok) { listEl.innerHTML = `<div class="empty-state"><i class="bi bi-exclamation-circle"></i>${json.error}</div>`; return; }
+          sumEl.style.display = 'grid';
+          const totalStr = json.total >= 1000000 ? 'Rp ' + (json.total/1000000).toLocaleString('id-ID',{maximumFractionDigits:1}) + ' jt' : 'Rp ' + json.total.toLocaleString('id-ID');
+          document.getElementById('trTotal').textContent = totalStr;
+          document.getElementById('trTranaksi').textContent = json.transaksi;
+          document.getElementById('trCabang').textContent = json.cabang;
+          // Sort: tgl_inputan terbaru di atas
+          allTransfers = (json.transfers || []).sort((a, b) => {
+            const da = normTgl(a.tgl_inputan);
+            const db = normTgl(b.tgl_inputan);
+            return db.localeCompare(da);
+          });
+          duplicateTransferIds = buildDuplicateTransferSet(allTransfers);
+          filterBar.style.display = allTransfers.length > 0 ? 'flex' : 'none';
+          // Reset filter saat ganti periode
+          document.getElementById('trSearchCabang').value = '';
+          document.getElementById('trSearchTgl').value = '';
+          document.getElementById('trClearFilter').classList.remove('active');
+          if (!allTransfers.length) { listEl.innerHTML = '<div class="empty-state"><i class="bi bi-inbox"></i>Belum ada data periode ini</div>'; return; }
+          renderTransferList(allTransfers);
+        } catch { listEl.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-circle"></i>Gagal memuat data</div>'; }
+      }
+
+      // Normalize tgl_inputan ke YYYY-MM-DD dalam timezone WITA
+      // Handles both pure date "YYYY-MM-DD" and timestamptz "YYYY-MM-DDT..." from Supabase
+      function normTgl(raw) {
+        if (!raw) return '';
+        if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw; // pure date
+        return new Date(raw).toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+      }
+
+      function normalizeLooseText(val) {
+        return String(val || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      }
+
+      function normalizeBankKey(val) {
+        const key = normalizeLooseText(val);
+        return key === 'MTRANSFER' ? 'BCA' : key;
+      }
+
+      function buildDuplicateTransferSet(transfers) {
+        const groups = new Map();
+        const duplicateIds = new Set();
+
+        transfers.forEach(item => {
+          const key = [
+            normalizeLooseText(item.nama_cabang),
+            normTgl(item.tgl_inputan),
+            normalizeBankKey(item.nama_bank),
+            toNominal(item.nominal),
+            normalizeLooseText(item.ket),
+          ].join('|');
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(item);
+        });
+
+        groups.forEach(items => {
+          if (items.length < 2) return;
+          const sorted = [...items].sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
+          let hasClosePair = false;
+          for (let i = 1; i < sorted.length; i++) {
+            const prevTs = new Date(sorted[i - 1].timestamp || 0).getTime();
+            const curTs = new Date(sorted[i].timestamp || 0).getTime();
+            if (!Number.isFinite(prevTs) || !Number.isFinite(curTs) || Math.abs(curTs - prevTs) <= 5 * 60 * 1000) {
+              hasClosePair = true;
+              break;
+            }
+          }
+          if (!hasClosePair) return;
+          sorted.forEach(item => duplicateIds.add(String(item.id)));
+        });
+
+        return duplicateIds;
+      }
+
+      function getTransferProofUrl(transfer) {
+        return String(transfer?.bukti || transfer?.bukti_url || '').trim();
+      }
+
+      function applyTrFilter() {
+        const q = document.getElementById('trSearchCabang').value.trim().toLowerCase();
+        const tgl = document.getElementById('trSearchTgl').value; // 'YYYY-MM-DD'
+        const hasFilter = q || tgl;
+        document.getElementById('trClearFilter').classList.toggle('active', !!hasFilter);
+        const filtered = allTransfers.filter(t => {
+          const matchCabang = !q || (t.nama_cabang || '').toLowerCase().includes(q);
+          const matchTgl = !tgl || normTgl(t.tgl_inputan) === tgl;
+          return matchCabang && matchTgl;
+        });
+        if (!filtered.length) {
+          document.getElementById('trList').innerHTML = '<div class="empty-state"><i class="bi bi-funnel"></i>Tidak ada data cocok filter</div>';
+        } else {
+          renderTransferList(filtered);
+        }
+      }
+
+      function clearTrFilter() {
+        document.getElementById('trSearchCabang').value = '';
+        document.getElementById('trSearchTgl').value = '';
+        document.getElementById('trClearFilter').classList.remove('active');
+        renderTransferList(allTransfers);
+      }
+
+      function getTransferById(id) {
+        return allTransfers.find(t => String(t.id) === String(id)) || null;
+      }
+
+      function startEditTrById(id) {
+        const transfer = getTransferById(id);
+        if (!transfer) {
+          showToast('Data transfer tidak ditemukan', 'error');
+          return;
+        }
+        startEditTr(transfer);
+      }
+
+      function openSplitById(id) {
+        const transfer = getTransferById(id);
+        if (!transfer) {
+          showToast('Data transfer tidak ditemukan', 'error');
+          return;
+        }
+        openSplit(transfer);
+      }
+
+      async function deleteTransferById(id) {
+        const transfer = getTransferById(id);
+        if (!transfer) {
+          showToast('Data transfer tidak ditemukan', 'error');
+          return;
+        }
+
+        const tgl = normTgl(transfer.tgl_inputan);
+        const nominal = toNominal(transfer.nominal).toLocaleString('id-ID');
+        const prompt = 'Hapus transfer ini?\n\n' +
+          transfer.nama_cabang + '\n' +
+          'Tanggal: ' + (tgl || '-') + '\n' +
+          'Nominal: Rp ' + nominal + '\n\n' +
+          'Gunakan untuk row duplikat atau salah input.';
+        if (!confirm(prompt)) return;
+
+        try {
+          const res = await fetch('/api/transfer?id=' + encodeURIComponent(id), {
+            method: 'DELETE',
+            headers: { 'X-Admin-Token': getOpsToken() }
+          });
+          const json = await res.json();
+          if (!res.ok) {
+            showToast(json.error || 'Gagal menghapus transfer', 'error');
+            return;
+          }
+          showToast('Transfer dihapus', 'success');
+          await loadTransfers();
+          loadMismatchMonitor();
+        } catch {
+          showToast('Kesalahan jaringan', 'error');
+        }
+      }
+
+      let proofRotateDeg = 0;
+      let proofActionPositionTimer = 0;
+
+      function handleProofOverlay(event) {
+        if (event.target === document.getElementById('proofOverlay')) closeProof();
+      }
+
+      function scheduleProofActionsPosition() {
+        window.clearTimeout(proofActionPositionTimer);
+        positionProofActions();
+        requestAnimationFrame(() => {
+          positionProofActions();
+          requestAnimationFrame(positionProofActions);
+        });
+        proofActionPositionTimer = window.setTimeout(positionProofActions, 300);
+      }
+
+      function getProofActionTarget() {
+        const img = document.getElementById('proofImg');
+        const err = document.getElementById('proofErr');
+        if (img.style.display !== 'none' && img.getBoundingClientRect().width > 0) return img;
+        if (err.style.display !== 'none' && err.getBoundingClientRect().width > 0) return err;
+        return null;
+      }
+
+      function positionProofActions() {
+        const overlay = document.getElementById('proofOverlay');
+        const stage = document.getElementById('proofStage');
+        const actions = document.getElementById('proofActions');
+        if (!overlay.classList.contains('show')) {
+          actions.style.visibility = 'hidden';
+          stage.style.width = '';
+          stage.style.height = '';
+          return;
+        }
+        const target = getProofActionTarget();
+        if (!target) {
+          actions.style.visibility = 'hidden';
+          stage.style.width = '';
+          stage.style.height = '';
+          return;
+        }
+        const rect = target.getBoundingClientRect();
+        stage.style.width = `${Math.ceil(rect.width)}px`;
+        stage.style.height = `${Math.ceil(rect.height)}px`;
+        actions.style.visibility = 'visible';
+      }
+
+      function applyProofRotation() {
+        const img = document.getElementById('proofImg');
+        const normalized = ((proofRotateDeg % 360) + 360) % 360;
+        const sideways = normalized === 90 || normalized === 270;
+        img.style.transform = `rotate(${proofRotateDeg}deg)`;
+        img.style.maxWidth = sideways ? '78vh' : '100%';
+        img.style.maxHeight = sideways ? '92vw' : '78vh';
+        scheduleProofActionsPosition();
+      }
+
+      function handleProofLoad() {
+        const img = document.getElementById('proofImg');
+        document.getElementById('proofErr').style.display = 'none';
+        img.style.display = '';
+        proofRotateDeg = img.naturalHeight > img.naturalWidth ? -90 : 0;
+        applyProofRotation();
+      }
+
+      function handleProofError() {
+        document.getElementById('proofImg').style.display = 'none';
+        document.getElementById('proofErr').style.display = 'block';
+        scheduleProofActionsPosition();
+      }
+
+      function openProof(src) {
+        if (!src) return;
+        const img = document.getElementById('proofImg');
+        document.getElementById('proofStage').style.width = '';
+        document.getElementById('proofStage').style.height = '';
+        document.getElementById('proofActions').style.visibility = 'hidden';
+        document.getElementById('proofErr').style.display = 'none';
+        proofRotateDeg = 0;
+        img.style.display = '';
+        img.style.transform = '';
+        img.style.maxWidth = '100%';
+        img.style.maxHeight = '78vh';
+        img.src = src;
+        document.getElementById('proofOverlay').classList.add('show');
+        scheduleProofActionsPosition();
+      }
+
+      function closeProof() {
+        const overlay = document.getElementById('proofOverlay');
+        const actions = document.getElementById('proofActions');
+        const img = document.getElementById('proofImg');
+        overlay.classList.remove('show');
+        window.clearTimeout(proofActionPositionTimer);
+        document.getElementById('proofStage').style.width = '';
+        document.getElementById('proofStage').style.height = '';
+        actions.style.visibility = 'hidden';
+        img.src = '';
+        img.style.transform = '';
+      }
+
+      function rotateProof() {
+        const img = document.getElementById('proofImg');
+        if (!img.src) return;
+        proofRotateDeg += 90;
+        applyProofRotation();
+      }
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && document.getElementById('proofOverlay').classList.contains('show')) {
+          closeProof();
+        }
+      });
+
+      document.getElementById('proofImg').addEventListener('transitionend', scheduleProofActionsPosition);
+      window.addEventListener('resize', scheduleProofActionsPosition);
+      document.getElementById('proofOverlay').addEventListener('scroll', positionProofActions);
+
+      async function openTransferReview(periode, cabangEncoded = '', tgl = '', transferId = '', action = '') {
+        const cabang = cabangEncoded ? decodeURIComponent(cabangEncoded) : '';
+        openModal('modalTransfer');
+
+        const sel = document.getElementById('periodeSelect');
+        if (!Array.from(sel.options).some(opt => opt.value === periode)) {
+          const [year, month] = periode.split('-');
+          const option = document.createElement('option');
+          option.value = periode;
+          option.textContent = BULAN_ID[parseInt(month, 10) - 1] + ' ' + year;
+          sel.appendChild(option);
+        }
+
+        sel.value = periode;
+        await loadTransfers();
+
+        document.getElementById('trSearchCabang').value = cabang;
+        document.getElementById('trSearchTgl').value = tgl || '';
+        if (cabang || tgl) applyTrFilter();
+
+        if (transferId && action === 'edit') startEditTrById(transferId);
+        if (transferId && action === 'split') openSplitById(transferId);
+
+        const rowEl = transferId ? document.getElementById('tri-' + transferId) : null;
+        if (rowEl) rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      function renderTransferList(transfers) {
+        const listEl = document.getElementById('trList');
+        listEl.innerHTML = transfers.map(t => {
+          const transferId = String(t.id).replace(/'/g, "\\'");
+          const duplicateBadge = duplicateTransferIds.has(String(t.id))
+            ? '<span class="tr-dup-flag">Duplikat?</span>'
+            : '';
+          const proofUrl = getTransferProofUrl(t);
+          const proofButton = proofUrl
+            ? '<span class="btn-proof-tr" data-proof="' + escHtmlAdmin(proofUrl) + '" onclick="openProof(this.dataset.proof)" title="Lihat bukti transfer"><i class="bi bi-image"></i> Bukti</span>'
+            : '';
+          const tglDisplay = t.tgl_inputan
+            ? new Date(normTgl(t.tgl_inputan) + 'T00:00:00').toLocaleDateString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric' })
+            : '-';
+          const nom = parseFloat(t.nominal).toLocaleString('id-ID');
+          return `<div class="tr-item" id="tri-${t.id}">
+            <div class="tr-item-main">
+              <div class="tr-item-icon"><i class="bi bi-arrow-up-right"></i></div>
+              <div class="tr-item-body">
+                <div class="tr-item-top">
+                  <span class="tr-item-cabang">${escHtmlAdmin(t.nama_cabang)}</span>
+                  <span class="tr-item-bank">${escHtmlAdmin(t.nama_bank)}</span>
+                  ${duplicateBadge}
+                </div>
+                <div class="tr-item-meta"><span class="tm-label">Tgl Input:</span> ${tglDisplay}${t.ket ? ' · ' + escHtmlAdmin(t.ket) : ''}</div>
+              </div>
+              <div class="tr-item-right">
+                <span class="tr-item-nominal">${nom}</span>
+                <div style="display:flex;gap:4px;justify-content:flex-end">
+                  ${proofButton}
+                  <span class="btn-edit-tr" onclick="startEditTrById('${transferId}')" title="Samakan tanggal transfer jika hanya untuk satu tanggal NONCOD"><i class="bi bi-pencil"></i> Edit Tgl</span>
+                  <span class="btn-split-item" onclick="openSplitById('${transferId}')" title="Gunakan bila satu bukti transfer mencakup beberapa tanggal NONCOD"><i class="bi bi-scissors"></i> Split Tgl</span>
+                  <span class="btn-del-tr" onclick="deleteTransferById('${transferId}')" title="Hapus row transfer yang duplikat atau salah input"><i class="bi bi-trash3"></i> Hapus</span>
+                </div>
+              </div>
+            </div>
+          </div>`;
+        }).join('');
+      }
+
+      function startEditTr(t) {
+        if (!t || !t.id) return;
+        const item = document.getElementById('tri-' + t.id);
+        if (!item) return;
+        const tglVal = normTgl(t.tgl_inputan);
+        const ketVal = escHtmlAdmin(t.ket || '');
+        item.classList.add('tr-editing');
+        // Ganti main row jadi non-interactive
+        item.querySelector('.tr-item-main').style.opacity = '0.6';
+        item.querySelector('.tr-item-main').style.pointerEvents = 'none';
+        // Inject edit bar
+        const bar = document.createElement('div');
+        bar.className = 'tr-edit-bar';
+        bar.id = 'tr-edit-bar-' + t.id;
+        bar.innerHTML = `
+          <span class="tr-edit-label"><i class="bi bi-pencil me-1"></i>Edit Tanggal</span>
+          <input type="date" id="tr-edit-tgl-${t.id}" value="${tglVal}">
+          <input type="text" id="tr-edit-ket-${t.id}" value="${ketVal}" placeholder="Keterangan (opsional)">
+          <div class="tr-edit-actions">
+            <button class="tr-ebtn tr-ebtn-save" onclick="saveEditTr('${t.id}')"><i class="bi bi-check-lg"></i> Simpan</button>
+            <button class="tr-ebtn tr-ebtn-cancel" onclick="cancelEditTr('${t.id}')">Batal</button>
+          </div>`;
+        item.appendChild(bar);
+        document.getElementById('tr-edit-tgl-' + t.id).focus();
+      }
+
+      function cancelEditTr(id) {
+        const item = document.getElementById('tri-' + id);
+        if (!item) return;
+        item.classList.remove('tr-editing');
+        item.querySelector('.tr-item-main').style.opacity = '';
+        item.querySelector('.tr-item-main').style.pointerEvents = '';
+        const bar = document.getElementById('tr-edit-bar-' + id);
+        if (bar) bar.remove();
+      }
+
+      async function saveEditTr(id) {
+        const tgl = document.getElementById('tr-edit-tgl-' + id).value;
+        const ket = document.getElementById('tr-edit-ket-' + id).value;
+        if (!tgl) { showToast('Tanggal tidak boleh kosong', 'error'); return; }
+        const saveBtn = document.querySelector(`#tr-edit-bar-${id} .tr-ebtn-save`);
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        try {
+          const res = await fetch('/api/transfer', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'X-Admin-Token': getOpsToken() },
+            body: JSON.stringify({ id, tgl_inputan: tgl, ket }),
+          });
+          const json = await res.json();
+          if (!res.ok) { showToast(json.error || 'Gagal menyimpan', 'error'); }
+          else {
+            showToast('Tanggal diperbarui', 'success');
+            // Update allTransfers cache
+            const idx = allTransfers.findIndex(x => x.id === id);
+            if (idx !== -1) { allTransfers[idx].tgl_inputan = tgl; allTransfers[idx].ket = ket || null; }
+            duplicateTransferIds = buildDuplicateTransferSet(allTransfers);
+            cancelEditTr(id);
+            applyTrFilter();
+            loadMismatchMonitor();
+          }
+        } catch { showToast('Kesalahan jaringan', 'error'); }
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> Simpan';
+      }
+
+      // ── Split ──
+      function openSplit(t) {
+        if (!t || !t.id) return;
+        splitTarget = t;
+        const tgl = normTgl(t.tgl_inputan);
+        const tglDisplay = tgl ? new Date(tgl + 'T00:00:00').toLocaleDateString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric' }) : '-';
+        const nom = parseFloat(t.nominal).toLocaleString('id-ID');
+        document.getElementById('splitOrigInfo').innerHTML = `
+          <div style="width:30px;height:30px;border-radius:8px;background:#dbeafe;color:#2563eb;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="bi bi-geo-alt-fill"></i></div>
+          <div class="so-body">
+            <div class="so-cabang">${escHtmlAdmin(t.nama_cabang)}</div>
+            <div class="so-sub">${escHtmlAdmin(t.nama_bank)} · Tgl input saat ini: ${tglDisplay}</div>
+          </div>
+          <div class="so-nom">Rp ${nom}</div>`;
+        const list = document.getElementById('rincianList');
+        list.innerHTML = '';
+        addRincianRow(tgl, '');
+        addRincianRow('', '');
+        updateSisa();
+        document.getElementById('splitOverlay').classList.add('show');
+      }
+
+      function closeSplit() {
+        document.getElementById('splitOverlay').classList.remove('show');
+        splitTarget = null;
+      }
+
+      function addRincianRow(tgl = '', nominal = '') {
+        const div = document.createElement('div');
+        div.className = 'rincian-row';
+        div.innerHTML = `
+          <input type="date" value="${tgl}" title="Tanggal NONCOD atau pickup" aria-label="Tanggal NONCOD atau pickup" oninput="updateSisa()">
+          <input type="number" placeholder="Nominal rincian" value="${nominal}" title="Nominal untuk tanggal ini" aria-label="Nominal untuk tanggal ini" oninput="updateSisa()" min="1">
+          <button class="btn-del-row" onclick="delRincianRow(this)" title="Hapus rincian tanggal"><i class="bi bi-trash3"></i></button>`;
+        document.getElementById('rincianList').appendChild(div);
+        updateSisa();
+      }
+
+      function delRincianRow(btn) {
+        btn.closest('.rincian-row').remove();
+        updateSisa();
+      }
+
+      function updateSisa() {
+        if (!splitTarget) return;
+        const total = parseFloat(splitTarget.nominal);
+        const inputs = document.querySelectorAll('#rincianList input[type=number]');
+        const sum = Array.from(inputs).reduce((s, i) => s + (parseFloat(i.value) || 0), 0);
+        const bar = document.getElementById('sisaBar');
+        const diff = Math.round((total - sum) * 100) / 100;
+        const btn = document.getElementById('btnSplitConfirm');
+        if (diff === 0) {
+          bar.className = 'sisa-bar';
+          bar.innerHTML = `<span class="sb-label"><i class="bi bi-check-circle-fill me-1"></i>Siap disimpan untuk sinkron ke NONCOD</span><span class="sb-val">Rp ${total.toLocaleString('id-ID')} ✓</span>`;
+          btn.disabled = false;
+        } else if (diff > 0) {
+          bar.className = 'sisa-bar danger';
+          bar.innerHTML = `<span class="sb-label"><i class="bi bi-exclamation-triangle-fill me-1"></i>Nominal belum habis dibagi</span><span class="sb-val">Rp ${diff.toLocaleString('id-ID')}</span>`;
+          btn.disabled = true;
+        } else {
+          bar.className = 'sisa-bar danger';
+          bar.innerHTML = `<span class="sb-label"><i class="bi bi-exclamation-triangle-fill me-1"></i>Nominal rincian melebihi transfer asli</span><span class="sb-val">+Rp ${Math.abs(diff).toLocaleString('id-ID')}</span>`;
+          btn.disabled = true;
+        }
+      }
+
+      async function doSplit() {
+        if (!splitTarget) return;
+        const rows = Array.from(document.querySelectorAll('#rincianList .rincian-row')).map(row => {
+          const inputs = row.querySelectorAll('input');
+          return { tgl_inputan: inputs[0].value, nominal: parseFloat(inputs[1].value) || 0 };
+        });
+        const btn = document.getElementById('btnSplitConfirm');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Menyinkronkan...';
+        try {
+          const res = await fetch('/api/transfer', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': getOpsToken() }, body: JSON.stringify({ action: 'split', id: splitTarget.id, rows }) });
+          const json = await res.json();
+          if (!res.ok) { showToast(json.error || 'Gagal sinkronkan tanggal', 'error'); }
+          else { showToast('Sinkronisasi berhasil (' + json.inserted + ' baris)', 'success'); closeSplit(); loadTransfers(); loadMismatchMonitor(); }
+        } catch { showToast('Kesalahan jaringan', 'error'); }
+        btn.innerHTML = '<i class="bi bi-scissors me-1"></i>Simpan Sinkronisasi';
+        btn.disabled = false;
+      }
+
+      function getMonitorPeriode() {
+        return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar', year: 'numeric', month: '2-digit' }).slice(0, 7);
+      }
+
+      function getPeriodeLabel(periode) {
+        if (!periode || !/^\d{4}-\d{2}$/.test(periode)) return '-';
+        const [year, month] = periode.split('-');
+        return BULAN_ID[parseInt(month, 10) - 1] + ' ' + year;
+      }
+
+      function fmtTanggalId(ymd) {
+        if (!ymd) return '-';
+        return new Date(ymd + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      }
+
+      function getTodayYmdWita() {
+        return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+      }
+
+      function toNominal(val) {
+        return Math.round(parseFloat(val) || 0);
+      }
+
+      function buildMismatchState(periode, ncData, trData) {
+        const ncByDay = ncData.byDay || {};
+        const transferRows = Array.isArray(trData.transfers) ? trData.transfers : [];
+        const ncByCabangDate = {};
+        const trByCabangDate = {};
+        const trRowsByCabangDate = {};
+        const todayYmd = getTodayYmdWita();
+
+        Object.keys(ncByDay).forEach(date => {
+          if (!String(date).startsWith(periode + '-')) return;
+          const cabangMap = ncByDay[date] || {};
+          Object.keys(cabangMap).forEach(cabang => {
+            const nominal = toNominal(cabangMap[cabang] && cabangMap[cabang].ongkir);
+            if (nominal <= 0) return;
+            if (!ncByCabangDate[cabang]) ncByCabangDate[cabang] = {};
+            ncByCabangDate[cabang][date] = nominal;
+          });
+        });
+
+        transferRows.forEach(row => {
+          const cabang = String(row.nama_cabang || '').trim();
+          const date = normTgl(row.tgl_inputan);
+          const nominal = toNominal(row.nominal);
+          if (!cabang || !date || nominal <= 0) return;
+          if (!trByCabangDate[cabang]) trByCabangDate[cabang] = {};
+          if (!trRowsByCabangDate[cabang]) trRowsByCabangDate[cabang] = {};
+          trByCabangDate[cabang][date] = (trByCabangDate[cabang][date] || 0) + nominal;
+          if (!trRowsByCabangDate[cabang][date]) trRowsByCabangDate[cabang][date] = [];
+          trRowsByCabangDate[cabang][date].push(row);
+        });
+
+        const cabangSet = new Set([...Object.keys(ncByCabangDate), ...Object.keys(trByCabangDate)]);
+        const suspects = [];
+        const pendingCases = [];
+        const mismatchCases = [];
+
+        cabangSet.forEach(cabang => {
+          const ncDates = ncByCabangDate[cabang] || {};
+          const trDates = trByCabangDate[cabang] || {};
+          const allDates = [...new Set([...Object.keys(ncDates), ...Object.keys(trDates)])].sort();
+          const shortages = [];
+          const extras = [];
+
+          allDates.forEach(date => {
+            const noncod = toNominal(ncDates[date] || 0);
+            const transfer = toNominal(trDates[date] || 0);
+            const diff = noncod - transfer;
+            if (diff > 0) shortages.push({ date, amount: diff, noncod, transfer });
+            if (diff < 0) extras.push({ date, amount: Math.abs(diff), noncod, transfer });
+          });
+
+          const usedShort = new Set();
+          const usedExtra = new Set();
+          extras.forEach((extra, extraIndex) => {
+            const shortIndex = shortages.findIndex((short, idx) => !usedShort.has(idx) && short.amount === extra.amount);
+            if (shortIndex === -1) return;
+
+            usedShort.add(shortIndex);
+            usedExtra.add(extraIndex);
+
+            const target = shortages[shortIndex];
+            const rows = ((trRowsByCabangDate[cabang] || {})[extra.date] || []).filter(row => toNominal(row.nominal) === extra.amount);
+            const exactRow = rows.length === 1 ? rows[0] : null;
+
+            suspects.push({
+              cabang,
+              nominal: extra.amount,
+              transferDate: extra.date,
+              targetDate: target.date,
+              transferId: exactRow ? exactRow.id : '',
+              transferBank: exactRow ? (exactRow.nama_bank || '') : '',
+            });
+          });
+
+          extras.forEach((extra, index) => {
+            if (usedExtra.has(index)) return;
+            mismatchCases.push({
+              kind: 'transfer',
+              cabang,
+              date: extra.date,
+              nominal: extra.amount,
+              noncod: extra.noncod,
+              transfer: extra.transfer,
+              filterDate: extra.date,
+              hint: extra.noncod > 0
+                ? 'Transfer lebih besar dari NONCOD di tanggal ini.'
+                : 'Ada transfer, tetapi NONCOD tanggal ini kosong.'
+            });
+          });
+
+          shortages.forEach((short, index) => {
+            if (usedShort.has(index)) return;
+            if (short.date >= todayYmd) return;
+            const targetList = short.transfer > 0 ? mismatchCases : pendingCases;
+            targetList.push({
+              kind: 'noncod',
+              cabang,
+              date: short.date,
+              nominal: short.amount,
+              noncod: short.noncod,
+              transfer: short.transfer,
+              filterDate: short.transfer > 0 ? short.date : '',
+              hint: short.transfer > 0
+                ? 'Nominal transfer belum menutup total NONCOD.'
+                : 'NONCOD sudah ada, tetapi transfer belum masuk di tanggal ini.'
+            });
+          });
+        });
+
+        suspects.sort((a, b) => b.nominal - a.nominal || a.transferDate.localeCompare(b.transferDate) || a.cabang.localeCompare(b.cabang));
+        pendingCases.sort((a, b) => b.nominal - a.nominal || a.date.localeCompare(b.date) || a.cabang.localeCompare(b.cabang));
+        mismatchCases.sort((a, b) => b.nominal - a.nominal || a.date.localeCompare(b.date) || a.cabang.localeCompare(b.cabang));
+
+        return { suspects, pendingCases, mismatchCases, periode };
+      }
+
+      function renderMonitorAction(periode, cabang, filterDate, transferId, action, label, className) {
+        const encodedCabang = encodeURIComponent(cabang || '');
+        return `<span class="${className}" onclick="openTransferReview('${periode}', '${encodedCabang}', '${filterDate || ''}', '${transferId || ''}', '${action || ''}')"><i class="bi bi-${action === 'edit' ? 'pencil' : 'search'}"></i> ${label}</span>`;
+      }
+
+      function renderSuspectItem(item, periode) {
+        const actionHtml = item.transferId
+          ? renderMonitorAction(periode, item.cabang, item.transferDate, item.transferId, 'edit', 'Edit Tgl', 'btn-edit-tr')
+          : renderMonitorAction(periode, item.cabang, item.transferDate, '', '', 'Cek Transfer', 'btn-split-item');
+
+        return `<div class="mon-item">
+          <div class="mon-item-left">
+            <div class="mon-dot amber"></div>
+            <div class="mon-info">
+              <div class="mon-name">${escHtmlAdmin(item.cabang)}</div>
+              <div class="mon-meta">Transfer tercatat ${fmtTanggalId(item.transferDate)}${item.transferBank ? ' · ' + escHtmlAdmin(item.transferBank) : ''} → nominal sama dengan NONCOD ${fmtTanggalId(item.targetDate)}</div>
+            </div>
+          </div>
+          <div class="mon-right">
+            <div class="mon-nom amber">Rp ${item.nominal.toLocaleString('id-ID')}</div>
+            <div class="mon-actions">${actionHtml}</div>
+          </div>
+        </div>`;
+      }
+
+      function renderPendingCaseItem(item, periode) {
+        const actionHtml = renderMonitorAction(periode, item.cabang, '', '', '', 'Buka Transfer', 'btn-edit-tr');
+
+        return `<div class="mon-item">
+          <div class="mon-item-left">
+            <div class="mon-dot blue"></div>
+            <div class="mon-info">
+              <div class="mon-name">${escHtmlAdmin(item.cabang)}</div>
+              <div class="mon-meta">NONCOD ${fmtTanggalId(item.date)} · NONCOD Rp ${item.noncod.toLocaleString('id-ID')} · Transfer Rp ${item.transfer.toLocaleString('id-ID')}</div>
+              <div class="mon-meta">${escHtmlAdmin(item.hint)}</div>
+            </div>
+          </div>
+          <div class="mon-right">
+            <div class="mon-nom blue">Rp ${item.nominal.toLocaleString('id-ID')}</div>
+            <div class="mon-actions">${actionHtml}</div>
+          </div>
+        </div>`;
+      }
+
+      function renderOpenCaseItem(item, periode) {
+        const label = item.kind === 'transfer' ? 'Cek Transfer' : 'Buka Transfer';
+        const actionHtml = renderMonitorAction(periode, item.cabang, item.filterDate, '', '', label, 'btn-edit-tr');
+        const meta = item.kind === 'transfer'
+          ? `Transfer ${fmtTanggalId(item.date)} · NONCOD Rp ${item.noncod.toLocaleString('id-ID')} · Transfer Rp ${item.transfer.toLocaleString('id-ID')}`
+          : `NONCOD ${fmtTanggalId(item.date)} · NONCOD Rp ${item.noncod.toLocaleString('id-ID')} · Transfer Rp ${item.transfer.toLocaleString('id-ID')}`;
+
+        return `<div class="mon-item">
+          <div class="mon-item-left">
+            <div class="mon-dot red"></div>
+            <div class="mon-info">
+              <div class="mon-name">${escHtmlAdmin(item.cabang)}</div>
+              <div class="mon-meta">${meta}</div>
+              <div class="mon-meta">${escHtmlAdmin(item.hint)}</div>
+            </div>
+          </div>
+          <div class="mon-right">
+            <div class="mon-nom red">Rp ${item.nominal.toLocaleString('id-ID')}</div>
+            <div class="mon-actions">${actionHtml}</div>
+          </div>
+        </div>`;
+      }
+
+      async function loadMismatchMonitor() {
+        const contentEl = document.getElementById('mismatchContent');
+        const sumEl = document.getElementById('mismatchSummary');
+        const refreshBtn = document.getElementById('mismatchRefreshBtn');
+        const periode = getMonitorPeriode();
+        refreshBtn.classList.add('spinning');
+        contentEl.innerHTML = '<div class="empty-state" style="padding:16px 0"><span class="spinner-border spinner-border-sm"></span></div>';
+        sumEl.style.display = 'none';
+        document.getElementById('mismatchDateLabel').textContent = getPeriodeLabel(periode) + ' · cek selisih NONCOD vs transfer';
+        try {
+          const [ncRes, trRes] = await Promise.all([
+            fetch('/api/noncod?periode=' + encodeURIComponent(periode) + '&mode=noncod'),
+            fetch('/api/transfer?periode=' + encodeURIComponent(periode), { headers: { 'X-Admin-Token': getOpsToken() } })
+          ]);
+          const [ncData, trData] = await Promise.all([ncRes.json(), trRes.json()]);
+          if (!ncRes.ok) throw new Error(ncData.error || 'Gagal memuat NONCOD');
+          if (!trRes.ok) throw new Error(trData.error || 'Gagal memuat transfer');
+
+          const mismatchState = buildMismatchState(periode, ncData, trData);
+          document.getElementById('mismatchSuspect').textContent = mismatchState.suspects.length;
+          document.getElementById('mismatchPending').textContent = mismatchState.pendingCases.length;
+          document.getElementById('mismatchOpen').textContent = mismatchState.mismatchCases.length;
+          sumEl.style.display = 'grid';
+          let html = '<div class="today-body">';
+
+          html += `<div class="today-sec amber"><i class="bi bi-calendar-event"></i>Indikasi Salah Tanggal <span class="sec-badge">${mismatchState.suspects.length}</span></div>`;
+          if (!mismatchState.suspects.length) {
+            html += '<div class="mon-empty">Belum ada kandidat salah tanggal dengan nominal yang sama.</div>';
+          } else {
+            mismatchState.suspects.forEach(item => { html += renderSuspectItem(item, periode); });
+          }
+
+          html += `<div class="today-sec red"><i class="bi bi-exclamation-triangle-fill"></i>Belum Cocok <span class="sec-badge">${mismatchState.mismatchCases.length}</span></div>`;
+          if (!mismatchState.mismatchCases.length) {
+            html += '<div class="mon-empty">Semua data NONCOD dan transfer periode ini sudah cocok.</div>';
+          } else {
+            mismatchState.mismatchCases.forEach(item => { html += renderOpenCaseItem(item, periode); });
+          }
+
+          html += `<div class="today-sec blue"><i class="bi bi-hourglass-split"></i>Belum Transfer <span class="sec-badge">${mismatchState.pendingCases.length}</span></div>`;
+          if (!mismatchState.pendingCases.length) {
+            html += '<div class="mon-empty">Tidak ada NONCOD lama yang benar-benar belum ditransfer.</div>';
+          } else {
+            mismatchState.pendingCases.forEach(item => { html += renderPendingCaseItem(item, periode); });
+          }
+
+          html += '</div>';
+          contentEl.innerHTML = html;
+        } catch (err) {
+          contentEl.innerHTML = '<div class="empty-state" style="padding:16px 0"><i class="bi bi-exclamation-circle text-danger me-1"></i>' + escHtmlAdmin(err.message || 'Gagal memuat data') + '</div>';
+          sumEl.style.display = 'none';
+        }
+        refreshBtn.classList.remove('spinning');
+      }
+
+      // ── Utilities ──
+      function escHtmlAdmin(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+      }
+
+      function showToast(msg, type = '') {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'toast-box show ' + type;
+        setTimeout(() => t.className = 'toast-box', 2200);
+      }
+
+      // ── Date filter event (reliable cross-browser) ──
+      document.getElementById('trSearchTgl').addEventListener('change', applyTrFilter);
+      document.getElementById('trSearchTgl').addEventListener('input', applyTrFilter);
+
+      // ── Session Guard ── (30-min timeout, admin only)
+      (function() {
+        if (!hasActiveSession('admin')) {
+          try {
+            if (window.top && window.top !== window.self) {
+              window.top.location.replace('/dashboard.html');
+              return;
+            }
+          } catch {}
+          location.replace('/dashboard.html');
+          return;
+        }
+        setInterval(() => {
+          if (!hasActiveSession('admin')) {
+            exitWorkspace();
+          }
+        }, 5000);
+        loadMismatchMonitor();
+      })();
+    </script>
+
+    <!-- Log Modal -->
+    <div class="log-overlay" id="logOverlay" onclick="closeLogs()">
+      <div class="log-panel" onclick="event.stopPropagation()">
+        <div class="log-head">
+          <div class="log-head-icon"><i class="bi bi-journal-x"></i></div>
+          <div class="log-head-title">Error Log <span id="logCount" style="font-weight:400;color:#94a3b8;font-size:0.78rem"></span></div>
+          <div class="log-head-actions">
+            <button onclick="downloadLogs()" title="Download"><i class="bi bi-download"></i></button>
+            <button onclick="clearLogs()" title="Hapus Semua"><i class="bi bi-trash3"></i></button>
+            <button onclick="closeLogs()" title="Tutup"><i class="bi bi-x-lg"></i></button>
+          </div>
+        </div>
+        <div class="log-body" id="logBody">
+          <div class="log-empty">Memuat...</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let logData = [];
+
+      async function openLogs() {
+        document.getElementById('logOverlay').classList.add('show');
+        document.getElementById('logBody').innerHTML = '<div class="log-empty"><span class="spinner-border spinner-border-sm me-2"></span>Memuat log...</div>';
+        try {
+          const res = await fetch('/api/logs?limit=200', {
+            headers: { 'X-Admin-Token': getOpsToken() }
+          });
+          if (!res.ok) { document.getElementById('logBody').innerHTML = '<div class="log-empty">Gagal memuat log ('+res.status+')</div>'; return; }
+          logData = await res.json();
+          renderLogs();
+        } catch { document.getElementById('logBody').innerHTML = '<div class="log-empty">Kesalahan jaringan</div>'; }
+      }
+
+      function renderLogs() {
+        const el = document.getElementById('logBody');
+        document.getElementById('logCount').textContent = logData.length ? '(' + logData.length + ')' : '';
+        if (!logData.length) { el.innerHTML = '<div class="log-empty"><i class="bi bi-check-circle me-1"></i>Tidak ada error log</div>'; return; }
+        el.innerHTML = logData.map(l => {
+          const dt = new Date(l.created_at);
+          const time = dt.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'}) + ' ' + dt.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+          let metaStr = '';
+          try { const m = JSON.parse(l.meta||'{}'); metaStr = Object.entries(m).map(([k,v])=>k+': '+v).join(' · '); } catch {}
+          return '<div class="log-item"><span class="log-time">' + escHtmlAdmin(time) + '</span><span class="log-src">' + escHtmlAdmin(l.source||'?') + '</span><div class="log-msg">' + escHtmlAdmin(l.message||'') + '</div>' + (metaStr ? '<div class="log-meta">' + escHtmlAdmin(metaStr) + '</div>' : '') + '</div>';
+        }).join('');
+      }
+
+      function closeLogs() { document.getElementById('logOverlay').classList.remove('show'); }
+
+      function downloadLogs() {
+        if (!logData.length) { showToast('Tidak ada log', 'error'); return; }
+        const lines = logData.map(l => {
+          const dt = new Date(l.created_at).toISOString();
+          let meta = '';
+          try { const m = JSON.parse(l.meta||'{}'); meta = Object.entries(m).map(([k,v])=>k+'='+v).join(' '); } catch {}
+          return dt + ' [' + (l.source||'?') + '] ' + (l.message||'') + (meta ? ' {' + meta + '}' : '');
+        });
+        const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'error-log-' + new Date().toISOString().slice(0,10) + '.txt';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+
+      async function clearLogs() {
+        if (!confirm('Hapus semua error log?')) return;
+        try {
+          const res = await fetch('/api/logs', { method: 'DELETE', headers: { 'X-Admin-Token': getOpsToken() } });
+          if (res.ok) { logData = []; renderLogs(); showToast('Log dihapus', 'success'); }
+          else { showToast('Gagal menghapus', 'error'); }
+        } catch { showToast('Kesalahan jaringan', 'error'); }
+      }
+    </script>
+  </body>
+</html>

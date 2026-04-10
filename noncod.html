@@ -1,0 +1,1734 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noncod</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg: #f0f2f7;
+        --card: #ffffff;
+        --dark: #0f172a;
+        --dark2: #1e293b;
+        --blue: #3b82f6;
+        --green: #10b981;
+        --red: #ef4444;
+        --orange: #f59e0b;
+        --gray: #64748b;
+        --gray2: #94a3b8;
+        --gray3: #cbd5e1;
+        --border: #e2e8f0;
+        --radius: 14px;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background: var(--bg); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; color: var(--dark); -webkit-font-smoothing: antialiased; }
+      body.embed { background: transparent; }
+      body.embed .hdr-btn { display: none; }
+      body.embed .upload-btn,
+      body.embed .download-btn { display: none !important; }
+      body.embed .page-body { max-width: none; padding: 14px 14px 24px; }
+
+      #loadingScreen { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; gap: 16px; transition: opacity 0.4s; }
+      #loadingScreen.hide { opacity: 0; pointer-events: none; }
+      .loading-spinner { width: 44px; height: 44px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; }
+      .loading-label { font-size: 0.82rem; font-weight: 600; color: var(--gray2); letter-spacing: -0.01em; }
+      .page { display: none; flex-direction: column; min-height: 100vh; }
+      .page.show { display: flex; }
+
+      .page-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+        padding: 16px 18px 14px;
+        display: flex; align-items: center; gap: 12px;
+        position: sticky; top: 0; z-index: 100;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      }
+      .hdr-btn { width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.7); font-size: 0.9rem; text-decoration: none; flex-shrink: 0; transition: 0.2s; cursor: pointer; backdrop-filter: blur(4px); }
+      .hdr-btn:hover { background: rgba(255,255,255,0.15); color: white; }
+      .hdr-action-group { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+      .hdr-action { border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; gap: 0; padding: 7px 9px; color: rgba(255,255,255,0.7); font-size: 0.82rem; text-decoration: none; flex-shrink: 0; transition: 0.2s; cursor: pointer; backdrop-filter: blur(4px); font-family: 'Inter', sans-serif; font-weight: 600; flex-direction: column; line-height: 1; }
+      .hdr-action i { font-size: 0.95rem; }
+      .hdr-action .ha-label { font-size: 0.52rem; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; margin-top: 2px; }
+      @media (min-width: 420px) { .hdr-action { flex-direction: row; gap: 5px; padding: 7px 12px; } .hdr-action .ha-label { font-size: 0.65rem; margin-top: 0; } }
+      .hdr-action:hover { background: rgba(255,255,255,0.15); color: white; }
+      .hdr-action.upload-btn { color: #86efac; border-color: rgba(134,239,172,0.3); background: rgba(16,185,129,0.1); }
+      .hdr-action.upload-btn:hover { background: rgba(16,185,129,0.2); }
+      .hdr-action.upload-btn.active { background: var(--green); color: white; border-color: var(--green); }
+      .hdr-action.download-btn { color: #93c5fd; border-color: rgba(147,197,253,0.3); background: rgba(59,130,246,0.1); display: none; }
+      .hdr-action.download-btn:hover { background: rgba(59,130,246,0.2); }
+      .hdr-action.download-btn.show { display: flex; }
+      .hd-info { flex: 1; min-width: 0; }
+      .hd-name { font-size: 1.05rem; font-weight: 800; color: white; letter-spacing: -0.02em; }
+      .hd-status { font-size: 0.7rem; color: rgba(255,255,255,0.5); margin-top: 2px; font-weight: 500; }
+
+      .page-body { padding: 12px 12px 24px; display: flex; flex-direction: column; gap: 10px; flex: 1; max-width: 600px; margin: 0 auto; width: 100%; }
+      @media (min-width: 768px) { .page-body { max-width: 900px; padding: 20px 24px 32px; } }
+      @media (min-width: 1024px) { .page-body { max-width: 1100px; padding: 24px 32px 36px; } }
+
+      .tab-bar { display: flex; gap: 4px; background: var(--card); border-radius: var(--radius); padding: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid var(--border); }
+      .tab-btn { flex: 1; border: none; background: transparent; border-radius: 10px; padding: 9px 6px; font-size: 0.74rem; font-weight: 700; color: var(--gray); cursor: pointer; transition: all 0.2s; font-family: 'Inter', sans-serif; letter-spacing: -0.01em; }
+      .tab-btn.active { background: var(--dark); color: white; box-shadow: 0 2px 8px rgba(15,23,42,0.2); }
+      .tab-btn:not(.active):hover { background: #f1f5f9; }
+
+      .stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+      .stat-card {
+        border-radius: var(--radius); padding: 12px 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center;
+        border: 1px solid transparent; position: relative; overflow: hidden;
+      }
+      .stat-card:nth-child(1) { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-color: #93c5fd; }
+      .stat-card:nth-child(2) { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-color: #6ee7b7; }
+      .stat-card:nth-child(3) { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border-color: #fca5a5; }
+      .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+      .stat-card:nth-child(1)::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+      .stat-card:nth-child(2)::before { background: linear-gradient(90deg, #10b981, #34d399); }
+      .stat-card:nth-child(3)::before { background: linear-gradient(90deg, #ef4444, #f87171); }
+      .stat-card .sc-lbl { font-size: 0.6rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+      .stat-card .sc-val { font-size: clamp(0.72rem, 2.8vw, 0.88rem); font-weight: 800; line-height: 1.2; letter-spacing: -0.02em; }
+      .stat-card .sc-count { font-size: 0.62rem; font-weight: 600; color: #475569; margin-top: 4px; }
+
+      .ctrl-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .filter-select {
+        border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.78rem;
+        padding: 8px 12px; color: var(--dark); background: var(--card);
+        font-family: 'Inter', sans-serif; font-weight: 600; flex: 1; min-width: 0;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03); transition: 0.2s;
+        appearance: none; -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 10px center;
+        padding-right: 28px;
+      }
+      .filter-select:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+      .date-wrap {
+        position: relative; display: flex; align-items: center; gap: 6px;
+        border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.72rem;
+        padding: 8px 10px; color: var(--dark); background: var(--card);
+        font-family: 'Inter', sans-serif; font-weight: 600; flex-shrink: 0;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03); transition: 0.2s; cursor: pointer;
+        user-select: none; white-space: nowrap; min-width: 0;
+      }
+      .date-wrap:hover { border-color: var(--blue); }
+      .date-wrap.open { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+      .date-wrap .dw-icon { color: var(--blue); font-size: 0.82rem; flex-shrink: 0; }
+      .date-wrap .dw-label { letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; }
+      .date-wrap .dw-arrow { color: var(--gray3); font-size: 0.6rem; flex-shrink: 0; margin-left: 2px; }
+
+      /* Custom Calendar */
+      .cal-overlay { display: none; position: fixed; inset: 0; z-index: 1200; }
+      .cal-overlay.show { display: block; }
+      .cal-popup {
+        position: fixed; top: 0; left: 0; z-index: 1201;
+        background: var(--card); border-radius: 16px; border: 1px solid var(--border);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
+        width: min(290px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: auto;
+        padding: 14px; display: none;
+        animation: calInDown 0.15s ease-out;
+      }
+      .cal-popup.show { display: block; }
+      .cal-popup.place-top { animation-name: calInUp; }
+      .cal-popup.place-bottom { animation-name: calInDown; }
+      @keyframes calInDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes calInUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+      .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+      .cal-title { font-size: 0.82rem; font-weight: 800; color: var(--dark); letter-spacing: -0.02em; }
+      .cal-nav { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--gray); font-size: 0.72rem; transition: 0.15s; }
+      .cal-nav:hover { background: #f1f5f9; color: var(--dark); }
+      .cal-range-info { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 6px 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #f1f5f9; font-size: 0.68rem; font-weight: 600; color: var(--gray); }
+      .cal-range-info .cr-date { color: var(--dark); font-weight: 700; }
+      .cal-range-info .cr-sep { color: var(--gray3); }
+      .cal-days { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; gap: 2px; }
+      .cal-days .cal-dh { font-size: 0.58rem; font-weight: 700; color: var(--gray2); text-transform: uppercase; padding: 4px 0 6px; letter-spacing: 0.5px; }
+      .cal-days .cal-d {
+        width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+        font-size: 0.72rem; font-weight: 600; color: #475569; cursor: pointer; transition: 0.12s; margin: 0 auto;
+      }
+      .cal-days .cal-d:hover { background: #f1f5f9; }
+      .cal-days .cal-d.other { color: var(--gray3); cursor: default; }
+      .cal-days .cal-d.other:hover { background: transparent; }
+      .cal-days .cal-d.today { background: #eff6ff; color: var(--blue); font-weight: 800; }
+      .cal-days .cal-d.range-start { background: var(--blue); color: white; font-weight: 700; box-shadow: 0 2px 8px rgba(59,130,246,0.25); border-radius: 10px 4px 4px 10px; }
+      .cal-days .cal-d.range-end { background: var(--blue); color: white; font-weight: 700; box-shadow: 0 2px 8px rgba(59,130,246,0.25); border-radius: 4px 10px 10px 4px; }
+      .cal-days .cal-d.range-start.range-end { border-radius: 10px; }
+      .cal-days .cal-d.in-range { background: #dbeafe; color: var(--blue); font-weight: 700; border-radius: 4px; }
+      .cal-days .cal-d.range-start.today, .cal-days .cal-d.range-end.today, .cal-days .cal-d.in-range.today { color: white; }
+      .cal-days .cal-d.in-range.today { background: #93c5fd; }
+      .cal-btns { display: flex; gap: 6px; margin-top: 10px; }
+      .cal-btn { flex: 1; padding: 7px; border: none; border-radius: 8px; font-size: 0.72rem; font-weight: 700; font-family: 'Inter', sans-serif; cursor: pointer; transition: 0.15s; }
+      .cal-btn.secondary { background: #f1f5f9; color: var(--gray); }
+      .cal-btn.secondary:hover { background: #e2e8f0; }
+      .cal-btn.primary { background: var(--blue); color: white; }
+      .cal-btn.primary:hover { background: #2563eb; }
+      .filter-row { display: flex; gap: 8px; }
+
+      .search-bar { position: relative; }
+      .search-bar i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--gray2); font-size: 0.85rem; pointer-events: none; }
+      .search-bar input { width: 100%; border-radius: 10px; border: 1.5px solid var(--border); padding: 9px 14px 9px 36px; font-size: 0.8rem; background: var(--card); color: var(--dark); font-family: 'Inter', sans-serif; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.03); transition: 0.2s; }
+      .search-bar input:focus { border-color: var(--blue); outline: none; background: white; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+      .search-bar input::placeholder { color: var(--gray3); }
+
+      .sum-table { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: var(--card); box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+      .sum-table table { width: 100%; border-collapse: collapse; font-size: 0.73rem; }
+      .sum-table thead th {
+        background: linear-gradient(180deg, #1e3a5f, #0f2a4a);
+        padding: 9px 10px; font-weight: 700; color: #cbd5e1; text-align: left;
+        white-space: nowrap; border-bottom: 1.5px solid #0f2a4a;
+        position: sticky; top: 0; z-index: 2; font-size: 0.65rem;
+        text-transform: uppercase; letter-spacing: 0.5px;
+      }
+      .sum-table tbody td { padding: 8px 10px; border-bottom: 1px solid #e8eef5; color: #334155; }
+      .sum-table tbody tr:last-child td { border-bottom: none; }
+      .sum-table tbody tr:hover { background: #eff6ff; }
+      .sum-table tbody tr:nth-child(odd) { background: #ffffff; }
+      .sum-table tbody tr:nth-child(even) { background: #f0f7ff; }
+      .sum-table tbody tr:nth-child(even):hover { background: #dbeafe; }
+      .td-cabang { font-weight: 700; color: var(--dark); max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .td-nom { text-align: right; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+      .td-status { text-align: center; }
+      .badge-done { background: #dcfce7; color: #059669; border-radius: 6px; padding: 3px 8px; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.3px; }
+      .badge-belum { background: #fee2e2; color: #dc2626; border-radius: 6px; padding: 3px 8px; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.3px; }
+      .td-pos { color: var(--red); font-weight: 700; }
+      .td-zero { color: var(--green); font-weight: 700; }
+      .total-row { background: linear-gradient(180deg, #1e3a5f, #0f2a4a) !important; }
+      .total-row td { font-weight: 800 !important; color: #f0f9ff !important; border-top: 2px solid #0f2a4a; font-size: 0.74rem !important; padding: 9px 10px !important; }
+
+      .empty-msg { text-align: center; padding: 36px 0; color: var(--gray2); font-size: 0.82rem; }
+      .empty-msg i { font-size: 2.2rem; display: block; margin-bottom: 10px; color: var(--gray3); }
+      .err-card { background: var(--card); border-radius: var(--radius); border: 1px solid #fecaca; padding: 20px; text-align: center; color: var(--red); font-size: 0.85rem; font-weight: 600; }
+
+      /* Upload Modal Overlay */
+      .upload-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.52); backdrop-filter: blur(4px); z-index: 300; align-items: flex-end; justify-content: center; padding: 0; }
+      .upload-overlay.show { display: flex; }
+      @media (min-width: 540px) { .upload-overlay { align-items: center; padding: 16px; } }
+      .upload-panel { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-width: 500px; max-height: 92vh; display: flex; flex-direction: column; animation: slideUpUpload 0.22s ease; overflow: hidden; }
+      @media (min-width: 540px) { .upload-panel { border-radius: 20px; max-height: 86vh; } }
+      @keyframes slideUpUpload { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      .upload-head { padding: 14px 16px 12px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+      .upload-head-icon { width: 32px; height: 32px; border-radius: 9px; background: #dcfce7; color: var(--green); display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+      .upload-head-title { font-size: 0.92rem; font-weight: 800; color: var(--dark); margin: 0; flex: 1; letter-spacing: -0.01em; }
+      .upload-close { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border); background: #f8fafc; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--gray); font-size: 0.85rem; flex-shrink: 0; transition: 0.15s; }
+      .upload-close:hover { background: #f1f5f9; color: var(--dark); }
+      .upload-body { padding: 14px 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+      .upload-section { display: flex; flex-direction: column; gap: 10px; }
+      .us-title { font-size: 0.78rem; font-weight: 800; color: var(--dark); display: flex; align-items: center; gap: 6px; }
+      .drop-zone { background: #f0fdf4; border: 1.5px dashed #86efac; border-radius: 12px; padding: 22px 16px; text-align: center; cursor: pointer; transition: 0.15s; }
+      .drop-zone:hover { border-color: var(--green); background: #dcfce7; }
+      .drop-zone .dz-icon { font-size: 1.8rem; color: var(--green); display: block; margin-bottom: 6px; }
+      .drop-zone .dz-title { font-size: 0.82rem; font-weight: 700; color: #15803d; }
+      .drop-zone .dz-sub { font-size: 0.7rem; color: #86efac; margin-top: 3px; }
+      .file-info { background: #f8fafc; border-radius: 10px; padding: 10px 12px; border: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+      .file-info .fi-icon { width: 34px; height: 34px; border-radius: 10px; background: #dcfce7; color: var(--green); display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+      .file-info .fi-body { flex: 1; min-width: 0; }
+      .file-info .fi-name { font-size: 0.8rem; font-weight: 700; color: var(--dark); }
+      .file-info .fi-meta { font-size: 0.68rem; color: var(--gray2); }
+      .fi-remove { width: 26px; height: 26px; border-radius: 50%; border: 1px solid #fecaca; background: #fff1f2; color: var(--red); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.72rem; flex-shrink: 0; }
+      .up-stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+      .up-stat-card { background: #f8fafc; border-radius: 8px; padding: 6px 8px; text-align: center; border: 1px solid #f1f5f9; }
+      .up-stat-card .sv { font-size: 0.82rem; font-weight: 800; }
+      .up-stat-card .sl { font-size: 0.58rem; font-weight: 600; color: var(--gray2); }
+      .btn-upload { width: 100%; border-radius: 10px; background: var(--green); color: white; border: none; padding: 10px; font-size: 0.85rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; transition: 0.2s; }
+      .btn-upload:hover { background: #059669; }
+      .btn-upload:disabled { background: var(--gray2); cursor: not-allowed; }
+      .existing-box { background: #f8fafc; border-radius: 10px; padding: 10px 12px; border: 1px solid #f1f5f9; }
+      .existing-box .eb-title { font-size: 0.7rem; font-weight: 700; color: var(--gray2); margin-bottom: 4px; display: flex; align-items: center; gap: 5px; }
+      .existing-box .eb-info { font-size: 0.78rem; color: var(--gray2); text-align: center; padding: 4px; }
+      .eb-ok { background: #f0fdf4; border-radius: 8px; padding: 8px 10px; border: 1px solid #bbf7d0; display: flex; align-items: center; gap: 6px; }
+
+      /* ── Transfer Notif Banner ── */
+      .tr-notif {
+        position: fixed; top: 16px; left: 50%; transform: translateX(-50%) translateY(-120%);
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white; padding: 12px 20px 12px 16px;
+        border-radius: 14px; font-size: 0.82rem; font-weight: 700;
+        display: flex; align-items: center; gap: 10px;
+        box-shadow: 0 8px 28px rgba(16,185,129,0.35);
+        z-index: 9999; transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s;
+        opacity: 0; pointer-events: none; white-space: nowrap;
+      }
+      .tr-notif.show { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
+      .tr-notif .tn-icon { font-size: 1.3rem; line-height: 1; flex-shrink: 0; }
+      .tr-notif .tn-body { display: flex; flex-direction: column; gap: 1px; }
+      .tr-notif .tn-title { font-size: 0.83rem; font-weight: 800; letter-spacing: -0.01em; }
+      .tr-notif .tn-sub { font-size: 0.72rem; font-weight: 500; opacity: 0.88; }
+      .tr-notif .tn-close { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-left: 4px; }
+      .tr-notif .tn-close:hover { background: rgba(255,255,255,0.35); }
+
+      .toast-box { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--dark2); color: white; padding: 11px 22px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+      .toast-box.show { opacity: 1; }
+      .toast-box.success { background: var(--green); }
+      .toast-box.error { background: var(--red); }
+      .toast-box.copy { background: var(--blue); }
+
+      /* ── Table Loading Overlay ── */
+      .sum-table { position: relative; }
+      .table-loading {
+        position: absolute; inset: 0; background: rgba(240,242,247,0.75);
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 0 0 var(--radius) var(--radius);
+        z-index: 10; opacity: 0; pointer-events: none;
+        transition: opacity 0.2s;
+      }
+      .table-loading.show { opacity: 1; pointer-events: auto; }
+      .table-loading .tl-inner {
+        background: white; border-radius: 12px; padding: 14px 20px;
+        display: flex; align-items: center; gap: 10px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1); font-size: 0.8rem;
+        font-weight: 700; color: var(--gray);
+      }
+      .table-loading .tl-spinner {
+        width: 18px; height: 18px; border: 2.5px solid var(--border);
+        border-top-color: var(--blue); border-radius: 50%;
+        animation: spin 0.7s linear infinite; flex-shrink: 0;
+      }
+
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .spin { display: inline-block; animation: spin 1s linear infinite; }
+
+      /* Desktop enhancements */
+      @media (min-width: 768px) {
+        .page-header { padding: 16px 24px 14px; }
+        .stat-card .sc-val { font-size: 1rem; }
+        .sum-table table { font-size: 0.8rem; }
+        .sum-table thead th { font-size: 0.7rem; padding: 11px 14px; }
+        .sum-table tbody td { padding: 10px 14px; }
+        .td-cabang { max-width: 220px; }
+        #tableWrap { max-height: 70vh; }
+      }
+      @media (min-width: 1024px) {
+        .stat-row { gap: 12px; }
+        .stat-card { padding: 18px 16px; }
+        .stat-card .sc-val { font-size: 1.1rem; }
+        .filter-row { gap: 12px; }
+        .ctrl-row { gap: 12px; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <div id="loadingScreen">
+      <div class="loading-spinner"></div>
+      <div class="loading-label">Memuat noncod...</div>
+    </div>
+
+    <div class="page" id="mainPage">
+      <div class="page-header">
+        <a href="/" class="hdr-btn" onclick="clearWorkspaceSessions()"><i class="bi bi-arrow-left"></i></a>
+        <div class="hd-info">
+          <div class="hd-name" id="hdName">Noncod</div>
+          <div class="hd-status" id="hdStatus">Memuat...</div>
+        </div>
+        <div class="hdr-action-group">
+          <div class="hdr-action" id="btnScreenshot" onclick="captureScreenshot()" title="Screenshot ke Clipboard"><i class="bi bi-camera"></i><span class="ha-label">Capture</span></div>
+          <div class="hdr-action download-btn" id="btnDownload" onclick="downloadXlsx()" title="Download XLSX"><i class="bi bi-download"></i><span class="ha-label">Download</span></div>
+          <div class="hdr-action upload-btn" id="btnToggleUpload" onclick="toggleUpload()" title="Upload XLSX"><i class="bi bi-file-earmark-arrow-up"></i><span class="ha-label">Upload</span></div>
+        </div>
+      </div>
+
+      <div class="page-body">
+        <div id="errCard" style="display:none" class="err-card">
+          <i class="bi bi-exclamation-circle me-1"></i><span id="errMsg">Gagal memuat data.</span>
+        </div>
+
+        <div id="mainContent" style="display:none">
+          <div class="tab-bar">
+            <button class="tab-btn active" id="tab-today" onclick="setTab('today')"><i class="bi bi-calendar-day me-1"></i>Hari Ini</button>
+            <button class="tab-btn" id="tab-monthly" onclick="setTab('monthly')"><i class="bi bi-calendar-month me-1"></i>Bulanan</button>
+          </div>
+
+          <div class="stat-row" id="statsRow">
+            <div class="stat-card">
+              <div class="sc-lbl" id="stLbl1">Total Ongkir</div>
+              <div class="sc-val" id="stVal1" style="color:var(--blue)">-</div>
+              <div class="sc-count" id="stCnt1"></div>
+            </div>
+            <div class="stat-card">
+              <div class="sc-lbl" id="stLbl2">Sudah Transfer</div>
+              <div class="sc-val" id="stVal2" style="color:var(--green)">-</div>
+              <div class="sc-count" id="stCnt2"></div>
+            </div>
+            <div class="stat-card">
+              <div class="sc-lbl" id="stLbl3">Belum Transfer</div>
+              <div class="sc-val" id="stVal3" style="color:var(--red)">-</div>
+              <div class="sc-count" id="stCnt3"></div>
+            </div>
+          </div>
+
+          <div id="tableSection">
+          <div class="ctrl-row">
+            <div class="date-wrap" id="dateWrap" onclick="toggleCal()">
+              <i class="bi bi-calendar-event dw-icon"></i>
+              <span class="dw-label" id="dateLabel">Hari ini</span>
+              <i class="bi bi-chevron-down dw-arrow"></i>
+              <div class="cal-popup" id="calPopup" onclick="event.stopPropagation()">
+                <div class="cal-header">
+                  <div class="cal-nav" onclick="calNav(-1)"><i class="bi bi-chevron-left"></i></div>
+                  <div class="cal-title" id="calTitle">April 2026</div>
+                  <div class="cal-nav" onclick="calNav(1)"><i class="bi bi-chevron-right"></i></div>
+                </div>
+                <div class="cal-range-info" id="calRangeInfo">
+                  <span class="cr-date" id="crStart">-</span>
+                  <span class="cr-sep"><i class="bi bi-arrow-right"></i></span>
+                  <span class="cr-date" id="crEnd">-</span>
+                </div>
+                <div class="cal-days" id="calDays"></div>
+                <div class="cal-btns">
+                  <button class="cal-btn secondary" onclick="calSelectToday()">Hari Ini</button>
+                  <button class="cal-btn primary" onclick="calApply()">Terapkan</button>
+                </div>
+              </div>
+            </div>
+            <select class="filter-select" id="periodeSelect" onchange="loadDashboard()"></select>
+            <select class="filter-select" id="modeSelect" onchange="setMode(this.value)">
+              <option value="noncod">NONCOD Rekon</option>
+              <option value="dfod">DFOD Omset</option>
+            </select>
+            <select class="filter-select" id="areaSelect" onchange="setArea(this.value)"><option value="semua">Semua Area</option></select>
+            <select class="filter-select" id="statusSelect" onchange="setStatus(this.value)">
+              <option value="semua">Semua Status</option>
+              <option value="sudah">&#x2705; Sudah Transfer</option>
+              <option value="belum">&#x274C; Belum Transfer</option>
+            </select>
+            <div class="cal-overlay" id="calOverlay" onclick="closeCal()"></div>
+          </div>
+
+          <div class="search-bar">
+            <i class="bi bi-search"></i>
+            <input type="text" id="searchCabang" placeholder="Cari cabang..." oninput="renderCurrentTab()">
+          </div>
+
+          <div class="sum-table">
+            <div class="table-loading" id="tableLoading">
+              <div class="tl-inner"><div class="tl-spinner"></div>Memuat data...</div>
+            </div>
+            <div style="overflow-x:auto;max-height:60vh;overflow-y:auto" id="tableWrap">
+              <table>
+                <thead id="tableHead"></thead>
+                <tbody id="tableBody"></tbody>
+              </table>
+            </div>
+          </div>
+          </div><!-- /#tableSection -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div class="upload-overlay" id="uploadOverlay" onclick="toggleUpload()">
+      <div class="upload-panel" onclick="event.stopPropagation()">
+        <div class="upload-head">
+          <div class="upload-head-icon"><i class="bi bi-file-earmark-spreadsheet"></i></div>
+          <div class="upload-head-title">Upload Data Shipments</div>
+          <div class="upload-close" onclick="toggleUpload()"><i class="bi bi-x"></i></div>
+        </div>
+        <div class="upload-body">
+          <div class="upload-section" id="uploadSection">
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+              <i class="bi bi-cloud-arrow-up dz-icon"></i>
+              <div class="dz-title">Upload Data Shipments</div>
+              <div class="dz-sub">Klik untuk pilih file atau drag & drop file .xlsx. Sistem hanya menyimpan NONCOD dan DFOD.</div>
+              <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" onchange="handleFile(this)">
+            </div>
+            <div id="previewSection" style="display:none">
+              <div class="file-info" style="margin-bottom:6px">
+                <div class="fi-icon"><i class="bi bi-file-earmark-check"></i></div>
+                <div class="fi-body">
+                  <div class="fi-name" id="fileName">-</div>
+                  <div class="fi-meta" id="fileMeta">-</div>
+                </div>
+                <div class="fi-remove" onclick="clearFile()"><i class="bi bi-x"></i></div>
+              </div>
+              <div class="up-stat-row" style="margin-bottom:6px">
+                <div class="up-stat-card"><div class="sv text-primary" id="pvResi">-</div><div class="sl">Total Resi</div></div>
+                <div class="up-stat-card"><div class="sv text-success" id="pvNoncod">-</div><div class="sl">NONCOD</div></div>
+                <div class="up-stat-card"><div class="sv text-warning" id="pvDfod">-</div><div class="sl">DFOD</div></div>
+              </div>
+              <button class="btn-upload" id="btnUpload" onclick="doUploadXlsx()">
+                <i class="bi bi-cloud-upload"></i> Upload & Simpan
+              </button>
+            </div>
+            <div class="existing-box">
+              <div class="eb-title"><i class="bi bi-database"></i> Data tersimpan periode ini</div>
+              <div id="existingInfo" class="eb-info">Pilih periode & muat data</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transfer Notif Banner -->
+    <div class="tr-notif" id="trNotif">
+      <div class="tn-icon">💸</div>
+      <div class="tn-body">
+        <div class="tn-title" id="trNotifTitle">Transfer Baru Masuk!</div>
+        <div class="tn-sub" id="trNotifSub">Data diperbarui otomatis</div>
+      </div>
+      <button class="tn-close" onclick="closeTransferNotif()" title="Tutup">✕</button>
+    </div>
+    <div class="toast-box" id="toast"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script>
+      const PAGE_PARAMS = new URLSearchParams(location.search);
+      const EMBED_MODE = PAGE_PARAMS.get('embed') === '1' || window.self !== window.top;
+      const LOCKED_MODE = ['noncod', 'dfod'].includes(PAGE_PARAMS.get('mode')) ? PAGE_PARAMS.get('mode') : '';
+      if (EMBED_MODE) document.body.classList.add('embed');
+
+      const BULAN_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+      const HARI_ID = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+
+      let ncByCabang = {};
+      let ncByDay = {};
+      let trByCabang = {};
+      let cabangAreaMap = {};
+      let allAreas = [];
+      let activeTab = 'today';
+      let activeArea = 'semua';
+      let activeStatus = 'semua';
+      let activeMode = LOCKED_MODE || 'noncod';
+      let shipmentSummary = { noncod: {}, dfod: {}, all: {} };
+      let lastSyncInfo = null;
+      let _prevTransferCount = -1;
+      let _notifTimer = null;
+
+      function showTransferNotif(cabang, nominal) {
+        const title = document.getElementById('trNotifTitle');
+        const sub = document.getElementById('trNotifSub');
+        title.textContent = 'Transfer Baru Masuk!';
+        sub.textContent = cabang
+          ? cabang + (nominal ? ' · Rp ' + nominal.toLocaleString('id-ID') : '')
+          : 'Data diperbarui otomatis';
+        const el = document.getElementById('trNotif');
+        el.classList.add('show');
+        clearTimeout(_notifTimer);
+        _notifTimer = setTimeout(() => el.classList.remove('show'), 6000);
+      }
+
+      function closeTransferNotif() {
+        document.getElementById('trNotif').classList.remove('show');
+        clearTimeout(_notifTimer);
+      }
+
+      function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+      function fmtNom(n) { return n.toLocaleString('id-ID'); }
+      function fmtDate(d) { const dt = new Date(d + 'T00:00:00'); return HARI_ID[dt.getDay()] + ', ' + dt.getDate() + ' ' + BULAN_ID[dt.getMonth()]; }
+      function todayStr() { return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' }); }
+
+      const SESSION_TIMEOUT = 60 * 60 * 1000; // 60 menit
+      const SESSION_CHECK_INTERVAL = 5000;
+
+      function hasActiveSession(prefix) {
+        const ts = parseInt(sessionStorage.getItem(prefix + 'AuthTs') || '0');
+        return !!sessionStorage.getItem(prefix + 'Auth') && ts && (Date.now() - ts <= SESSION_TIMEOUT);
+      }
+      function getActiveSessionPrefix() {
+        if (hasActiveSession('admin')) return 'admin';
+        if (hasActiveSession('dash')) return 'dash';
+        return '';
+      }
+      function setSessionTs(prefix = getActiveSessionPrefix()) {
+        if (!prefix) return;
+        sessionStorage.setItem(prefix + 'AuthTs', String(Date.now()));
+      }
+      function isSessionExpired(prefix = getActiveSessionPrefix()) {
+        if (!prefix) return true;
+        const ts = parseInt(sessionStorage.getItem(prefix + 'AuthTs') || '0');
+        return !ts || (Date.now() - ts > SESSION_TIMEOUT);
+      }
+      function isAdminWorkspace() {
+        return getActiveSessionPrefix() === 'admin';
+      }
+      function applyRoleUi() {
+        const canUpload = isAdminWorkspace();
+        const uploadBtn = document.getElementById('btnToggleUpload');
+        if (uploadBtn) uploadBtn.style.display = canUpload ? '' : 'none';
+        if (!canUpload) {
+          document.getElementById('uploadOverlay').classList.remove('show');
+        }
+      }
+      function clearWorkspaceSessions() {
+        sessionStorage.removeItem('dashAuth');
+        sessionStorage.removeItem('dashAuthTs');
+        sessionStorage.removeItem('dashToken');
+        sessionStorage.removeItem('adminAuth');
+        sessionStorage.removeItem('adminAuthTs');
+        sessionStorage.removeItem('adminToken');
+      }
+      function doLogout() {
+        clearWorkspaceSessions();
+        try {
+          if (window.top && window.top !== window.self) {
+            window.top.location.replace('/');
+            return;
+          }
+        } catch {}
+        location.replace('/');
+      }
+
+      // Auto-logout check every few seconds to match server token expiry
+      setInterval(() => {
+        const prefix = getActiveSessionPrefix();
+        if (prefix && isSessionExpired(prefix)) doLogout();
+      }, SESSION_CHECK_INTERVAL);
+
+      const activeSessionPrefix = getActiveSessionPrefix();
+      if (!activeSessionPrefix || isSessionExpired(activeSessionPrefix)) {
+        clearWorkspaceSessions();
+        // Verify server-side if dashboard password exists
+        fetch('/api/auth?key=dashboard_password')
+          .then(r => r.json())
+          .then(json => {
+            if (json.hasPassword) {
+              location.replace('/');
+            } else {
+              sessionStorage.setItem('dashAuth', '1');
+              sessionStorage.setItem('dashToken', '');
+              setSessionTs('dash');
+            }
+          })
+          .catch(() => location.replace('/'));
+      }
+
+      let dateFrom = todayStr();
+      let dateTo = todayStr();
+      let calViewYear, calViewMonth;
+      let calPickStep = 0; // 0 = picking start, 1 = picking end
+      let calTempFrom = '', calTempTo = '';
+
+      window.onload = () => {
+        initPeriode();
+        document.getElementById('modeSelect').value = activeMode;
+        refreshModeUi();
+        applyRoleUi();
+        const t = todayStr();
+        const dt = new Date(t + 'T00:00:00');
+        calViewYear = dt.getFullYear();
+        calViewMonth = dt.getMonth();
+        updateDateLabel();
+        loadDashboard();
+        // Auto-refresh data setiap 3 menit
+        setInterval(() => { loadDashboard(); }, 180000);
+      };
+
+      function getDateFrom() { return dateFrom; }
+      function getDateTo() { return dateTo; }
+
+      function fmtDateShort(ds) {
+        const dt = new Date(ds + 'T00:00:00');
+        return dt.getDate() + ' ' + BULAN_ID[dt.getMonth()].slice(0, 3) + ' ' + dt.getFullYear();
+      }
+
+      function updateDateLabel() {
+        const t = todayStr();
+        let label;
+        if (dateFrom === dateTo) {
+          if (dateFrom === t) label = 'Hari ini, ' + fmtDateShort(dateFrom);
+          else label = fmtDateShort(dateFrom);
+        } else {
+          const dtF = new Date(dateFrom + 'T00:00:00');
+          const dtT = new Date(dateTo + 'T00:00:00');
+          if (dtF.getMonth() === dtT.getMonth() && dtF.getFullYear() === dtT.getFullYear()) {
+            label = dtF.getDate() + ' - ' + dtT.getDate() + ' ' + BULAN_ID[dtF.getMonth()].slice(0, 3) + ' ' + dtF.getFullYear();
+          } else {
+            label = fmtDateShort(dateFrom) + ' - ' + fmtDateShort(dateTo);
+          }
+        }
+        document.getElementById('dateLabel').textContent = label;
+      }
+
+      function toggleCal() {
+        const p = document.getElementById('calPopup');
+        const o = document.getElementById('calOverlay');
+        const w = document.getElementById('dateWrap');
+        if (p.classList.contains('show')) { closeCal(); return; }
+        calTempFrom = dateFrom;
+        calTempTo = dateTo;
+        calPickStep = 0;
+        const dt = new Date(dateFrom + 'T00:00:00');
+        calViewYear = dt.getFullYear();
+        calViewMonth = dt.getMonth();
+        renderCal();
+        updateCalRangeInfo();
+        p.classList.add('show');
+        o.classList.add('show');
+        w.classList.add('open');
+        positionCalPopup();
+      }
+
+      function closeCal() {
+        const popup = document.getElementById('calPopup');
+        popup.classList.remove('show', 'place-top', 'place-bottom');
+        popup.style.top = '';
+        popup.style.left = '';
+        document.getElementById('calOverlay').classList.remove('show');
+        document.getElementById('dateWrap').classList.remove('open');
+      }
+
+      function positionCalPopup() {
+        const popup = document.getElementById('calPopup');
+        const trigger = document.getElementById('dateWrap');
+        if (!popup || !trigger || !popup.classList.contains('show')) return;
+
+        const margin = 12;
+        const gap = 6;
+        const triggerRect = trigger.getBoundingClientRect();
+        const popupRect = popup.getBoundingClientRect();
+        const popupWidth = popupRect.width || popup.offsetWidth || 290;
+        const popupHeight = popupRect.height || popup.offsetHeight || 0;
+
+        let left = triggerRect.left;
+        if (left + popupWidth > window.innerWidth - margin) left = window.innerWidth - popupWidth - margin;
+        if (left < margin) left = margin;
+
+        let top = triggerRect.bottom + gap;
+        let placement = 'bottom';
+        if (top + popupHeight > window.innerHeight - margin) {
+          const topCandidate = triggerRect.top - popupHeight - gap;
+          if (topCandidate >= margin) {
+            top = topCandidate;
+            placement = 'top';
+          } else {
+            top = Math.max(margin, window.innerHeight - popupHeight - margin);
+          }
+        }
+
+        popup.classList.remove('place-top', 'place-bottom');
+        popup.classList.add(placement === 'top' ? 'place-top' : 'place-bottom');
+        popup.style.left = Math.round(left) + 'px';
+        popup.style.top = Math.round(top) + 'px';
+      }
+
+      function handleCalViewportChange() {
+        if (document.getElementById('calPopup').classList.contains('show')) positionCalPopup();
+      }
+
+      function calNav(dir) {
+        calViewMonth += dir;
+        if (calViewMonth < 0) { calViewMonth = 11; calViewYear--; }
+        if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
+        renderCal();
+      }
+
+      function updateCalRangeInfo() {
+        document.getElementById('crStart').textContent = calTempFrom ? fmtDateShort(calTempFrom) : '...';
+        document.getElementById('crEnd').textContent = calTempTo ? fmtDateShort(calTempTo) : '...';
+      }
+
+      function renderCal() {
+        document.getElementById('calTitle').textContent = BULAN_ID[calViewMonth] + ' ' + calViewYear;
+        const daysEl = document.getElementById('calDays');
+        const headers = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+        let html = headers.map(h => '<div class="cal-dh">' + h + '</div>').join('');
+
+        const first = new Date(calViewYear, calViewMonth, 1);
+        const startDay = first.getDay();
+        const daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate();
+        const prevDays = new Date(calViewYear, calViewMonth, 0).getDate();
+        const todayS = todayStr();
+        const pad = n => String(n).padStart(2, '0');
+
+        for (let i = startDay - 1; i >= 0; i--) {
+          html += '<div class="cal-d other">' + (prevDays - i) + '</div>';
+        }
+        for (let d = 1; d <= daysInMonth; d++) {
+          const ds = calViewYear + '-' + pad(calViewMonth + 1) + '-' + pad(d);
+          let cls = 'cal-d';
+          if (ds === todayS) cls += ' today';
+          if (calTempFrom && calTempTo) {
+            if (ds === calTempFrom) cls += ' range-start';
+            if (ds === calTempTo) cls += ' range-end';
+            if (ds > calTempFrom && ds < calTempTo) cls += ' in-range';
+          } else if (calTempFrom && ds === calTempFrom) {
+            cls += ' range-start range-end';
+          }
+          html += '<div class="' + cls + '" onclick="calPick(\'' + ds + '\')">' + d + '</div>';
+        }
+        const total = startDay + daysInMonth;
+        const remaining = (7 - (total % 7)) % 7;
+        for (let d = 1; d <= remaining; d++) {
+          html += '<div class="cal-d other">' + d + '</div>';
+        }
+        daysEl.innerHTML = html;
+        handleCalViewportChange();
+      }
+
+      function calPick(ds) {
+        if (calPickStep === 0) {
+          calTempFrom = ds;
+          calTempTo = '';
+          calPickStep = 1;
+        } else {
+          if (ds < calTempFrom) {
+            calTempTo = calTempFrom;
+            calTempFrom = ds;
+          } else {
+            calTempTo = ds;
+          }
+          calPickStep = 0;
+        }
+        updateCalRangeInfo();
+        renderCal();
+      }
+
+      function calApply() {
+        if (!calTempFrom) return;
+        dateFrom = calTempFrom;
+        dateTo = calTempTo || calTempFrom;
+        if (dateFrom > dateTo) { const tmp = dateFrom; dateFrom = dateTo; dateTo = tmp; }
+        updateDateLabel();
+        closeCal();
+        renderCurrentTab();
+      }
+
+      function calSelectToday() {
+        const t = todayStr();
+        calTempFrom = t;
+        calTempTo = t;
+        calPickStep = 0;
+        calApply();
+      }
+
+      function hideLoading() {
+        document.getElementById('loadingScreen').classList.add('hide');
+        setTimeout(() => { document.getElementById('loadingScreen').style.display = 'none'; document.getElementById('mainPage').classList.add('show'); }, 300);
+      }
+
+      window.addEventListener('resize', handleCalViewportChange);
+      window.addEventListener('scroll', handleCalViewportChange, true);
+
+      function initPeriode() {
+        const sel = document.getElementById('periodeSelect');
+        const now = new Date();
+        for (let i = 0; i < 3; i++) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const val = d.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit' }).slice(0, 7);
+          sel.appendChild(new Option(BULAN_ID[d.getMonth()] + ' ' + d.getFullYear(), val));
+        }
+        sel.value = now.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit' }).slice(0, 7);
+      }
+
+      function setTab(t) {
+        activeTab = t;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + t).classList.add('active');
+        document.getElementById('dateWrap').style.display = (t === 'today') ? '' : 'none';
+        document.getElementById('btnDownload').classList.add('show');
+        closeCal();
+        renderCurrentTab();
+      }
+
+      function setArea(a) {
+        activeArea = a;
+        document.getElementById('areaSelect').value = a;
+        renderCurrentTab();
+      }
+
+      function getModeLabel(mode = activeMode) {
+        if (mode === 'dfod') return 'DFOD';
+        return 'NONCOD';
+      }
+
+      function formatSyncLabel(syncInfo) {
+        if (!syncInfo) return ' · Status sync belum diketahui';
+        if (syncInfo.error) return ' · Sync MauKirim gagal, pakai data terakhir';
+        if (!syncInfo.enabled) return ' · Auto-sync MauKirim belum aktif';
+        if (!syncInfo.eligible) return ' · Periode ini pakai data tersimpan';
+        let stamp = '';
+        if (syncInfo.syncedAt) {
+          try {
+            stamp = ' ' + new Date(syncInfo.syncedAt).toLocaleTimeString('id-ID', {
+              timeZone: 'Asia/Makassar',
+              hour: '2-digit',
+              minute: '2-digit'
+            }) + ' WITA';
+          } catch {}
+        }
+        if (syncInfo.source === 'manual_upload') return ' · Data manual' + stamp;
+        if (syncInfo.performed) return ' · Baru sinkron dari MauKirim' + stamp;
+        return ' · Sinkron MauKirim' + stamp;
+      }
+
+      function refreshModeUi() {
+        const modeSelect = document.getElementById('modeSelect');
+        const statusSelect = document.getElementById('statusSelect');
+        const showStatus = activeMode === 'noncod';
+        modeSelect.style.display = LOCKED_MODE ? 'none' : '';
+        statusSelect.style.display = showStatus ? '' : 'none';
+        if (!showStatus) {
+          activeStatus = 'semua';
+          statusSelect.value = 'semua';
+        }
+        document.getElementById('hdName').textContent = getModeLabel(activeMode);
+      }
+
+      function setMode(mode) {
+        if (LOCKED_MODE) return;
+        activeMode = ['noncod', 'dfod'].includes(mode) ? mode : 'noncod';
+        document.getElementById('modeSelect').value = activeMode;
+        refreshModeUi();
+        loadDashboard();
+      }
+
+      function getSearchQ() { return (document.getElementById('searchCabang').value || '').trim().toLowerCase(); }
+      function filterByArea(c) { return activeArea === 'semua' || (cabangAreaMap[c] || '') === activeArea; }
+
+      function setStatus(s) {
+        activeStatus = s;
+        document.getElementById('statusSelect').value = s;
+        renderCurrentTab();
+      }
+
+      function buildAreaPills() {
+        const sel = document.getElementById('areaSelect');
+        const areas = new Set();
+        Object.values(cabangAreaMap).forEach(a => { if (a) areas.add(a); });
+        allAreas = [...areas].sort();
+        const prev = sel.value;
+        sel.innerHTML = '<option value="semua">Semua Area</option>';
+        allAreas.forEach(a => {
+          sel.appendChild(new Option(a, a));
+        });
+        if (allAreas.includes(prev)) sel.value = prev;
+        else { sel.value = 'semua'; activeArea = 'semua'; }
+      }
+
+      let _loadingDashboard = false;
+      function _showTableLoading() { document.getElementById('tableLoading').classList.add('show'); }
+      function _hideTableLoading() { document.getElementById('tableLoading').classList.remove('show'); }
+
+      async function loadDashboard() {
+        const periode = document.getElementById('periodeSelect').value;
+        if (!periode || _loadingDashboard) return;
+        _loadingDashboard = true;
+        _showTableLoading();
+        try {
+          const [ncRes, trRes, cbRes] = await Promise.all([
+            fetch('/api/noncod?periode=' + encodeURIComponent(periode) + '&mode=' + encodeURIComponent(activeMode)),
+            activeMode === 'noncod'
+              ? fetch('/api/dashboard')
+              : Promise.resolve({ ok: true, json: async () => ({ byCabang: {}, todayList: [], lastUpdate: '-' }) }),
+            fetch('/api/cabang'),
+          ]);
+          const ncJson = await ncRes.json();
+          const trJson = await trRes.json();
+          const cbJson = await cbRes.json();
+
+          hideLoading();
+          document.getElementById('mainContent').style.display = '';
+          const [pY, pM] = periode.split('-');
+          lastSyncInfo = ncJson.syncInfo || null;
+          document.getElementById('hdStatus').textContent = 'Periode: ' + BULAN_ID[parseInt(pM) - 1] + ' ' + pY + ' · Mode ' + getModeLabel(activeMode) + formatSyncLabel(lastSyncInfo);
+
+          cabangAreaMap = {};
+          (cbJson.cabang || []).forEach(c => { cabangAreaMap[c.nama] = c.area || ''; });
+          buildAreaPills();
+
+          ncByCabang = ncJson.byCabang || {};
+          ncByDay = ncJson.byDay || {};
+          shipmentSummary = ncJson.summary || { noncod: {}, dfod: {}, all: {} };
+          const newTrByCabang = trJson.byCabang || {};
+
+          // Detect new transfer entries
+          const newCount = activeMode === 'noncod'
+            ? Object.values(newTrByCabang).reduce((s, v) => s + (v.list ? v.list.length : 0), 0)
+            : -1;
+          if (activeMode === 'noncod' && _prevTransferCount >= 0 && newCount > _prevTransferCount) {
+            // Find which cabang got a new transfer (most recent)
+            let newestCabang = '', newestNominal = 0;
+            let newestTime = '';
+            for (const cab in newTrByCabang) {
+              const list = newTrByCabang[cab].list || [];
+              const prev = (trByCabang[cab] && trByCabang[cab].list) ? trByCabang[cab].list.length : 0;
+              if (list.length > prev) {
+                const last = list[list.length - 1];
+                if (!newestTime || (last.createdAt || '') > newestTime) {
+                  newestTime = last.createdAt || '';
+                  newestCabang = cab;
+                  newestNominal = last.nominal || 0;
+                }
+              }
+            }
+            showTransferNotif(newestCabang, newestNominal);
+          }
+          _prevTransferCount = newCount;
+          trByCabang = activeMode === 'noncod' ? newTrByCabang : {};
+          if (activeMode !== 'noncod') closeTransferNotif();
+
+          _hideTableLoading();
+          renderCurrentTab();
+        } catch (err) {
+          _hideTableLoading();
+          hideLoading();
+          document.getElementById('errCard').style.display = '';
+          document.getElementById('errMsg').textContent = 'Gagal memuat: ' + err.message;
+        } finally {
+          _loadingDashboard = false;
+        }
+      }
+
+      function renderCurrentTab() {
+        document.getElementById('btnDownload').classList.add('show');
+        if (activeMode === 'noncod') {
+          if (activeTab === 'today') renderToday();
+          else renderMonthly();
+          return;
+        }
+        if (activeTab === 'today') renderShipmentToday();
+        else renderShipmentMonthly();
+      }
+
+      // ========= TAB: HARI INI =========
+      function getDateRange() {
+        const f = getDateFrom(), t = getDateTo();
+        const dates = [];
+        let cur = new Date(f + 'T00:00:00');
+        const end = new Date(t + 'T00:00:00');
+        const pad = n => String(n).padStart(2, '0');
+        while (cur <= end) {
+          dates.push(cur.getFullYear() + '-' + pad(cur.getMonth() + 1) + '-' + pad(cur.getDate()));
+          cur.setDate(cur.getDate() + 1);
+        }
+        return dates;
+      }
+
+      function getTodayRows(opts) {
+        const dates = (opts && opts.dates) || getDateRange();
+        const q = (opts && opts.q) || getSearchQ();
+        const periode = document.getElementById('periodeSelect').value;
+        const statusFilter = (opts && opts.status) || activeStatus;
+
+        // Aggregate across all dates in range
+        const aggNc = {}, aggTr = {};
+        for (const selDate of dates) {
+          const ncDay = ncByDay[selDate] || {};
+          for (const c in ncDay) {
+            if (!aggNc[c]) aggNc[c] = { ongkir: 0, resi: 0 };
+            aggNc[c].ongkir += ncDay[c].ongkir;
+            aggNc[c].resi += ncDay[c].resi;
+          }
+          for (const cabang in trByCabang) {
+            const list = trByCabang[cabang].list.filter(l => l.periode === periode && l.tglRaw === selDate);
+            if (list.length > 0) {
+              if (!aggTr[cabang]) aggTr[cabang] = 0;
+              aggTr[cabang] += list.reduce((s, l) => s + l.nominal, 0);
+            }
+          }
+        }
+
+        const allCabang = new Set([...Object.keys(aggNc), ...Object.keys(aggTr)]);
+        let rows = [];
+        allCabang.forEach(c => {
+          if (!filterByArea(c)) return;
+          if (q && !c.toLowerCase().includes(q)) return;
+          const ongkir = aggNc[c] ? aggNc[c].ongkir : 0;
+          const resi = aggNc[c] ? aggNc[c].resi : 0;
+          const transfer = aggTr[c] || 0;
+          const belum = ongkir - transfer;
+          // Status filter: sudah = fully covered (ongkir-transfer<=0), belum = still owing
+          if (statusFilter === 'sudah' && belum > 0) return;
+          if (statusFilter === 'belum' && belum <= 0) return;
+          rows.push({ cabang: c, resi, ongkir, transfer, belum });
+        });
+        rows.sort((a, b) => b.belum - a.belum);
+        return rows;
+      }
+
+      function renderToday() {
+        const rows = getTodayRows();
+        // Count all rows (unfiltered) for stat counts
+        const allRows = getTodayRows({ status: 'semua' });
+        const cntSudah = allRows.filter(r => r.belum <= 0).length;
+        const cntBelum = allRows.filter(r => r.belum > 0).length;
+
+        const totOngkir = allRows.reduce((s, r) => s + r.ongkir, 0);
+        const totTransfer = allRows.reduce((s, r) => s + r.transfer, 0);
+        const totBelum = totOngkir - totTransfer;
+        const totResi = allRows.reduce((s, r) => s + r.resi, 0);
+        setStats('Total Ongkir', 'Rp ' + fmtNom(totOngkir), 'var(--blue)',
+                 'Sudah Transfer', 'Rp ' + fmtNom(totTransfer), 'var(--green)',
+                 'Belum Transfer', totBelum > 0 ? 'Rp ' + fmtNom(totBelum) : 'Rp 0', 'var(--red)',
+                 allRows.length + ' cabang · ' + totResi + ' resi',
+                 cntSudah + ' cabang',
+                 cntBelum + ' cabang');
+
+        const thead = document.getElementById('tableHead');
+        thead.innerHTML = '<tr><th>#</th><th>Cabang</th><th style="text-align:right">Resi</th><th style="text-align:right">Ongkir</th><th style="text-align:right">Transfer</th><th style="text-align:right">Belum</th></tr>';
+        const tbody = document.getElementById('tableBody');
+        if (rows.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6"><div class="empty-msg"><i class="bi bi-inbox"></i>Tidak ada data untuk rentang tanggal ini</div></td></tr>';
+          return;
+        }
+        const fTotResi = rows.reduce((s, r) => s + r.resi, 0);
+        const fTotOngkir = rows.reduce((s, r) => s + r.ongkir, 0);
+        const fTotTransfer = rows.reduce((s, r) => s + r.transfer, 0);
+        const fTotBelum = fTotOngkir - fTotTransfer;
+        tbody.innerHTML = rows.map((r, i) => '<tr>' +
+          '<td style="color:#94a3b8;font-size:0.65rem">' + (i+1) + '</td>' +
+          '<td class="td-cabang" title="' + esc(r.cabang) + '">' + esc(r.cabang) + '</td>' +
+          '<td class="td-nom">' + (r.resi || '-') + '</td>' +
+          '<td class="td-nom">' + (r.ongkir > 0 ? fmtNom(r.ongkir) : '-') + '</td>' +
+          '<td class="td-nom" style="color:var(--green)">' + (r.transfer > 0 ? fmtNom(r.transfer) : '-') + '</td>' +
+          '<td class="td-nom ' + (r.belum > 0 ? 'td-pos' : 'td-zero') + '">' + (r.belum > 0 ? fmtNom(r.belum) : r.belum === 0 ? '0' : '-' + fmtNom(Math.abs(r.belum))) + '</td>' +
+          '</tr>').join('') +
+          '<tr class="total-row">' +
+          '<td colspan="2">TOTAL</td>' +
+          '<td class="td-nom">' + fTotResi + '</td>' +
+          '<td class="td-nom">' + fmtNom(fTotOngkir) + '</td>' +
+          '<td class="td-nom" style="color:var(--green)">' + fmtNom(fTotTransfer) + '</td>' +
+          '<td class="td-nom ' + (fTotBelum > 0 ? 'td-pos' : 'td-zero') + '">' + (fTotBelum > 0 ? fmtNom(fTotBelum) : '0') + '</td>' +
+          '</tr>';
+      }
+
+      function getShipmentTodayRows() {
+        const dates = getDateRange();
+        const q = getSearchQ();
+        const agg = {};
+
+        for (const selDate of dates) {
+          const shipDay = ncByDay[selDate] || {};
+          for (const cabang in shipDay) {
+            if (!agg[cabang]) agg[cabang] = { resi: 0, ongkir: 0, total: 0 };
+            agg[cabang].resi += shipDay[cabang].resi || 0;
+            agg[cabang].ongkir += shipDay[cabang].ongkir || 0;
+            agg[cabang].total += shipDay[cabang].total || 0;
+          }
+        }
+
+        const rows = [];
+        Object.keys(agg).forEach(cabang => {
+          if (!filterByArea(cabang)) return;
+          if (q && !cabang.toLowerCase().includes(q)) return;
+          rows.push({
+            cabang,
+            resi: agg[cabang].resi,
+            ongkir: agg[cabang].ongkir,
+            total: agg[cabang].total,
+          });
+        });
+        rows.sort((a, b) => b.total - a.total || b.ongkir - a.ongkir);
+        return rows;
+      }
+
+      function renderShipmentToday() {
+        const rows = getShipmentTodayRows();
+        const totalResi = rows.reduce((sum, row) => sum + row.resi, 0);
+        const totalOngkir = rows.reduce((sum, row) => sum + row.ongkir, 0);
+        const totalOmset = rows.reduce((sum, row) => sum + row.total, 0);
+        const modeLabel = activeMode === 'dfod' ? 'DFOD' : 'Shipment';
+
+        setStats(
+          'Omset ' + modeLabel,
+          'Rp ' + fmtNom(totalOmset),
+          'var(--blue)',
+          'Total Ongkir',
+          'Rp ' + fmtNom(totalOngkir),
+          'var(--green)',
+          'Total Resi',
+          fmtNom(totalResi),
+          'var(--dark)',
+          rows.length + ' cabang',
+          getModeLabel(activeMode),
+          dateFrom === dateTo ? fmtDateShort(dateFrom) : fmtDateShort(dateFrom) + ' - ' + fmtDateShort(dateTo)
+        );
+
+        document.getElementById('tableHead').innerHTML = '<tr><th>#</th><th>Cabang</th><th style="text-align:right">Resi</th><th style="text-align:right">Ongkir</th><th style="text-align:right">Omset</th></tr>';
+        const tbody = document.getElementById('tableBody');
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="5"><div class="empty-msg"><i class="bi bi-inbox"></i>Tidak ada data ' + getModeLabel(activeMode) + ' untuk rentang tanggal ini</div></td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = rows.map((row, idx) => '<tr>' +
+          '<td style="color:#94a3b8;font-size:0.65rem">' + (idx + 1) + '</td>' +
+          '<td class="td-cabang" title="' + esc(row.cabang) + '">' + esc(row.cabang) + '</td>' +
+          '<td class="td-nom">' + fmtNom(row.resi) + '</td>' +
+          '<td class="td-nom">' + (row.ongkir > 0 ? fmtNom(row.ongkir) : '-') + '</td>' +
+          '<td class="td-nom" style="color:var(--blue)">' + (row.total > 0 ? fmtNom(row.total) : '-') + '</td>' +
+          '</tr>').join('') +
+          '<tr class="total-row">' +
+          '<td colspan="2">TOTAL</td>' +
+          '<td class="td-nom">' + fmtNom(totalResi) + '</td>' +
+          '<td class="td-nom">' + fmtNom(totalOngkir) + '</td>' +
+          '<td class="td-nom">' + fmtNom(totalOmset) + '</td>' +
+          '</tr>';
+      }
+
+      function getMonthlyCabangMap() {
+        const periode = document.getElementById('periodeSelect').value;
+        const monthPrefix = periode ? (periode + '-') : '';
+        const agg = {};
+
+        Object.keys(ncByDay || {}).forEach(day => {
+          if (!monthPrefix || !String(day).startsWith(monthPrefix)) return;
+          const dayRows = ncByDay[day] || {};
+          Object.keys(dayRows).forEach(cabang => {
+            if (!agg[cabang]) agg[cabang] = { ongkir: 0, resi: 0, total: 0 };
+            agg[cabang].ongkir += dayRows[cabang].ongkir || 0;
+            agg[cabang].resi += dayRows[cabang].resi || 0;
+            agg[cabang].total += dayRows[cabang].total || 0;
+          });
+        });
+
+        return agg;
+      }
+
+      // ========= TAB: BULANAN =========
+      let _monthlyRows = []; // store for download
+      function renderMonthly() {
+        const q = getSearchQ();
+        const periode = document.getElementById('periodeSelect').value;
+        const ncMonth = getMonthlyCabangMap();
+
+        const trMonth = {};
+        for (const cabang in trByCabang) {
+          const list = trByCabang[cabang].list.filter(l => l.periode === periode);
+          if (list.length > 0) trMonth[cabang] = list.reduce((s, l) => s + l.nominal, 0);
+        }
+
+        const allCabang = new Set([...Object.keys(ncMonth), ...Object.keys(trMonth)]);
+        let rows = [];
+        allCabang.forEach(c => {
+          if (!c || c === '-') return;
+          if (!filterByArea(c)) return;
+          if (q && !c.toLowerCase().includes(q)) return;
+          const ongkir = ncMonth[c] ? ncMonth[c].ongkir : 0;
+          const resi = ncMonth[c] ? ncMonth[c].resi : 0;
+          const transfer = trMonth[c] || 0;
+          const selisih = Math.abs(transfer - ongkir);
+          const status = ongkir - transfer <= 0 ? 'done' : 'belum';
+          // Status filter: sudah = fully covered, belum = still owing
+          if (activeStatus === 'sudah' && ongkir - transfer > 0) return;
+          if (activeStatus === 'belum' && ongkir - transfer <= 0) return;
+          const area = cabangAreaMap[c] || '-';
+          rows.push({ cabang: c, resi, area, ongkir, transfer, selisih, status });
+        });
+        // Sort: area desc, cabang asc
+        rows.sort((a, b) => b.area.localeCompare(a.area) || a.cabang.localeCompare(b.cabang));
+        _monthlyRows = rows;
+
+        // Build unfiltered stats for counts
+        let allRows = [];
+        allCabang.forEach(c => {
+          if (!c || c === '-') return;
+          if (!filterByArea(c)) return;
+          if (q && !c.toLowerCase().includes(q)) return;
+          const ongkir = ncMonth[c] ? ncMonth[c].ongkir : 0;
+          const resi = ncMonth[c] ? ncMonth[c].resi : 0;
+          const transfer = trMonth[c] || 0;
+          allRows.push({ ongkir, resi, transfer });
+        });
+        const cntDone = allRows.filter(r => r.ongkir - r.transfer <= 0).length;
+        const cntBelum = allRows.filter(r => r.ongkir - r.transfer > 0).length;
+        const allTotOngkir = allRows.reduce((s, r) => s + r.ongkir, 0);
+        const allTotTransfer = allRows.reduce((s, r) => s + r.transfer, 0);
+        const allTotResi = allRows.reduce((s, r) => s + r.resi, 0);
+        const allSelisih = allTotOngkir - allTotTransfer;
+
+        setStats('Total Ongkir', 'Rp ' + fmtNom(allTotOngkir), 'var(--blue)',
+                 'Total Transfer', 'Rp ' + fmtNom(allTotTransfer), 'var(--green)',
+                 'Selisih', allSelisih > 0 ? 'Rp ' + fmtNom(allSelisih) : 'Rp 0', 'var(--red)',
+                 allRows.length + ' cabang · ' + fmtNom(allTotResi) + ' resi',
+                 cntDone + ' done',
+                 cntBelum + ' belum');
+
+        const thead = document.getElementById('tableHead');
+        thead.innerHTML = '<tr><th>Cabang</th><th style="text-align:right">Resi</th><th>Area</th><th style="text-align:right">Ongkir</th><th style="text-align:right">Transfer</th><th style="text-align:right">Selisih</th><th style="text-align:center">Status</th></tr>';
+        const tbody = document.getElementById('tableBody');
+        if (rows.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7"><div class="empty-msg"><i class="bi bi-inbox"></i>Tidak ada data</div></td></tr>';
+          return;
+        }
+
+        let html = '';
+
+        html += rows.map(r => {
+          const badge = r.status === 'done' ? '<span class="badge-done">DONE</span>' : '<span class="badge-belum">BELUM</span>';
+          return '<tr>' +
+            '<td class="td-cabang" title="' + esc(r.cabang) + '">' + esc(r.cabang) + '</td>' +
+            '<td class="td-nom">' + (r.resi > 0 ? fmtNom(r.resi) : '-') + '</td>' +
+            '<td style="font-size:0.65rem;color:#94a3b8">' + esc(r.area) + '</td>' +
+            '<td class="td-nom">' + (r.ongkir > 0 ? fmtNom(r.ongkir) : '-') + '</td>' +
+            '<td class="td-nom" style="color:var(--green)">' + (r.transfer > 0 ? fmtNom(r.transfer) : '-') + '</td>' +
+            '<td class="td-nom ' + (r.selisih > 0 ? 'td-pos' : '') + '">' + (r.selisih > 0 ? fmtNom(r.selisih) : '') + '</td>' +
+            '<td class="td-status">' + badge + '</td>' +
+            '</tr>';
+        }).join('');
+
+        tbody.innerHTML = html;
+      }
+
+      function renderShipmentMonthly() {
+        const q = getSearchQ();
+        const monthRows = getMonthlyCabangMap();
+        let rows = Object.keys(monthRows).map(cabang => ({
+          cabang,
+          resi: monthRows[cabang].resi || 0,
+          area: cabangAreaMap[cabang] || '-',
+          ongkir: monthRows[cabang].ongkir || 0,
+          total: monthRows[cabang].total || 0,
+        })).filter(row => {
+          if (!row.cabang || row.cabang === '-') return false;
+          if (!filterByArea(row.cabang)) return false;
+          if (q && !row.cabang.toLowerCase().includes(q)) return false;
+          return true;
+        });
+
+        rows.sort((a, b) => b.total - a.total || a.cabang.localeCompare(b.cabang));
+        _monthlyRows = rows;
+
+        const totalResi = rows.reduce((sum, row) => sum + row.resi, 0);
+        const totalOngkir = rows.reduce((sum, row) => sum + row.ongkir, 0);
+        const totalOmset = rows.reduce((sum, row) => sum + row.total, 0);
+        const modeLabel = activeMode === 'dfod' ? 'DFOD' : 'Shipment';
+
+        setStats(
+          'Omset ' + modeLabel,
+          'Rp ' + fmtNom(totalOmset),
+          'var(--blue)',
+          'Total Ongkir',
+          'Rp ' + fmtNom(totalOngkir),
+          'var(--green)',
+          'Total Resi',
+          fmtNom(totalResi),
+          'var(--dark)',
+          rows.length + ' cabang',
+          getModeLabel(activeMode),
+          document.getElementById('periodeSelect').selectedOptions[0] ? document.getElementById('periodeSelect').selectedOptions[0].textContent : ''
+        );
+
+        document.getElementById('tableHead').innerHTML = '<tr><th>Cabang</th><th style="text-align:right">Resi</th><th>Area</th><th style="text-align:right">Ongkir</th><th style="text-align:right">Omset</th></tr>';
+        const tbody = document.getElementById('tableBody');
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="5"><div class="empty-msg"><i class="bi bi-inbox"></i>Tidak ada data ' + getModeLabel(activeMode) + ' pada periode ini</div></td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = rows.map(row => '<tr>' +
+          '<td class="td-cabang" title="' + esc(row.cabang) + '">' + esc(row.cabang) + '</td>' +
+          '<td class="td-nom">' + fmtNom(row.resi) + '</td>' +
+          '<td style="font-size:0.65rem;color:#94a3b8">' + esc(row.area) + '</td>' +
+          '<td class="td-nom">' + (row.ongkir > 0 ? fmtNom(row.ongkir) : '-') + '</td>' +
+          '<td class="td-nom" style="color:var(--blue)">' + (row.total > 0 ? fmtNom(row.total) : '-') + '</td>' +
+          '</tr>').join('') +
+          '<tr class="total-row">' +
+          '<td>TOTAL</td>' +
+          '<td class="td-nom">' + fmtNom(totalResi) + '</td>' +
+          '<td></td>' +
+          '<td class="td-nom">' + fmtNom(totalOngkir) + '</td>' +
+          '<td class="td-nom">' + fmtNom(totalOmset) + '</td>' +
+          '</tr>';
+      }
+
+      // ========= DOWNLOAD XLSX =========
+      function downloadXlsx() {
+        if (activeTab === 'today') return downloadTodayXlsx();
+        return downloadMonthlyXlsx();
+      }
+
+      function downloadTodayXlsx() {
+        if (activeMode !== 'noncod') {
+          const rows = getShipmentTodayRows();
+          if (!rows.length) { showToast('Tidak ada data untuk diunduh', 'error'); return; }
+
+          const data = rows.map((row, idx) => ({
+            'No': idx + 1,
+            'Cabang': row.cabang,
+            'Resi': row.resi,
+            'Ongkir': row.ongkir,
+            'Omset': row.total,
+          }));
+
+          const totalResi = rows.reduce((sum, row) => sum + row.resi, 0);
+          const totalOngkir = rows.reduce((sum, row) => sum + row.ongkir, 0);
+          const totalOmset = rows.reduce((sum, row) => sum + row.total, 0);
+          data.push({ 'No': '', 'Cabang': 'TOTAL', 'Resi': totalResi, 'Ongkir': totalOngkir, 'Omset': totalOmset });
+
+          const ws = XLSX.utils.json_to_sheet(data);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, 'Hari Ini');
+
+          const modeName = getModeLabel(activeMode).replace(/\s+/g, '_');
+          const dF = new Date(dateFrom + 'T00:00:00');
+          const dT = new Date(dateTo + 'T00:00:00');
+          const bF = BULAN_ID[dF.getMonth()].toLowerCase();
+          const bT = BULAN_ID[dT.getMonth()].toLowerCase();
+          let fname = 'Rekap_' + modeName.toLowerCase() + '_daily_' + dF.getDate() + '_' + bF + '_' + dF.getFullYear();
+          if (dateFrom !== dateTo) fname += '_-_' + dT.getDate() + '_' + bT + '_' + dT.getFullYear();
+          fname += '.xlsx';
+          XLSX.writeFile(wb, fname);
+          showToast('File ' + fname + ' berhasil diunduh', 'success');
+          return;
+        }
+
+        const rows = getTodayRows();
+        if (!rows.length) { showToast('Tidak ada data untuk diunduh', 'error'); return; }
+        const periode = document.getElementById('periodeSelect').value;
+        const [pY, pM] = periode.split('-');
+
+        const data = rows.map((r, i) => ({
+          'No': i + 1,
+          'Cabang': r.cabang,
+          'Resi': r.resi,
+          'Ongkir': r.ongkir,
+          'Transfer': r.transfer,
+          'Belum': r.belum,
+          'Status': r.belum <= 0 ? 'DONE' : 'BELUM'
+        }));
+
+        const totResi = rows.reduce((s, r) => s + r.resi, 0);
+        const totOngkir = rows.reduce((s, r) => s + r.ongkir, 0);
+        const totTransfer = rows.reduce((s, r) => s + r.transfer, 0);
+        data.push({ 'No': '', 'Cabang': 'TOTAL', 'Resi': totResi, 'Ongkir': totOngkir, 'Transfer': totTransfer, 'Belum': totOngkir - totTransfer, 'Status': '' });
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Hari Ini');
+
+        const f = dateFrom, t = dateTo;
+        const dF = new Date(f + 'T00:00:00'), dT = new Date(t + 'T00:00:00');
+        const bF = BULAN_ID[dF.getMonth()].toLowerCase(), bT = BULAN_ID[dT.getMonth()].toLowerCase();
+        let fname;
+        if (f === t) { fname = 'Rekap_daily_' + dF.getDate() + '_' + bF + '_' + dF.getFullYear(); }
+        else { fname = 'Rekap_daily_' + dF.getDate() + '_' + bF + '_' + dF.getFullYear() + '_-_' + dT.getDate() + '_' + bT + '_' + dT.getFullYear(); }
+        const areaLabel = activeArea === 'semua' ? '' : activeArea;
+        const statusLabel = activeStatus === 'semua' ? '' : (activeStatus === 'sudah' ? 'Done' : 'Belum');
+        if (areaLabel) fname += '_' + areaLabel.replace(/\s+/g, '_');
+        if (statusLabel) fname += '_' + statusLabel;
+        fname += '.xlsx';
+        XLSX.writeFile(wb, fname);
+        showToast('File ' + fname + ' berhasil diunduh', 'success');
+      }
+
+      function downloadMonthlyXlsx() {
+        if (activeMode !== 'noncod') {
+          if (!_monthlyRows.length) { showToast('Tidak ada data untuk diunduh', 'error'); return; }
+          const periode = document.getElementById('periodeSelect').value;
+          const [pY, pM] = periode.split('-');
+          const bulanNama = BULAN_ID[parseInt(pM) - 1].toLowerCase();
+          const modeName = getModeLabel(activeMode).replace(/\s+/g, '_').toLowerCase();
+
+          const data = _monthlyRows.map(row => ({
+            'Cabang': row.cabang,
+            'Resi': row.resi,
+            'Area': row.area,
+            'Ongkir': row.ongkir,
+            'Omset': row.total,
+          }));
+
+          const totalResi = _monthlyRows.reduce((sum, row) => sum + row.resi, 0);
+          const totalOngkir = _monthlyRows.reduce((sum, row) => sum + row.ongkir, 0);
+          const totalOmset = _monthlyRows.reduce((sum, row) => sum + row.total, 0);
+          data.push({ 'Cabang': 'TOTAL', 'Resi': totalResi, 'Area': '', 'Ongkir': totalOngkir, 'Omset': totalOmset });
+
+          const ws = XLSX.utils.json_to_sheet(data);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, 'Rekap Bulanan');
+          const fname = 'Rekap_' + modeName + '_' + bulanNama + '_' + pY + '.xlsx';
+          XLSX.writeFile(wb, fname);
+          showToast('File ' + fname + ' berhasil diunduh', 'success');
+          return;
+        }
+
+        if (!_monthlyRows.length) { showToast('Tidak ada data untuk diunduh', 'error'); return; }
+        const periode = document.getElementById('periodeSelect').value;
+        const areaLabel = activeArea === 'semua' ? 'Semua Area' : activeArea;
+        const statusLabel = activeStatus === 'semua' ? 'Semua' : activeStatus === 'sudah' ? 'Done' : 'Belum';
+
+        const data = _monthlyRows.map(r => ({
+          'Cabang': r.cabang,
+          'Resi': r.resi,
+          'Area': r.area,
+          'Ongkir': r.ongkir,
+          'Transfer': r.transfer,
+          'Selisih': r.selisih,
+          'Status': r.status === 'done' ? 'DONE' : 'BELUM'
+        }));
+
+        // Add total row
+        const totResi = _monthlyRows.reduce((s, r) => s + r.resi, 0);
+        const totOngkir = _monthlyRows.reduce((s, r) => s + r.ongkir, 0);
+        const totTransfer = _monthlyRows.reduce((s, r) => s + r.transfer, 0);
+        data.push({ 'Cabang': 'TOTAL', 'Resi': totResi, 'Area': '', 'Ongkir': totOngkir, 'Transfer': totTransfer, 'Selisih': totOngkir - totTransfer, 'Status': '' });
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Rekap Bulanan');
+        const [pY, pM] = periode.split('-');
+        const bulanNama = BULAN_ID[parseInt(pM) - 1].toLowerCase();
+        let fname = 'Rekap_' + bulanNama + '_' + pY;
+        if (areaLabel !== 'Semua Area') fname += '_' + areaLabel.replace(/\s+/g, '_');
+        if (statusLabel !== 'Semua') fname += '_' + statusLabel;
+        fname += '.xlsx';
+        XLSX.writeFile(wb, fname);
+        showToast('File ' + fname + ' berhasil diunduh', 'success');
+      }
+
+      // ========= STATS HELPER =========
+      function setStats(l1, v1, c1, l2, v2, c2, l3, v3, c3, cnt1, cnt2, cnt3) {
+        document.getElementById('stLbl1').textContent = l1;
+        document.getElementById('stVal1').textContent = v1;
+        document.getElementById('stVal1').style.color = c1;
+        document.getElementById('stLbl2').textContent = l2;
+        document.getElementById('stVal2').textContent = v2;
+        document.getElementById('stVal2').style.color = c2;
+        document.getElementById('stLbl3').textContent = l3;
+        document.getElementById('stVal3').textContent = v3;
+        document.getElementById('stVal3').style.color = c3;
+        document.getElementById('stCnt1').textContent = cnt1 || '';
+        document.getElementById('stCnt2').textContent = cnt2 || '';
+        document.getElementById('stCnt3').textContent = cnt3 || '';
+      }
+
+      // ========= DATE NORMALIZER =========
+      function normDate(val) {
+        if (!val) return '';
+        // Already YYYY-MM-DD
+        if (/^\d{4}-\d{2}-\d{2}/.test(String(val))) return String(val).slice(0, 10);
+        // Date object from SheetJS cellDates
+        if (val instanceof Date && !isNaN(val)) {
+          const y = val.getFullYear(), m = String(val.getMonth()+1).padStart(2,'0'), d = String(val.getDate()).padStart(2,'0');
+          return y + '-' + m + '-' + d;
+        }
+        // Try parsing string (e.g. "07 Apr 2026", "4/7/2026", "07/04/2026")
+        const parsed = new Date(String(val));
+        if (!isNaN(parsed) && parsed.getFullYear() > 2000) {
+          const y = parsed.getFullYear(), m = String(parsed.getMonth()+1).padStart(2,'0'), d = String(parsed.getDate()).padStart(2,'0');
+          return y + '-' + m + '-' + d;
+        }
+        // DD/MM/YYYY format
+        const parts = String(val).match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+        if (parts) return parts[3] + '-' + parts[2].padStart(2,'0') + '-' + parts[1].padStart(2,'0');
+        return String(val).slice(0, 30);
+      }
+
+      // ========= UPLOAD XLSX =========
+      let parsedRows = null;
+
+      function toggleUpload() {
+        if (!isAdminWorkspace()) return;
+        const overlay = document.getElementById('uploadOverlay');
+        const btn = document.getElementById('btnToggleUpload');
+        if (overlay.classList.contains('show')) {
+          overlay.classList.remove('show');
+          btn.classList.remove('active');
+        } else {
+          overlay.classList.add('show');
+          btn.classList.add('active');
+          loadExisting();
+        }
+      }
+
+      async function loadExisting() {
+        const periode = document.getElementById('periodeSelect').value;
+        const el = document.getElementById('existingInfo');
+        if (!periode) { el.innerHTML = 'Pilih periode...'; return; }
+        el.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Memuat...';
+        try {
+          const res = await fetch('/api/noncod?periode=' + encodeURIComponent(periode) + '&mode=all');
+          const json = await res.json();
+          if (json.totalResi > 0) {
+            const allSummary = (json.summary && json.summary.all) || {};
+            const noncodSummary = (json.summary && json.summary.noncod) || {};
+            const dfodSummary = (json.summary && json.summary.dfod) || {};
+            el.innerHTML = '<div class="eb-ok">' +
+              '<i class="bi bi-check-circle-fill" style="font-size:0.9rem;color:var(--green)"></i>' +
+              '<div style="flex:1">' +
+                '<div><span style="font-weight:700;color:#15803d">' + fmtNom(allSummary.totalResi || 0) + ' resi</span> \u00B7 <span style="color:var(--gray)">' + fmtNom(allSummary.cabangCount || 0) + ' cabang</span> \u00B7 <span style="color:var(--blue)">Rp ' + fmtNom(allSummary.grandTotal || 0) + '</span></div>' +
+                '<div style="font-size:0.68rem;color:var(--gray2);margin-top:3px">NONCOD ' + fmtNom(noncodSummary.totalResi || 0) + ' resi \u00B7 DFOD ' + fmtNom(dfodSummary.totalResi || 0) + ' resi</div>' +
+              '</div>' +
+              '</div>';
+          } else {
+            el.innerHTML = '<span style="color:#94a3b8">Belum ada data</span>';
+          }
+        } catch { el.innerHTML = '<span style="color:#ef4444">Gagal memuat</span>'; }
+      }
+
+      function handleFile(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const raw = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
+            const preparedRows = raw.map(r => ({
+              tanggal_buat: normDate(r['Tanggal Buat']),
+              tanggal_pickup: normDate(r['Tanggal Pickup']),
+              tanggal_kirim: normDate(r['Tanggal Kirim']),
+              tanggal_terima: normDate(r['Tanggal Terima']),
+              status_terakhir: String(r['Status Terakhir'] || '').slice(0, 50),
+              nama_pengirim: String(r['Nama Pengirim'] || '').slice(0, 200),
+              kecamatan_pengirim: String(r['Kecamatan Pengirim'] || '').slice(0, 100),
+              nama_penerima: String(r['Nama Penerima'] || '').slice(0, 200),
+              provinsi_penerima: String(r['Provinsi Penerima'] || '').slice(0, 100),
+              kab_kota_penerima: String(r['Kab/Kota Penerima'] || '').slice(0, 100),
+              nomor_resi: String(r['Nomor Resi'] || '').slice(0, 50),
+              ongkir: parseFloat(r['Ongkos Kirim']) || 0,
+              total_pengiriman: parseFloat(r['Total Pengiriman']) || 0,
+              metode_pembayaran: String(r['Metode Pembayaran'] || '').trim().toLowerCase().slice(0, 30),
+              nama_ekspedisi: String(r['Nama Ekspedisi'] || '').slice(0, 50),
+              cabang: String(r['Dibuat Oleh SubUser'] || '').slice(0, 100),
+            })).filter(r => ['noncod', 'dfod'].includes(r.metode_pembayaran) && (r.nomor_resi || r.ongkir > 0 || r.total_pengiriman > 0));
+            const ignoredBatalCount = preparedRows.filter(r => String(r.status_terakhir || '').trim().toUpperCase() === 'BATAL').length;
+            parsedRows = preparedRows.filter(r => String(r.status_terakhir || '').trim().toUpperCase() !== 'BATAL');
+            if (!parsedRows.length) { showToast('File tidak berisi data valid', 'error'); return; }
+            document.getElementById('dropZone').style.display = 'none';
+            document.getElementById('previewSection').style.display = '';
+            document.getElementById('fileName').textContent = file.name;
+            const totalOngkir = parsedRows.reduce((s, r) => s + r.ongkir, 0);
+            const totalOmset = parsedRows.reduce((s, r) => s + r.total_pengiriman, 0);
+            const cabangSet = new Set(parsedRows.map(r => r.cabang).filter(Boolean));
+            const noncodCount = parsedRows.filter(r => r.metode_pembayaran === 'noncod').length;
+            const dfodCount = parsedRows.filter(r => r.metode_pembayaran === 'dfod').length;
+            const metaParts = [
+              parsedRows.length + ' baris valid',
+              cabangSet.size + ' cabang',
+              'Rp ' + totalOmset.toLocaleString('id-ID')
+            ];
+            if (ignoredBatalCount > 0) metaParts.push(ignoredBatalCount + ' BATAL diabaikan');
+            document.getElementById('fileMeta').textContent = metaParts.join(' · ');
+            document.getElementById('pvResi').textContent = parsedRows.length.toLocaleString('id-ID');
+            document.getElementById('pvNoncod').textContent = noncodCount.toLocaleString('id-ID');
+            document.getElementById('pvDfod').textContent = dfodCount.toLocaleString('id-ID');
+          } catch (err) {
+            showToast('Gagal membaca file: ' + err.message, 'error');
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      }
+
+      function clearFile() {
+        parsedRows = null;
+        document.getElementById('fileInput').value = '';
+        document.getElementById('dropZone').style.display = '';
+        document.getElementById('previewSection').style.display = 'none';
+      }
+
+      function getOpsToken() {
+        return isAdminWorkspace() ? (sessionStorage.getItem('adminToken') || '') : '';
+      }
+
+      async function doUploadXlsx() {
+        if (!parsedRows || !parsedRows.length) return;
+        const periode = document.getElementById('periodeSelect').value;
+        if (!periode) { showToast('Pilih periode dulu', 'error'); return; }
+        const token = getOpsToken();
+        if (!token) {
+          showToast('Session upload tidak ada. Login ulang workspace atau verifikasi admin dulu.', 'error');
+          return;
+        }
+        const btn = document.getElementById('btnUpload');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Mengupload...';
+        try {
+          const res = await fetch('/api/noncod', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Admin-Token': token },
+            body: JSON.stringify({ periode, rows: parsedRows }),
+          });
+          const json = await res.json();
+          if (!res.ok) {
+            if (res.status === 401 || res.status === 403) {
+              doLogout();
+              return;
+            }
+            showToast(json.error || 'Gagal upload', 'error');
+          }
+          else {
+            const noncodInfo = json.stats ? ' · NONCOD ' + (json.stats.noncod || 0) : '';
+            const dfodInfo = json.stats ? ' · DFOD ' + (json.stats.dfod || 0) : '';
+            showToast(json.inserted + ' data berhasil disimpan' + noncodInfo + dfodInfo, 'success');
+            clearFile();
+            loadExisting();
+            loadDashboard();
+          }
+        } catch { showToast('Kesalahan jaringan', 'error'); }
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cloud-upload"></i> Upload & Simpan';
+      }
+
+      // Drag & drop
+      const dz = document.getElementById('dropZone');
+      dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor = '#10b981'; dz.style.background = '#dcfce7'; });
+      dz.addEventListener('dragleave', () => { dz.style.borderColor = '#86efac'; dz.style.background = '#f0fdf4'; });
+      dz.addEventListener('drop', e => {
+        e.preventDefault();
+        dz.style.borderColor = '#86efac'; dz.style.background = '#f0fdf4';
+        if (e.dataTransfer.files.length) {
+          document.getElementById('fileInput').files = e.dataTransfer.files;
+          handleFile(document.getElementById('fileInput'));
+        }
+      });
+
+      async function captureScreenshot() {
+        const btn = document.getElementById('btnScreenshot');
+        btn.style.opacity = '0.5';
+        btn.style.pointerEvents = 'none';
+        const target = document.getElementById('tableSection');
+        const tableWrap = document.getElementById('tableWrap');
+        const original = {
+          maxHeight: tableWrap.style.maxHeight,
+          overflowX: tableWrap.style.overflowX,
+          overflowY: tableWrap.style.overflowY,
+          height: tableWrap.style.height,
+          scrollTop: tableWrap.scrollTop,
+          scrollLeft: tableWrap.scrollLeft,
+        };
+        try {
+          tableWrap.style.maxHeight = 'none';
+          tableWrap.style.height = 'auto';
+          tableWrap.style.overflowX = 'visible';
+          tableWrap.style.overflowY = 'visible';
+          tableWrap.scrollTop = 0;
+          tableWrap.scrollLeft = 0;
+
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+          const canvas = await html2canvas(target, {
+            backgroundColor: getComputedStyle(document.body).getPropertyValue('background-color') || '#f8fafc',
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            windowWidth: Math.max(target.scrollWidth, tableWrap.scrollWidth, document.documentElement.clientWidth),
+            windowHeight: Math.max(target.scrollHeight, tableWrap.scrollHeight, target.offsetHeight),
+          });
+          canvas.toBlob(async blob => {
+            try {
+              await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+              showToast('Screenshot disalin ke clipboard! Tinggal Paste di WhatsApp.', 'success');
+            } catch {
+              // Fallback: download jika clipboard tidak diizinkan
+              const a = document.createElement('a');
+              a.href = canvas.toDataURL('image/png');
+              a.download = 'dashboard_' + new Date().toLocaleDateString('en-CA') + '.png';
+              a.click();
+              showToast('Disimpan sebagai file (clipboard tidak diizinkan browser ini).', '');
+            }
+          }, 'image/png');
+        } catch (err) {
+          showToast('Gagal screenshot.', 'error');
+        } finally {
+          tableWrap.style.maxHeight = original.maxHeight;
+          tableWrap.style.height = original.height;
+          tableWrap.style.overflowX = original.overflowX;
+          tableWrap.style.overflowY = original.overflowY;
+          tableWrap.scrollTop = original.scrollTop;
+          tableWrap.scrollLeft = original.scrollLeft;
+          btn.style.opacity = '';
+          btn.style.pointerEvents = '';
+        }
+      }
+
+      function showToast(msg, type) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'toast-box show ' + (type || '');
+        setTimeout(() => t.className = 'toast-box', 2200);
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Bukti Transfer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg: #f0f2f7; --card: #ffffff; --dark: #0f172a; --dark2: #1e293b;
+        --blue: #3b82f6; --green: #10b981; --red: #ef4444; --orange: #f59e0b;
+        --gray: #64748b; --gray2: #94a3b8; --gray3: #cbd5e1; --border: #e2e8f0; --radius: 14px;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background: var(--bg); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; padding: 0 0 40px; color: var(--dark); -webkit-font-smoothing: antialiased; }
+
+      .top-bar {
+        background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+        padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+        position: sticky; top: 0; z-index: 10;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      }
+      .top-bar a { width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.7); text-decoration: none; flex-shrink: 0; transition: 0.2s; backdrop-filter: blur(4px); }
+      .top-bar a:hover { background: rgba(255,255,255,0.15); color: white; }
+      .top-bar h1 { font-size: 1rem; font-weight: 800; margin: 0; color: white; letter-spacing: -0.02em; }
+
+      .form-wrap { max-width: 500px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+      @media (min-width: 768px) { .form-wrap { max-width: 700px; padding: 24px 24px; } }
+      @media (min-width: 1024px) { .form-wrap { max-width: 900px; } }
+
+      .field-card { background: var(--card); border-radius: var(--radius); padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid var(--border); }
+      .field-label { font-size: 0.82rem; font-weight: 700; color: var(--dark); margin-bottom: 2px; display: flex; align-items: center; gap: 6px; letter-spacing: -0.01em; }
+      .field-label .lbl-icon { width: 26px; height: 26px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0; }
+      .field-ket { font-size: 0.72rem; color: var(--gray2); margin-bottom: 10px; line-height: 1.4; }
+      .field-ket.warn { color: var(--orange); }
+
+      .form-control, .form-select { border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.88rem; padding: 10px 14px; color: var(--dark); background: #f8fafc; transition: border-color 0.2s, box-shadow 0.2s; font-family: 'Inter', sans-serif; }
+      .form-control:focus, .form-select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); background: var(--card); outline: none; }
+
+      /* Tanggal 3 kolom */
+      .date-row { display: grid; grid-template-columns: 2fr 3fr 2.5fr; gap: 8px; }
+      .date-col label { font-size: 0.68rem; font-weight: 600; color: #94a3b8; display: block; margin-bottom: 4px; text-align: center; }
+
+      /* Nominal */
+      .nominal-wrap { position: relative; }
+      .nominal-wrap .prefix { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-weight: 700; color: var(--gray); font-size: 0.9rem; pointer-events: none; }
+      .nominal-wrap .form-control { padding-left: 38px; }
+      #nominalPreview { font-size: 0.78rem; color: var(--blue); font-weight: 600; margin-top: 6px; min-height: 18px; }
+
+
+
+      /* Upload bukti */
+      .upload-area { border: 2px dashed var(--gray3); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: #f8fafc; position: relative; }
+      .upload-area:hover, .upload-area.dragover { border-color: var(--blue); background: #eff6ff; }
+      .upload-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+      .upload-area .up-icon { font-size: 2rem; color: #93c5fd; margin-bottom: 6px; }
+      .upload-area .up-text { font-size: 0.82rem; font-weight: 600; color: var(--gray); }
+      .upload-area .up-sub { font-size: 0.72rem; color: var(--gray2); margin-top: 2px; }
+      #previewImg { width: 100%; max-height: 220px; object-fit: contain; border-radius: 10px; display: none; margin-top: 10px; border: 1px solid var(--border); }
+
+      /* OCR scanning */
+      .ocr-status { display: none; align-items: center; gap: 8px; margin-top: 10px; padding: 10px 14px; border-radius: 10px; font-size: 0.82rem; font-weight: 600; }
+      .ocr-status.scanning { display: flex; background: #eff6ff; color: var(--blue); }
+      .ocr-status.success { display: flex; background: #f0fdf4; color: #16a34a; }
+      .ocr-status.error { display: flex; background: #fef2f2; color: var(--red); }
+      .ocr-status.info { display: flex; background: #fffbeb; color: #b45309; }
+      .ocr-status .spinner-border { width: 16px; height: 16px; border-width: 2px; }
+      .ocr-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: #dbeafe; color: #2563eb; white-space: nowrap; flex-shrink: 0; }
+
+      /* Hidden fields container — revealed after scan */
+      #formFields { display: none; flex-direction: column; gap: 12px; }
+      #formFields.show { display: flex; animation: slideIn 0.35s ease-out; }
+      @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+      /* Compact inline field row */
+      .inline-field { display: flex; align-items: center; gap: 10px; padding: 12px 16px; }
+      .inline-field .if-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; }
+      .inline-field .if-body { flex: 1; min-width: 0; }
+      .inline-field .if-label { font-size: 0.7rem; font-weight: 700; color: var(--gray); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 2px; }
+      .inline-field .if-value { font-size: 0.95rem; font-weight: 600; color: var(--dark); border: none; background: transparent; width: 100%; padding: 0; outline: none; font-family: 'Inter', sans-serif; }
+      .inline-field .if-value:focus { color: var(--blue); }
+      .inline-field .if-value::placeholder { color: var(--gray3); font-weight: 400; }
+
+      /* Day picker pills */
+      .day-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+      .day-pill { flex: 1; min-width: 0; padding: 8px 6px; border-radius: 10px; border: 1.5px solid var(--border); background: #f8fafc; font-size: 0.75rem; font-weight: 600; color: var(--gray); text-align: center; cursor: pointer; transition: all 0.15s; line-height: 1.3; }
+      .day-pill .pill-day { font-size: 0.95rem; font-weight: 700; color: var(--dark); display: block; }
+      .day-pill:hover { border-color: var(--blue); background: #eff6ff; }
+      .day-pill.active { border-color: var(--blue); background: #dbeafe; color: var(--blue); }
+      .day-pill.active .pill-day { color: var(--blue); }
+
+      /* Search dropdown */
+      .search-dd { position: relative; }
+      .search-dd input { width: 100%; border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.88rem; padding: 10px 14px 10px 36px; color: var(--dark); background: #f8fafc; transition: border-color 0.2s, box-shadow 0.2s; font-family: 'Inter', sans-serif; }
+      .search-dd input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); background: var(--card); outline: none; }
+      .search-dd .dd-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--gray2); font-size: 0.85rem; pointer-events: none; z-index: 1; }
+      .search-dd .dd-list { display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--card); border: 1.5px solid var(--border); border-radius: 10px; max-height: 220px; overflow-y: auto; z-index: 20; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+      .search-dd.open .dd-list { display: block; }
+      .search-dd .dd-group { font-size: 0.68rem; font-weight: 700; color: var(--gray); text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 14px 4px; }
+      .search-dd .dd-item { padding: 9px 14px; font-size: 0.85rem; cursor: pointer; color: var(--dark); transition: background 0.15s; }
+      .search-dd .dd-item:hover, .search-dd .dd-item.active { background: #eff6ff; color: var(--blue); }
+      .search-dd .dd-item:last-child { border-radius: 0 0 10px 10px; }
+      .search-dd .dd-empty { padding: 12px 14px; font-size: 0.82rem; color: var(--gray2); text-align: center; }
+
+      /* Submit */
+      .btn-submit { width: 100%; padding: 14px; border-radius: var(--radius); font-size: 1rem; font-weight: 700; border: none; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; box-shadow: 0 4px 14px rgba(59,130,246,0.35); transition: all 0.2s; letter-spacing: -0.01em; }
+      .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(59,130,246,0.45); }
+      .btn-submit:active { transform: translateY(0); }
+      .btn-submit:disabled { background: var(--gray2); box-shadow: none; transform: none; }
+
+      /* Success state */
+      .success-screen { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; }
+      .success-screen .s-icon { width: 80px; height: 80px; border-radius: 50%; background: #dcfce7; color: #16a34a; font-size: 2.4rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
+      .success-screen h2 { font-size: 1.2rem; font-weight: 800; color: var(--dark); margin-bottom: 6px; letter-spacing: -0.02em; }
+      .success-screen p { font-size: 0.85rem; color: var(--gray2); }
+      .success-screen .btn { border-radius: 10px; font-weight: 700; }
+
+      /* Dupe warning modal */
+      .dupe-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:100; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(4px); }
+      .dupe-overlay.show { display:flex; }
+      .dupe-box { background:var(--card); border-radius:var(--radius); max-width:400px; width:100%; padding:24px 20px; box-shadow:0 12px 40px rgba(0,0,0,0.25); text-align:center; }
+      .dupe-box .dupe-icon { font-size:2.4rem; color:var(--orange); margin-bottom:8px; }
+      .dupe-box h3 { font-size:1rem; font-weight:800; color:var(--dark); margin-bottom:16px; letter-spacing:-0.02em; }
+      .dupe-detail { background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:14px 16px; text-align:left; margin-bottom:16px; font-size:0.82rem; line-height:1.8; color:var(--dark2); }
+      .dupe-detail .dupe-cabang { font-weight:800; font-size:0.9rem; color:var(--dark); margin-bottom:6px; }
+      .dupe-detail span.lbl { color:var(--gray); font-weight:600; }
+      .dupe-question { font-size:0.85rem; font-weight:600; color:var(--dark); margin-bottom:16px; }
+      .dupe-btns { display:flex; gap:10px; }
+      .dupe-btns button { flex:1; padding:12px; border-radius:10px; font-weight:700; font-size:0.88rem; border:none; cursor:pointer; transition:0.2s; font-family:'Inter',sans-serif; }
+      .dupe-btns .btn-cancel { background:#f1f5f9; color:var(--dark); }
+      .dupe-btns .btn-cancel:hover { background:#e2e8f0; }
+      .dupe-btns .btn-force { background:linear-gradient(135deg,var(--orange),#d97706); color:white; box-shadow:0 4px 14px rgba(245,158,11,0.35); }
+      .dupe-btns .btn-force:hover { box-shadow:0 6px 20px rgba(245,158,11,0.45); }
+    </style>
+  </head>
+  <body>
+
+    <div class="top-bar">
+      <a href="/"><i class="bi bi-arrow-left"></i></a>
+      <h1><i class="bi bi-cloud-upload-fill text-primary me-2"></i>Upload Bukti Transfer</h1>
+    </div>
+
+    <div class="form-wrap" id="formWrap">
+
+      <!-- Bukti Transfer + OCR (upload first, auto-fills fields below) -->
+      <div class="field-card">
+        <div class="field-label">
+          <span class="lbl-icon" style="background:#ede9fe;color:#7c3aed"><i class="bi bi-image-fill"></i></span>
+          Bukti Transfer
+        </div>
+        <div class="field-ket">Upload screenshot bukti transfer — data akan otomatis dibaca oleh AI</div>
+        <div class="upload-area" id="uploadArea">
+          <input type="file" id="fileBukti" accept="image/*">
+          <div id="uploadPlaceholder">
+            <div class="up-icon"><i class="bi bi-cloud-arrow-up"></i></div>
+            <div class="up-text">Tap untuk pilih foto</div>
+            <div class="up-sub">Upload → AI Scan otomatis &nbsp;·&nbsp; JPG, PNG</div>
+          </div>
+          <img id="previewImg" src="" alt="preview">
+        </div>
+        <div class="ocr-status" id="ocrStatus"></div>
+      </div>
+
+      <!-- Fields hidden until scan done -->
+      <div id="formFields">
+
+      <!-- Bank -->
+      <div class="field-card inline-field">
+        <div class="if-icon" style="background:#fef9c3;color:#ca8a04"><i class="bi bi-bank2"></i></div>
+        <div class="if-body">
+          <div class="if-label">Bank</div>
+          <input type="text" class="if-value" id="namaBank" placeholder="Nama bank..." oninput="checkReady()" onblur="normalizeBankInputField(); checkReady()" autocomplete="off">
+        </div>
+        <span class="ocr-badge" id="bankBadge" style="display:none"><i class="bi bi-robot"></i>AI</span>
+      </div>
+
+      <div class="field-card inline-field">
+        <div class="if-icon" style="background:#dcfce7;color:#16a34a"><i class="bi bi-cash-stack"></i></div>
+        <div class="if-body">
+          <div class="if-label">Nominal Transfer <span style="font-weight:400;color:var(--gray2)">(tanpa admin)</span></div>
+          <input type="text" class="if-value" id="nominal" placeholder="0" inputmode="numeric" oninput="formatNominal(this); checkReady()" autocomplete="off">
+        </div>
+        <span class="ocr-badge" id="nominalBadge" style="display:none"><i class="bi bi-robot"></i>AI</span>
+      </div>
+
+      <!-- Periode -->
+      <div class="field-card">
+        <div class="field-label">
+          <span class="lbl-icon" style="background:#e0e7ff;color:#4338ca"><i class="bi bi-calendar-month-fill"></i></span>
+          Periode Rekap
+        </div>
+        <div class="field-ket warn"><i class="bi bi-exclamation-triangle-fill me-1"></i>Hanya diganti jika di awal bulan sesuai dengan tanggal pickup</div>
+        <select class="form-select" id="periodeInput" onchange="checkReady()"></select>
+      </div>
+
+      <!-- Tanggal Input/Pickup -->
+      <div class="field-card">
+        <div class="field-label">
+          <span class="lbl-icon" style="background:#fef3c7;color:#d97706"><i class="bi bi-truck"></i></span>
+          Tanggal Input / Pickup
+        </div>
+        <div class="field-ket"><i class="bi bi-info-circle me-1"></i>Sesuaikan dengan tanggal input/pickup yang sudah anda input/pickup hari ini atau kemarin</div>
+        <input type="hidden" id="tglPickup">
+        <div style="display:grid;grid-template-columns:1fr 2fr 1.2fr;gap:8px;margin-top:4px">
+          <select class="form-select" id="pickTgl" onchange="updateTglPickupDay()"></select>
+          <select class="form-select" id="pickBulan" onchange="updateTglPickup()"></select>
+          <select class="form-select" id="pickTahun" onchange="updateTglPickup()"></select>
+        </div>
+      </div>
+
+      <!-- Nama Cabang -->
+      <div class="field-card">
+        <div class="field-label">
+          <span class="lbl-icon" style="background:#fce7f3;color:#db2777"><i class="bi bi-geo-alt-fill"></i></span>
+          Nama Cabang
+        </div>
+        <div class="field-ket">Ketik untuk mencari cabang</div>
+        <div class="search-dd" id="cabangDD">
+          <i class="bi bi-search dd-icon"></i>
+          <input type="text" id="cabangSearch" placeholder="Cari cabang..." autocomplete="off">
+          <input type="hidden" id="namaCabang">
+          <div class="dd-list" id="cabangList"></div>
+        </div>
+      </div>
+
+      </div><!-- end #formFields -->
+
+      <button class="btn-submit" id="btnSubmit" onclick="submitForm()" disabled style="display:none">
+        <i class="bi bi-send-fill me-2"></i>Kirim Data
+      </button>
+
+    </div>
+
+    <!-- Dupe warning modal -->
+    <div class="dupe-overlay" id="dupeOverlay">
+      <div class="dupe-box">
+        <div class="dupe-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+        <h3>⚠️ Data yang sama sudah ada ⚠️</h3>
+        <div class="dupe-detail" id="dupeDetail"></div>
+        <div class="dupe-question">Yakin ingin menambah transfer baru?</div>
+        <div class="dupe-btns">
+          <button class="btn-cancel" onclick="closeDupe()">Batal</button>
+          <button class="btn-force" onclick="forceSubmit()">Tetap Simpan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success -->
+    <div class="success-screen" id="successScreen">
+      <div class="s-icon"><i class="bi bi-check-lg"></i></div>
+      <h2>Berhasil Dikirim!</h2>
+      <p>Data transfer Anda sudah masuk.<br>Terima kasih!</p>
+      <button class="btn btn-primary rounded-pill px-5 mt-3 fw-bold" onclick="resetForm()">Upload Lagi</button>
+    </div>
+
+    <script>
+      // Init periode dropdown
+      const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Makassar' }));
+      const periodeEl = document.getElementById('periodeInput');
+      for (let i = 0; i < 3; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const val = d.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit' }).slice(0, 7);
+        const label = d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+        const o = document.createElement('option');
+        o.value = val;
+        o.textContent = label;
+        periodeEl.appendChild(o);
+      }
+
+      // Init tanggal default (today)
+      const BULAN_ID_FULL = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+      function buildDayPicker() {
+        const today = now;
+        const selTgl = document.getElementById('pickTgl');
+        const selBulan = document.getElementById('pickBulan');
+        const selTahun = document.getElementById('pickTahun');
+
+        // Months
+        selBulan.innerHTML = '';
+        BULAN_ID_FULL.forEach((b, i) => {
+          const o = document.createElement('option');
+          o.value = String(i + 1).padStart(2,'0');
+          o.textContent = b;
+          selBulan.appendChild(o);
+        });
+
+        // Years: current - 1 to current
+        selTahun.innerHTML = '';
+        for (let y = today.getFullYear() - 1; y <= today.getFullYear(); y++) {
+          const o = document.createElement('option');
+          o.value = y;
+          o.textContent = y;
+          selTahun.appendChild(o);
+        }
+
+        // Set default to today
+        selBulan.value = String(today.getMonth() + 1).padStart(2,'0');
+        selTahun.value = today.getFullYear();
+        rebuildDays(today.getDate());
+
+        // Set hidden tglPickup value to today
+        const t = String(today.getDate()).padStart(2,'0');
+        const b = String(today.getMonth() + 1).padStart(2,'0');
+        const y = today.getFullYear();
+        document.getElementById('tglPickup').value = y + '-' + b + '-' + t;
+      }
+
+      function rebuildDays(selectedDay) {
+        const selTgl = document.getElementById('pickTgl');
+        const b = parseInt(document.getElementById('pickBulan').value);
+        const y = parseInt(document.getElementById('pickTahun').value);
+        const maxDay = new Date(y, b, 0).getDate(); // day 0 of next month = last day of current month
+        const prev = selectedDay || parseInt(selTgl.value) || 1;
+        selTgl.innerHTML = '';
+        for (let d = 1; d <= maxDay; d++) {
+          const o = document.createElement('option');
+          o.value = String(d).padStart(2,'0');
+          o.textContent = d;
+          selTgl.appendChild(o);
+        }
+        selTgl.value = String(Math.min(prev, maxDay)).padStart(2,'0');
+      }
+
+      function updateTglPickupDay() {
+        const t = document.getElementById('pickTgl').value;
+        const b = document.getElementById('pickBulan').value;
+        const y = document.getElementById('pickTahun').value;
+        document.getElementById('tglPickup').value = y + '-' + b + '-' + t;
+        checkReady();
+      }
+
+      function updateTglPickup() {
+        rebuildDays();
+        const t = document.getElementById('pickTgl').value;
+        const b = document.getElementById('pickBulan').value;
+        const y = document.getElementById('pickTahun').value;
+        document.getElementById('tglPickup').value = y + '-' + b + '-' + t;
+        checkReady();
+      }
+
+      buildDayPicker();
+
+      // Format nominal — strip non-numeric, add thousand separator
+      function formatNominal(el) {
+        let raw = el.value.replace(/[^\d]/g, '');
+        if (raw) {
+          el.value = Number(raw).toLocaleString('id-ID');
+        }
+      }
+      // Parse nominal — strip separator to get raw number
+      function parseNominal() {
+        return parseInt(document.getElementById('nominal').value.replace(/[^\d]/g, '')) || 0;
+      }
+
+      // Load cabang dari API
+      // Cabang data store
+      let cabangData = []; // [{nama, area}]
+
+      async function loadCabang() {
+        try {
+          const res = await fetch('/api/cabang');
+          const json = await res.json();
+          const areaOrder = ['SULTRA', 'MKS OUTER', 'CUSTUMER', 'LAINNYA'];
+
+          const groups = {};
+          (json.cabang || []).forEach(c => {
+            const area = c.area || 'LAINNYA';
+            if (!groups[area]) groups[area] = [];
+            groups[area].push(c);
+          });
+
+          const sorted = Object.keys(groups).sort((a, b) => {
+            const ia = areaOrder.indexOf(a); const ib = areaOrder.indexOf(b);
+            return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+          });
+
+          cabangData = [];
+          sorted.forEach(area => {
+            groups[area].forEach(c => cabangData.push({ nama: c.nama, area }));
+          });
+
+          renderCabangList('');
+        } catch {
+          cabangData = [];
+          document.getElementById('cabangList').innerHTML = '<div class="dd-empty">Gagal memuat cabang</div>';
+        }
+      }
+
+      function renderCabangList(query) {
+        const list = document.getElementById('cabangList');
+        const q = query.toLowerCase();
+        const filtered = q ? cabangData.filter(c => c.nama.toLowerCase().includes(q)) : cabangData;
+
+        if (filtered.length === 0) {
+          list.innerHTML = '<div class="dd-empty">Tidak ditemukan</div>';
+          return;
+        }
+
+        let html = '';
+        let lastArea = '';
+        filtered.forEach(c => {
+          if (c.area !== lastArea) {
+            lastArea = c.area;
+            html += '<div class="dd-group">' + lastArea + '</div>';
+          }
+          html += '<div class="dd-item" data-value="' + c.nama.replace(/"/g, '&quot;') + '">' + c.nama + '</div>';
+        });
+        list.innerHTML = html;
+      }
+
+      // Search dropdown behavior
+      (function() {
+        const dd = document.getElementById('cabangDD');
+        const input = document.getElementById('cabangSearch');
+        const hidden = document.getElementById('namaCabang');
+        const list = document.getElementById('cabangList');
+
+        input.addEventListener('focus', () => { dd.classList.add('open'); renderCabangList(input.value); });
+        input.addEventListener('input', () => {
+          dd.classList.add('open');
+          hidden.value = ''; // clear selection when typing
+          renderCabangList(input.value);
+          checkReady();
+        });
+
+        list.addEventListener('click', (e) => {
+          const item = e.target.closest('.dd-item');
+          if (!item) return;
+          const val = item.dataset.value;
+          input.value = val;
+          hidden.value = val;
+          dd.classList.remove('open');
+          checkReady();
+        });
+
+        // Close on click outside
+        document.addEventListener('click', (e) => {
+          if (!dd.contains(e.target)) dd.classList.remove('open');
+        });
+
+        // Keyboard navigation
+        input.addEventListener('keydown', (e) => {
+          const items = list.querySelectorAll('.dd-item');
+          const active = list.querySelector('.dd-item.active');
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (!active) { items[0]?.classList.add('active'); }
+            else { active.classList.remove('active'); (active.nextElementSibling?.classList.contains('dd-item') ? active.nextElementSibling : active.nextElementSibling?.nextElementSibling)?.classList.add('active'); }
+            list.querySelector('.dd-item.active')?.scrollIntoView({ block: 'nearest' });
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (active) { active.classList.remove('active'); let prev = active.previousElementSibling; if (prev && !prev.classList.contains('dd-item')) prev = prev.previousElementSibling; prev?.classList.add('active'); prev?.scrollIntoView({ block: 'nearest' }); }
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (active) { input.value = active.dataset.value; hidden.value = active.dataset.value; dd.classList.remove('open'); checkReady(); }
+          } else if (e.key === 'Escape') {
+            dd.classList.remove('open');
+          }
+        });
+      })();
+
+      loadCabang();
+
+      // File preview + OCR auto-scan
+      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+      let ocrFilled = {}; // track which fields were filled by OCR
+      let ocrBusy = false; // lock to prevent concurrent scans
+      let ocrCooldownUntil = 0; // cooldown timestamp
+
+      // Compress image to reduce base64 size for OCR API
+      function compressImage(dataUrl, maxWidth = 800) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            let w = img.width, h = img.height;
+            if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', 0.6));
+          };
+          img.src = dataUrl;
+        });
+      }
+
+      document.getElementById('fileBukti').addEventListener('change', function() {
+        const file = this.files[0];
+        if (!file) return;
+        if (file.size > MAX_FILE_SIZE) {
+          alert('File terlalu besar. Maksimal 5MB.');
+          this.value = '';
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = document.getElementById('previewImg');
+          const placeholder = document.getElementById('uploadPlaceholder');
+          img.src = e.target.result;
+          img.style.display = 'block';
+          placeholder.style.display = 'none';
+          // Auto-scan with OCR
+          runOCR(e.target.result);
+        };
+        reader.readAsDataURL(file);
+        checkReady();
+      });
+
+      function setOcrStatus(type, text) {
+        const el = document.getElementById('ocrStatus');
+        el.className = 'ocr-status ' + type;
+        if (type === 'scanning') {
+          el.innerHTML = '<span class="spinner-border"></span>' + text;
+        } else if (type === 'success') {
+          el.innerHTML = '<i class="bi bi-check-circle-fill"></i>' + text;
+        } else if (type === 'info') {
+          el.innerHTML = '<i class="bi bi-info-circle-fill"></i>' + text;
+        } else {
+          el.innerHTML = '<i class="bi bi-x-circle-fill"></i>' + text;
+        }
+      }
+
+      function showFields() {
+        document.getElementById('formFields').classList.add('show');
+        document.getElementById('btnSubmit').style.display = '';
+      }
+
+      function setBadge(badgeId, show) {
+        const badge = document.getElementById(badgeId);
+        if (badge) badge.style.display = show ? 'inline-flex' : 'none';
+      }
+
+      function normalizeBankNameInput(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        const upper = raw.toUpperCase();
+        const compact = upper.replace(/[^A-Z0-9]/g, '');
+        if (['MTRANSFER', 'MTRANSFERBCA', 'MBCA', 'BCAMOBILE', 'MBANKINGBCA', 'MYBANK'].includes(compact)) return 'BCA';
+        return upper;
+      }
+
+      function normalizeBankInputField() {
+        const input = document.getElementById('namaBank');
+        const normalized = normalizeBankNameInput(input.value);
+        if (normalized) input.value = normalized;
+      }
+
+      // Map OCR channel to bank name
+      function matchBank(channel) {
+        if (!channel || channel === 'Unknown') return '';
+        const ch = channel.toUpperCase();
+        const directMatch = normalizeBankNameInput(ch);
+        if (directMatch === 'BCA') return 'BCA';
+        const banks = ['BCA','MANDIRI','BNI','BRI','BSI','DANA','OVO','GOPAY','SHOPEEPAY'];
+        for (const b of banks) {
+          if (ch.includes(b)) return b;
+        }
+        if (ch.includes('LIVIN')) return 'MANDIRI';
+        if (ch.includes('BRIMO')) return 'BRI';
+        if (ch.includes('MYBANK') || ch.includes('M-BANKING BCA') || ch.includes('MBCA') || ch.includes('BCA MOBILE')) return 'BCA';
+        if (ch.includes('BSI MOBILE')) return 'BSI';
+        if (ch.includes('BNI MOBILE') || ch.includes('BNI M-BANKING')) return 'BNI';
+        return channel; // return original if no match — user can edit
+      }
+
+      async function runOCR(base64DataUrl) {
+        // Prevent concurrent scans — lock + cooldown 8s between scans
+        if (ocrBusy) {
+          setOcrStatus('error', 'Scan sedang berjalan, tunggu sebentar...');
+          return;
+        }
+        const cooldownLeft = Math.ceil((ocrCooldownUntil - Date.now()) / 1000);
+        if (cooldownLeft > 0) {
+          setOcrStatus('error', 'Tunggu ' + cooldownLeft + ' detik sebelum scan berikutnya.');
+          showFields();
+          return;
+        }
+
+        ocrBusy = true;
+        setOcrStatus('scanning', 'Membaca bukti transfer...');
+        ocrFilled = {};
+        try {
+          // Compress image to stay within Vercel body limit
+          const compressed = await compressImage(base64DataUrl, 800);
+          
+          // Check base64 size before sending
+          const sizeKB = Math.round(compressed.length * 0.75 / 1024);
+          if (sizeKB > 3500) {
+            throw new Error('Gambar terlalu besar (' + sizeKB + 'KB). Gunakan screenshot yang lebih kecil.');
+          }
+
+          const res = await fetch('/api/ocr', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: compressed }),
+          });
+
+          // Try to parse response body
+          const text = await res.text();
+          let json;
+          try {
+            json = JSON.parse(text);
+          } catch {
+            // Response is not JSON (HTML error page from Vercel)
+            console.error('Non-JSON response:', res.status, text.slice(0, 200));
+            if (res.status === 504 || res.status === 408) {
+              throw new Error('Server timeout — gambar mungkin terlalu besar. Coba screenshot yang lebih kecil.');
+            }
+            throw new Error('Server error (' + res.status + '). Coba lagi atau isi manual.');
+          }
+
+          if (!res.ok) throw new Error(json.error || 'Gagal scan');
+
+          let filled = 0;
+
+          // Fill bank
+          const bank = matchBank(json.channel);
+          if (bank) {
+            document.getElementById('namaBank').value = bank;
+            ocrFilled.bank = true;
+            setBadge('bankBadge', true);
+            filled++;
+          }
+
+          // Fill nominal (Total_Bayar - Admin)
+          if (json.nominal !== null && json.nominal > 0) {
+            document.getElementById('nominal').value = Number(json.nominal).toLocaleString('id-ID');
+            ocrFilled.nominal = true;
+            setBadge('nominalBadge', true);
+            filled++;
+          }
+
+          checkReady();
+
+          if (filled === 2) {
+            setOcrStatus('success', 'Bank & Nominal terisi otomatis — periksa & edit jika perlu');
+          } else if (filled > 0) {
+            const missing = [];
+            if (!ocrFilled.bank) missing.push('Bank');
+            if (!ocrFilled.nominal) missing.push('Nominal');
+            setOcrStatus('info', filled + ' field terisi — lengkapi ' + missing.join(', ') + ' secara manual');
+          } else {
+            setOcrStatus('info', 'Bukti transfer terdeteksi — silahkan masukkan data manual');
+          }
+          showFields();
+        } catch (err) {
+          console.error('OCR error:', err);
+          setOcrStatus('error', 'Gagal scan: ' + (err.message || 'coba lagi'));
+          showFields();
+        } finally {
+          ocrBusy = false;
+          ocrCooldownUntil = Date.now() + 8000; // 8 second cooldown
+        }
+      }
+
+      function checkReady() {
+        const ok = document.getElementById('namaBank').value.trim() &&
+          parseNominal() > 0 &&
+          document.getElementById('tglPickup').value &&
+          document.getElementById('namaCabang').value &&
+          document.getElementById('fileBukti').files.length > 0;
+        document.getElementById('btnSubmit').disabled = !ok;
+      }
+
+      // Collect form values helper
+      function getFormValues() {
+        return {
+          periode: document.getElementById('periodeInput').value,
+          tgl_inputan: document.getElementById('tglPickup').value,
+          nama_bank: normalizeBankNameInput(document.getElementById('namaBank').value),
+          nama_cabang: document.getElementById('namaCabang').value,
+          nominal: parseNominal(),
+        };
+      }
+
+      function esc(s) {
+        const el = document.createElement('span');
+        el.textContent = s;
+        return el.innerHTML;
+      }
+      function fmtTgl(dateStr) {
+        if (!dateStr) return '-';
+        const [y, m, d] = dateStr.split('-');
+        return `${d}/${m}/${y}`;
+      }
+      function fmtNom(v) {
+        return 'Rp ' + Number(v).toLocaleString('id-ID');
+      }
+      function fmtJam(ts) {
+        if (!ts) return '-';
+        const d = new Date(ts);
+        return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' });
+      }
+      function fmtTglFromTs(ts) {
+        if (!ts) return '-';
+        const d = new Date(ts);
+        return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Makassar' });
+      }
+
+      function closeDupe() {
+        document.getElementById('dupeOverlay').classList.remove('show');
+        const btn = document.getElementById('btnSubmit');
+        btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Kirim Data';
+        btn.disabled = false;
+      }
+
+      function forceSubmit() {
+        document.getElementById('dupeOverlay').classList.remove('show');
+        doSubmit();
+      }
+
+      async function submitForm() {
+        const btn = document.getElementById('btnSubmit');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Mengecek...';
+
+        const vals = getFormValues();
+
+        // Check duplicate
+        try {
+          const chkRes = await fetch('/api/check-dupe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nama_cabang: vals.nama_cabang,
+              tgl_inputan: vals.tgl_inputan,
+              nominal: vals.nominal,
+            }),
+          });
+          const chkJson = await chkRes.json();
+
+          if (chkRes.ok && chkJson.dupes && chkJson.dupes.length > 0) {
+            // Show dupe warning
+            const d = chkJson.dupes[0];
+            const detail = document.getElementById('dupeDetail');
+            detail.innerHTML =
+              `<div class="dupe-cabang">${esc(vals.nama_cabang)}</div>` +
+              `<span class="lbl">Tanggal</span> : ${fmtTglFromTs(d.timestamp)}<br>` +
+              `<span class="lbl">Input/Pickup</span> : ${fmtTgl(d.tgl_inputan)}<br>` +
+              `<span class="lbl">Jam</span> : ${fmtJam(d.timestamp)}<br>` +
+              `<span class="lbl">Bank</span> : ${esc(d.nama_bank || '-')}<br>` +
+              `<span class="lbl">Total</span> : ${fmtNom(d.nominal)}`;
+            document.getElementById('dupeOverlay').classList.add('show');
+            return; // wait for user decision
+          }
+        } catch {
+          // If dupe check fails, proceed anyway
+        }
+
+        doSubmit();
+      }
+
+      async function doSubmit() {
+        const btn = document.getElementById('btnSubmit');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Mengirim...';
+        try {
+          const vals = getFormValues();
+          const fd = new FormData();
+          fd.append('periode', vals.periode);
+          fd.append('tgl_inputan', vals.tgl_inputan);
+          fd.append('nama_bank', vals.nama_bank);
+          fd.append('nama_cabang', vals.nama_cabang);
+          fd.append('nominal', vals.nominal);
+          fd.append('bukti', document.getElementById('fileBukti').files[0]);
+
+          const res = await fetch('/api/input', { method: 'POST', body: fd });
+          const json = await res.json();
+
+          if (!res.ok) {
+            alert(json.error || 'Gagal mengirim data. Coba lagi.');
+            btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Kirim Data';
+            btn.disabled = false;
+            return;
+          }
+
+          document.getElementById('formWrap').style.display = 'none';
+          document.getElementById('successScreen').style.display = 'flex';
+        } catch (err) {
+          alert('Terjadi kesalahan jaringan. Pastikan koneksi Anda stabil.');
+          btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Kirim Data';
+          btn.disabled = false;
+        }
+      }
+
+      function resetForm() {
+        document.getElementById('formWrap').style.display = 'flex';
+        document.getElementById('successScreen').style.display = 'none';
+        document.getElementById('nominal').value = '';
+        document.getElementById('namaBank').value = '';
+        buildDayPicker();
+        document.getElementById('namaCabang').value = '';
+        document.getElementById('cabangSearch').value = '';
+        document.getElementById('cabangDD').classList.remove('open');
+        document.getElementById('fileBukti').value = '';
+        document.getElementById('previewImg').style.display = 'none';
+        document.getElementById('uploadPlaceholder').style.display = 'block';
+        document.getElementById('btnSubmit').innerHTML = '<i class="bi bi-send-fill me-2"></i>Kirim Data';
+        document.getElementById('ocrStatus').className = 'ocr-status';
+        document.getElementById('formFields').classList.remove('show');
+        document.getElementById('btnSubmit').style.display = 'none';
+        setBadge('bankBadge', false);
+        setBadge('nominalBadge', false);
+        ocrFilled = {};
+        periodeEl.selectedIndex = 0;
+        checkReady();
+      }
+    </script>
+  </body>
+</html>

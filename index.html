@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer Maulagi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg: #f0f2f7; --card: #ffffff; --dark: #0f172a; --dark2: #1e293b;
+        --blue: #3b82f6; --green: #10b981; --red: #ef4444; --orange: #f59e0b;
+        --gray: #64748b; --gray2: #94a3b8; --gray3: #cbd5e1; --border: #e2e8f0; --radius: 14px;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background: var(--bg); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; color: var(--dark); -webkit-font-smoothing: antialiased; }
+      .brand { text-align: center; margin-bottom: 2rem; }
+      .brand-img { width: clamp(240px, 80vw, 360px); margin-bottom: 0.75rem; }
+      .brand h1 { font-size: clamp(1.5rem, 6vw, 2rem); font-weight: 800; color: var(--dark); margin-bottom: 4px; letter-spacing: -0.02em; }
+      .brand p { font-size: 0.85rem; color: var(--gray2); margin: 0; }
+      .menu-grid { display: grid; grid-template-columns: 1fr; gap: 12px; width: 100%; max-width: 480px; }
+      @media (min-width: 560px) { .menu-grid { max-width: 640px; grid-template-columns: 1fr 1fr; } }
+      @media (min-width: 700px) { .menu-grid { max-width: 980px; grid-template-columns: repeat(3, 1fr); gap: 16px; } }
+      @media (min-width: 920px) { .menu-grid { max-width: 1180px; grid-template-columns: repeat(4, 1fr); } }
+      .menu-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 28px 16px; background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.07); text-decoration: none; color: inherit; transition: all 0.2s ease; position: relative; overflow: hidden; }
+      .menu-card.upload { background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-color: #86efac; }
+      .menu-card.rekap  { background: linear-gradient(135deg, #eff6ff, #dbeafe); border-color: #93c5fd; }
+      .menu-card.dash   { background: linear-gradient(135deg, #fffbeb, #fef3c7); border-color: #fcd34d; }
+      .menu-card.admin  { background: linear-gradient(135deg, #f8fafc, #f1f5f9); border-color: #cbd5e1; }
+      .menu-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+      .menu-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+      .menu-card.upload::before { background: linear-gradient(90deg, #10b981, #34d399); }
+      .menu-card.rekap::before  { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+      .menu-card.dash::before   { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+      .menu-card.admin::before  { background: linear-gradient(90deg, #64748b, #94a3b8); }
+      .menu-card.upload:hover { border-color: var(--green); }
+      .menu-card.rekap:hover  { border-color: var(--blue); }
+      .menu-card.dash:hover   { border-color: var(--orange); }
+      .menu-card.admin:hover  { border-color: var(--gray); }
+      .menu-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
+      .menu-card.upload .menu-icon { background: #dcfce7; color: #16a34a; }
+      .menu-card.rekap  .menu-icon { background: #dbeafe; color: #2563eb; }
+      .menu-card.dash   .menu-icon { background: #fef9c3; color: #ca8a04; }
+      .menu-card.admin  .menu-icon { background: #f1f5f9; color: var(--gray); }
+      .menu-title { font-size: 0.9rem; font-weight: 700; color: var(--dark); text-align: center; letter-spacing: -0.01em; }
+      .menu-desc  { font-size: 0.72rem; color: var(--gray2); text-align: center; line-height: 1.4; }
+      .visitor-corner { position: fixed; top: 14px; left: 14px; z-index: 10; }
+      .visitor-corner > span { font-size: 0.72rem; font-weight: 600; color: var(--gray); display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+      .vb-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; box-shadow: 0 0 0 2px rgba(16,185,129,0.25); flex-shrink: 0; }
+      .footer { margin-top: 1.5rem; font-size: 0.72rem; color: var(--gray3); text-align: center; }
+
+      /* Popup Cabang */
+      .pop-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.52); backdrop-filter: blur(4px); z-index: 500; align-items: flex-end; justify-content: center; }
+      .pop-overlay.show { display: flex; }
+      @media (min-width: 540px) { .pop-overlay { align-items: center; padding: 16px; } }
+      .pop-panel { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-width: 480px; max-height: 85vh; display: flex; flex-direction: column; animation: slideUp 0.22s ease; overflow: hidden; }
+      @media (min-width: 540px) { .pop-panel { border-radius: 20px; max-height: 78vh; } }
+      @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      .pop-head { padding: 14px 16px 12px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+      .pop-head-icon { width: 32px; height: 32px; border-radius: 9px; background: #dbeafe; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+      .pop-head h3 { font-size: 0.9rem; font-weight: 800; color: var(--dark); margin: 0; flex: 1; letter-spacing: -0.01em; }
+      .pop-close { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border); background: #f8fafc; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--gray); font-size: 0.85rem; flex-shrink: 0; transition: 0.15s; }
+      .pop-close:hover { background: #f1f5f9; color: var(--dark); }
+      .pop-body { padding: 12px 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+      .pop-body::-webkit-scrollbar { width: 3px; }
+      .pop-body::-webkit-scrollbar-thumb { background: var(--gray3); border-radius: 4px; }
+      .pop-search-wrap { position: relative; flex-shrink: 0; }
+      .pop-search-wrap i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--gray2); font-size: 0.9rem; pointer-events: none; }
+      .pop-search-wrap input { width: 100%; border-radius: 10px; border: 1.5px solid var(--border); padding: 9px 12px 9px 34px; font-size: 0.85rem; background: #f8fafc; color: var(--dark2); font-family: 'Inter', sans-serif; }
+      .pop-search-wrap input:focus { border-color: var(--blue); outline: none; background: var(--card); }
+      .cabang-list { display: flex; flex-direction: column; gap: 5px; }
+      .cabang-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #f8fafc; border-radius: 10px; border: 1px solid #f1f5f9; cursor: pointer; transition: 0.15s; text-decoration: none; }
+      .cabang-item:hover { background: #eff6ff; border-color: #bfdbfe; }
+      .cabang-item .ci-icon { width: 32px; height: 32px; border-radius: 9px; background: #dbeafe; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0; }
+      .cabang-item .ci-name { font-size: 0.82rem; font-weight: 700; color: var(--dark); }
+      .cabang-item .ci-area { font-size: 0.66rem; font-weight: 600; color: var(--gray2); margin-top: 1px; }
+      .area-label { font-size: 0.68rem; font-weight: 800; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 4px 4px; }
+      .cabang-loading { text-align: center; padding: 24px 0; color: var(--gray2); font-size: 0.82rem; }
+
+      /* Login gate */
+      .login-gate { position: fixed; inset: 0; background: rgba(15,23,42,0.52); backdrop-filter: blur(4px); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 24px; }
+      .login-gate.show { display: flex; }
+      .login-box { background: var(--card); border-radius: var(--radius); padding: 28px 24px; width: 100%; max-width: 340px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); text-align: center; animation: popIn 0.2s ease; border: 1px solid var(--border); }
+      @keyframes popIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+      .login-box .l-icon { width: 56px; height: 56px; border-radius: 50%; background: #fef3c7; color: #d97706; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+      .login-box h2 { font-size: 1rem; font-weight: 800; color: var(--dark); margin-bottom: 4px; letter-spacing: -0.01em; }
+      .login-box .l-sub { font-size: 0.78rem; color: var(--gray2); margin-bottom: 16px; }
+      .login-box .form-control { border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.9rem; padding: 11px 14px; background: #f8fafc; width: 100%; margin-bottom: 8px; text-align: center; letter-spacing: 2px; font-family: 'Inter', sans-serif; }
+      .login-box .form-control:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(245,158,11,0.12); background: var(--card); outline: none; }
+      .login-box .l-err { font-size: 0.75rem; color: var(--red); margin-bottom: 8px; min-height: 18px; }
+      .btn-login { width: 100%; border-radius: 10px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; padding: 11px; font-size: 0.9rem; font-weight: 700; transition: all 0.2s; box-shadow: 0 4px 14px rgba(245,158,11,0.3); }
+      .btn-login:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(245,158,11,0.4); }
+      .btn-login:disabled { background: var(--gray2); box-shadow: none; cursor: not-allowed; transform: none; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .spin { display: inline-block; animation: spin 1s linear infinite; }
+    </style>
+  </head>
+  <body>
+    <!-- Popup: Pilih Cabang untuk Rekap -->
+    <div class="pop-overlay" id="popCabang" onclick="if(event.target===this)closePop()">
+      <div class="pop-panel">
+        <div class="pop-head">
+          <div class="pop-head-icon"><i class="bi bi-building-fill-search"></i></div>
+          <h3>Pilih Cabang</h3>
+          <div class="pop-close" onclick="closePop()"><i class="bi bi-x"></i></div>
+        </div>
+        <div class="pop-body">
+          <div class="pop-search-wrap">
+            <i class="bi bi-search"></i>
+            <input type="text" id="inpCabang" placeholder="Ketik nama cabang..." autocomplete="off">
+          </div>
+          <div class="cabang-list" id="cabangList"><div class="cabang-loading"><i class="bi bi-arrow-repeat spin"></i> Memuat...</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Login Gate Popup -->
+    <div class="login-gate" id="loginGate" onclick="handleOverlayClick(event)">
+      <div class="login-box">
+        <div class="l-icon"><i class="bi bi-shield-lock-fill"></i></div>
+        <h2 id="loginTitle">Admin Panel</h2>
+        <div class="l-sub" id="loginSub">Masukkan password untuk melanjutkan</div>
+        <input type="password" class="form-control" id="loginPw" placeholder="Password..." oninput="document.getElementById('loginErr').textContent=''" onkeydown="if(event.key==='Enter')doLogin()">
+        <div class="l-err" id="loginErr"></div>
+        <button class="btn-login" id="btnLogin" onclick="doLogin()">
+          <i class="bi bi-unlock-fill me-1"></i>Masuk
+        </button>
+      </div>
+    </div>
+
+    <div class="visitor-corner">
+      <span><span class="vb-dot"></span><span id="visitorToday">...</span> hari ini</span>
+    </div>
+    <div class="brand">
+      <img src="/mobil.png" alt="Maulagi" class="brand-img">
+      <p>Pilih menu yang ingin diakses</p>
+    </div>
+
+    <div class="menu-grid">
+      <a href="/input.html" class="menu-card upload">
+        <div class="menu-icon"><i class="bi bi-cloud-upload-fill"></i></div>
+        <div>
+          <div class="menu-title">Upload</div>
+          <div class="menu-desc">Upload bukti transfer</div>
+        </div>
+      </a>
+      <a class="menu-card rekap" onclick="openRekapPicker()" style="cursor:pointer">
+        <div class="menu-icon"><i class="bi bi-bar-chart-line-fill"></i></div>
+        <div>
+          <div class="menu-title">Rekap Transfer</div>
+          <div class="menu-desc">Dashboard rekap transfer</div>
+        </div>
+      </a>
+      <a class="menu-card dash" onclick="openDashboard('dashboard', 'dashboard')" style="cursor:pointer">
+        <div class="menu-icon"><i class="bi bi-speedometer2"></i></div>
+        <div>
+          <div class="menu-title"><i class="bi bi-eye-fill" style="font-size:0.7rem;color:#94a3b8;margin-right:3px"></i>Viewer Dashboard</div>
+          <div class="menu-desc">Lihat dashboard dan download data</div>
+        </div>
+      </a>
+      <a class="menu-card admin" onclick="openDashboard('dashboard', 'admin')" style="cursor:pointer">
+        <div class="menu-icon"><i class="bi bi-shield-lock-fill"></i></div>
+        <div>
+          <div class="menu-title">Admin Workspace</div>
+          <div class="menu-desc">Upload, edit data, dan pengaturan</div>
+        </div>
+      </a>
+    </div>
+
+    <div class="footer">&copy; 2026 created by tams</div>
+
+    <script>
+      let allCabang = null; // cache
+      let loginMode = 'dashboard';
+      let dashboardTargetTab = 'dashboard';
+
+      function hasValidSession(prefix) {
+        const ts = parseInt(sessionStorage.getItem(prefix + 'AuthTs') || '0');
+        return !!sessionStorage.getItem(prefix + 'Auth') && ts && (Date.now() - ts <= 60 * 60 * 1000);
+      }
+
+      function clearSession(prefix) {
+        sessionStorage.removeItem(prefix + 'Auth');
+        sessionStorage.removeItem(prefix + 'AuthTs');
+        sessionStorage.removeItem(prefix + 'Token');
+      }
+
+      function setActiveRole(role, token = '') {
+        if (role === 'admin') {
+          clearSession('dash');
+          sessionStorage.setItem('adminAuth', '1');
+          sessionStorage.setItem('adminAuthTs', String(Date.now()));
+          sessionStorage.setItem('adminToken', token || '');
+          return;
+        }
+        clearSession('admin');
+        sessionStorage.setItem('dashAuth', '1');
+        sessionStorage.setItem('dashAuthTs', String(Date.now()));
+        sessionStorage.setItem('dashToken', token || '');
+      }
+
+      function setLoginCopy(role) {
+        if (role === 'admin') {
+          document.getElementById('loginTitle').textContent = 'Maulagi Admin';
+          document.getElementById('loginSub').textContent = 'Password admin untuk upload, edit, dan pengaturan';
+          return;
+        }
+        document.getElementById('loginTitle').textContent = 'Maulagi Viewer';
+        document.getElementById('loginSub').textContent = 'Password viewer untuk lihat dan download';
+      }
+
+      async function openDashboard(targetTab = 'dashboard', role = 'dashboard') {
+        dashboardTargetTab = targetTab;
+        loginMode = role === 'admin' ? 'admin' : 'dashboard';
+        const prefix = loginMode === 'admin' ? 'admin' : 'dash';
+        const pwKey = loginMode === 'admin' ? 'admin_password' : 'dashboard_password';
+        // Check if already authenticated this session
+        if (hasValidSession(prefix)) {
+          location.href = '/dashboard.html#' + dashboardTargetTab;
+          return;
+        }
+        clearSession(prefix);
+        // Check if selected role password exists
+        try {
+          const res = await fetch('/api/auth?key=' + pwKey);
+          const json = await res.json();
+          if (!json.hasPassword) {
+            setActiveRole(loginMode);
+            location.href = '/dashboard.html#' + dashboardTargetTab;
+            return;
+          }
+        } catch { /* tetap tampilkan popup jika gagal cek */ }
+        setLoginCopy(loginMode);
+        document.getElementById('loginPw').value = '';
+        document.getElementById('loginErr').textContent = '';
+        document.getElementById('loginGate').classList.add('show');
+        setTimeout(() => document.getElementById('loginPw').focus(), 50);
+      }
+
+      function openRekapPicker() {
+        document.getElementById('inpCabang').value = '';
+        document.getElementById('popCabang').classList.add('show');
+        document.body.style.overflow = 'hidden';
+        if (allCabang) {
+          renderCabangList('');
+          setTimeout(() => document.getElementById('inpCabang').focus(), 80);
+        } else {
+          document.getElementById('cabangList').innerHTML = '<div class="cabang-loading"><i class="bi bi-arrow-repeat spin"></i> Memuat...</div>';
+          fetch('/api/cabang')
+            .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(data => {
+              allCabang = ((data && data.cabang) || []).sort((a, b) => (a.area || '').localeCompare(b.area || '') || a.nama.localeCompare(b.nama));
+              renderCabangList('');
+              setTimeout(() => document.getElementById('inpCabang').focus(), 80);
+            })
+            .catch(() => {
+              document.getElementById('cabangList').innerHTML = '<div class="cabang-loading"><i class="bi bi-exclamation-circle text-danger me-1"></i> Gagal memuat data</div>';
+            });
+        }
+      }
+
+      function closePop() {
+        document.getElementById('popCabang').classList.remove('show');
+        document.body.style.overflow = '';
+      }
+
+      function renderCabangList(q) {
+        const el = document.getElementById('cabangList');
+        const list = (allCabang || []).filter(c => !q || c.nama.toLowerCase().includes(q.toLowerCase()));
+        if (!list.length) {
+          el.innerHTML = '<div class="cabang-loading">Tidak ditemukan</div>';
+          return;
+        }
+        // Group by area
+        const groups = {};
+        list.forEach(c => {
+          const area = c.area || 'Lainnya';
+          if (!groups[area]) groups[area] = [];
+          groups[area].push(c);
+        });
+        let html = '';
+        for (const area in groups) {
+          html += `<div class="area-label"><i class="bi bi-geo-fill me-1"></i>${esc(area)}</div>`;
+          html += groups[area].map(c => `
+            <div class="cabang-item" onclick="gotoRekap('${escName(c.nama)}')">
+              <div class="ci-icon"><i class="bi bi-geo-alt-fill"></i></div>
+              <div>
+                <div class="ci-name">${esc(c.nama)}</div>
+                <div class="ci-area">${esc(c.area || '-')}</div>
+              </div>
+            </div>`).join('');
+        }
+        el.innerHTML = html;
+      }
+
+      function escName(s) {
+        return encodeURIComponent(s).replace(/'/g, '%27');
+      }
+
+      function esc(s) {
+        const el = document.createElement('span');
+        el.textContent = s;
+        return el.innerHTML;
+      }
+
+      function gotoRekap(nama) {
+        location.href = '/rekap.html?cabang=' + nama;
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('inpCabang').addEventListener('input', e => renderCabangList(e.target.value));
+        // Visitor count — rate-limit: max 1 call per 5 min, cache last count
+        let vid = localStorage.getItem('dash_vid');
+        if (!vid) { vid = Date.now().toString(36) + Math.random().toString(36).slice(2,10); localStorage.setItem('dash_vid', vid); }
+        const lastVisit = parseInt(localStorage.getItem('dash_vts') || '0');
+        const cachedCount = localStorage.getItem('dash_vcount');
+        if (Date.now() - lastVisit > 5 * 60 * 1000) {
+          localStorage.setItem('dash_vts', String(Date.now()));
+          fetch('/api/visit?vid=' + encodeURIComponent(vid))
+            .then(r => r.json())
+            .then(v => {
+              const n = parseInt(v.today);
+              const display = isNaN(n) ? '-' : n;
+              document.getElementById('visitorToday').textContent = display;
+              localStorage.setItem('dash_vcount', String(display));
+            })
+            .catch(() => { document.getElementById('visitorToday').textContent = cachedCount || '-'; });
+        } else {
+          document.getElementById('visitorToday').textContent = cachedCount || '...';
+        }
+      });
+
+      function handleOverlayClick(e) {
+        if (e.target === document.getElementById('loginGate')) {
+          document.getElementById('loginGate').classList.remove('show');
+          document.getElementById('loginPw').value = '';
+          document.getElementById('loginErr').textContent = '';
+        }
+      }
+
+      async function doLogin() {
+        const pw = document.getElementById('loginPw').value;
+        const errEl = document.getElementById('loginErr');
+        const btn = document.getElementById('btnLogin');
+        if (!pw) { errEl.textContent = 'Masukkan password'; return; }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Memverifikasi...';
+
+        const pwKey = loginMode === 'dashboard' ? 'dashboard_password' : 'admin_password';
+
+        try {
+          const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'verify', password: pw, key: pwKey }),
+          });
+          const json = await res.json();
+          if (!res.ok) {
+            errEl.textContent = json.error || 'Password salah';
+            btn.innerHTML = '<i class="bi bi-unlock-fill me-1"></i>Masuk';
+            btn.disabled = false;
+            document.getElementById('loginPw').select();
+          } else {
+            setActiveRole(loginMode, json.token || '');
+            location.href = '/dashboard.html#' + dashboardTargetTab;
+          }
+        } catch {
+          errEl.textContent = 'Kesalahan jaringan, coba lagi';
+          btn.innerHTML = '<i class="bi bi-unlock-fill me-1"></i>Masuk';
+          btn.disabled = false;
+        }
+      }
+    </script>
+  </body>
+</html>

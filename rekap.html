@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rekap Transfer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg: #f0f2f7; --card: #ffffff; --dark: #0f172a; --dark2: #1e293b;
+        --blue: #3b82f6; --green: #10b981; --red: #ef4444; --orange: #f59e0b;
+        --gray: #64748b; --gray2: #94a3b8; --gray3: #cbd5e1; --border: #e2e8f0; --radius: 14px;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background: var(--bg); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; color: var(--dark); -webkit-font-smoothing: antialiased; }
+
+      /* ── Loading Screen ── */
+      #loadingScreen {
+        position: fixed; inset: 0; background: var(--bg);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        z-index: 999; gap: 16px; transition: opacity 0.4s;
+      }
+      #loadingScreen.hide { opacity: 0; pointer-events: none; }
+      .loading-spinner {
+        width: 44px; height: 44px; border: 3px solid var(--border);
+        border-top-color: var(--blue); border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+      .loading-label { font-size: 0.82rem; font-weight: 600; color: var(--gray2); letter-spacing: -0.01em; }
+
+      /* ── Page ── */
+      .page { display: none; flex-direction: column; min-height: 100vh; }
+      .page.show { display: flex; }
+
+      /* ── Header ── */
+      .page-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+        padding: 16px 18px 14px; display: flex; align-items: center; gap: 12px;
+        position: sticky; top: 0; z-index: 100;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      }
+      .page-header .back-btn {
+        width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.15);
+        background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center;
+        color: rgba(255,255,255,0.7); font-size: 0.9rem; text-decoration: none; flex-shrink: 0; transition: 0.2s; backdrop-filter: blur(4px);
+      }
+      .page-header .back-btn:hover { background: rgba(255,255,255,0.15); color: white; }
+      .page-header .hd-info { flex: 1; min-width: 0; }
+      .page-header .hd-name { font-size: 1.05rem; font-weight: 800; color: white; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: -0.02em; }
+      .page-header .hd-status { font-size: 0.7rem; color: rgba(255,255,255,0.5); margin-top: 2px; font-weight: 500; }
+
+      /* ── Content ── */
+      .page-body { padding: 12px 12px 24px; display: flex; flex-direction: column; gap: 10px; flex: 1; max-width: 600px; margin: 0 auto; width: 100%; }
+      @media (min-width: 768px) { .page-body { max-width: 900px; padding: 20px 24px 32px; } }
+      @media (min-width: 1024px) { .page-body { max-width: 1100px; padding: 24px 32px 36px; } }
+
+      /* ── Stat Cards ── */
+      .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .stat-card {
+        border-radius: var(--radius); border: 1px solid transparent;
+        padding: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        position: relative; overflow: hidden;
+      }
+      .stat-card:nth-child(1) { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-color: #93c5fd; }
+      .stat-card:nth-child(2) { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-color: #6ee7b7; }
+      .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+      .stat-card:nth-child(1)::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+      .stat-card:nth-child(2)::before { background: linear-gradient(90deg, #10b981, #34d399); }
+      .stat-card .sc-lbl { font-size: 0.65rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+      .stat-card .sc-val { font-size: clamp(0.85rem, 4vw, 1.1rem); font-weight: 800; color: var(--dark); line-height: 1.2; word-break: break-word; letter-spacing: -0.02em; }
+
+      /* ── Filter Pills ── */
+      .filter-row { display: flex; gap: 4px; background: var(--card); border-radius: var(--radius); padding: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid var(--border); }
+      .filter-pill { flex: 1; border-radius: 10px; font-size: 0.74rem; font-weight: 700; padding: 8px 14px; border: none; background: transparent; color: var(--gray); cursor: pointer; transition: all 0.2s; white-space: nowrap; font-family: 'Inter', sans-serif; letter-spacing: -0.01em; text-align: center; }
+      .filter-pill.active { background: var(--dark); color: white; box-shadow: 0 2px 8px rgba(15,23,42,0.2); }
+      .filter-pill:not(.active):hover { background: #f1f5f9; }
+
+      /* ── Transfer Rows ── */
+      .tr-list { display: flex; flex-direction: column; gap: 8px; }
+      .tr-row { background: #ffffff; border-radius: 12px; border: 1px solid var(--border); padding: 11px 13px; display: flex; align-items: center; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+      .tr-row:nth-child(even) { background: #f0f7ff; border-color: #bfdbfe; }
+      .tr-row .tr-icon { width: 34px; height: 34px; border-radius: 10px; background: #dcfce7; color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; }
+      .tr-row .tr-body { flex: 1; min-width: 0; }
+      .tr-row .tr-bank { font-size: 0.62rem; font-weight: 700; background: var(--blue); color: white; border-radius: 6px; padding: 1px 8px; display: inline-block; margin-bottom: 3px; letter-spacing: 0.3px; }
+      .tr-row .tr-tgl { font-size: 0.72rem; color: var(--gray); }
+      .tr-row .tr-ket { font-size: 0.67rem; color: var(--gray2); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+      .tr-row .tr-nom { font-size: 0.9rem; font-weight: 800; color: var(--blue); white-space: nowrap; flex-shrink: 0; }
+      .btn-bukti-sm { font-size: 0.63rem; font-weight: 700; color: #7c3aed; background: #ede9fe; border: none; border-radius: 6px; padding: 2px 8px; cursor: pointer; margin-top: 3px; display: inline-flex; align-items: center; gap: 3px; transition: 0.15s; white-space: nowrap; }
+      .btn-bukti-sm:hover { background: #ddd6fe; }
+      .tr-empty { text-align: center; padding: 36px 0; color: var(--gray2); font-size: 0.85rem; }
+      .tr-empty i { font-size: 2rem; display: block; margin-bottom: 8px; }
+
+      /* ── Error state ── */
+      .err-card { background: var(--card); border-radius: var(--radius); border: 1px solid #fecaca; padding: 20px; text-align: center; color: var(--red); font-size: 0.85rem; font-weight: 600; }
+      /* ── Maukirim orders ── */
+      .mk-item { background:var(--card); border-radius:12px; border:1px solid var(--border); padding:12px 14px; margin-bottom:8px; display:flex; flex-direction:column; gap:4px; }
+      .mk-resi { font-size:0.78rem; font-weight:700; color:var(--dark); display:flex; align-items:center; gap:6px; }
+      .mk-meta { font-size:0.72rem; color:var(--gray); display:flex; flex-wrap:wrap; gap:6px; }
+      .mk-badge { display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:20px; font-size:0.68rem; font-weight:700; }
+      .mk-badge.diantar  { background:#fef3c7; color:#d97706; }
+      .mk-badge.diterima { background:#d1fae5; color:#059669; }
+      .mk-badge.retur    { background:#fee2e2; color:#dc2626; }
+      .mk-badge.proses   { background:#e0e7ff; color:#4f46e5; }
+      .mk-metode { font-size:0.68rem; font-weight:700; padding:2px 7px; border-radius:20px; }
+      .mk-metode.cod    { background:#ede9fe; color:#7c3aed; }
+      .mk-metode.dfod   { background:#dbeafe; color:#2563eb; }
+      .mk-metode.noncod { background:#f1f5f9; color:#475569; }
+      .mk-metode.other  { background:#e2e8f0; color:#334155; }
+
+      #fullImg { width: auto; height: auto; max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 12px; border: 5px solid white; box-shadow: 0 10px 30px rgba(0,0,0,0.3); transition: transform 0.3s ease; }
+      .modal-proof-stage { position: relative; display: inline-flex; align-items: center; justify-content: center; max-width: 100%; max-height: 80vh; overflow: visible; }
+      .modal-proof-actions { position: absolute; top: 14px; right: 14px; display: flex; align-items: center; gap: 8px; z-index: 2; visibility: hidden; }
+      .modal-proof-btn { width: 40px; height: 40px; border: none; border-radius: 50%; background: rgba(255,255,255,0.96); color: var(--dark); box-shadow: 0 10px 28px rgba(0,0,0,0.28); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 1rem; padding: 0; transition: 0.2s; }
+      .modal-proof-btn:hover { background: white; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      @media (max-width: 640px) {
+        .modal-proof-actions { gap: 6px; }
+        .modal-proof-actions { top: 10px; right: 10px; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- Loading Screen -->
+    <div id="loadingScreen">
+      <div class="loading-spinner"></div>
+      <div class="loading-label">Memuat data...</div>
+    </div>
+
+    <!-- Page Content -->
+    <div class="page" id="mainPage">
+      <div class="page-header">
+        <a href="/" class="back-btn"><i class="bi bi-arrow-left"></i></a>
+        <div class="hd-info">
+          <div class="hd-name" id="hdName">-</div>
+          <div class="hd-status" id="hdStatus">Menyinkronkan data...</div>
+        </div>
+      </div>
+
+      <div class="page-body">
+        <div id="errCard" style="display:none" class="err-card">
+          <i class="bi bi-exclamation-circle me-1"></i><span id="errMsg">Gagal memuat data.</span>
+        </div>
+
+        <div id="mainContent" style="display:none">
+          <div class="stat-row mb-1">
+            <div class="stat-card">
+              <div class="sc-lbl"><i class="bi bi-cash-stack" style="color:#2563eb"></i>Total Transfer</div>
+              <div class="sc-val" id="selTotal" style="color:#2563eb">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="sc-lbl"><i class="bi bi-receipt" style="color:#16a34a"></i>Transaksi</div>
+              <div class="sc-val" id="selTransaksi" style="color:#16a34a">-</div>
+            </div>
+          </div>
+
+          <div class="filter-row">
+            <button class="filter-pill active" id="fp-semua" onclick="setFilter('semua')">Semua</button>
+            <button class="filter-pill" id="fp-hari" onclick="setFilter('hari')">Kemarin</button>
+            <button class="filter-pill" id="fp-minggu" onclick="setFilter('minggu')">Minggu Ini</button>
+          </div>
+
+          <div class="tr-list" id="detailTransferList"></div>
+
+          <!-- ── Status Pengiriman Maukirim ── -->
+          <div id="maukirimSection" style="margin-top:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <div style="font-size:0.78rem;font-weight:700;color:var(--dark);display:flex;align-items:center;gap:6px">
+                <i class="bi bi-truck" style="color:#7c3aed"></i> Status Pengiriman Maukirim
+              </div>
+              <button id="maukirimRefreshBtn" onclick="loadMaukirimOrders()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:0.72rem;font-weight:600;color:var(--gray);cursor:pointer;display:flex;align-items:center;gap:4px">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+              </button>
+            </div>
+            <div id="maukirimList">
+              <div style="text-align:center;padding:20px;color:var(--gray);font-size:0.8rem">
+                <span class="spinner-border spinner-border-sm me-2"></span>Memuat data pengiriman...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Bukti -->
+    <div class="modal fade" id="modalImg" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-transparent border-0 text-center">
+          <div class="modal-proof-stage" id="modalImgStage">
+            <img src="" id="fullImg" onload="autoRotate(this)" onerror="this.style.display='none'; document.getElementById('imgErr').style.display=''; scheduleModalProofActionsPosition()">
+            <div id="imgErr" style="display:none; color:white; padding:24px; font-weight:600"><i class="bi bi-image-fill" style="font-size:2rem; display:block; margin-bottom:8px"></i>Gambar tidak dapat ditampilkan</div>
+            <div class="modal-proof-actions" id="modalImgActions">
+              <button class="modal-proof-btn" type="button" onclick="rotateImg()" title="Putar gambar" aria-label="Putar gambar"><i class="bi bi-arrow-clockwise"></i></button>
+              <button class="modal-proof-btn" type="button" data-bs-dismiss="modal" title="Tutup bukti" aria-label="Tutup bukti"><i class="bi bi-x-lg"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      let dataGlobal = {};
+      let lastRowCount = 0;
+      let activeFilter = 'semua';
+      let currentPeriode = '';
+      let selectedCabang = '';
+      let filteredCabangData = {};
+
+      function escHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+      }
+
+      window.onload = () => {
+        const params = new URLSearchParams(location.search);
+        selectedCabang = params.get('cabang') || '';
+        document.getElementById('hdName').textContent = selectedCabang || 'Rekap Transfer';
+        document.title = selectedCabang ? 'Rekap · ' + selectedCabang : 'Rekap Transfer';
+        loadDataFromServer();
+        setInterval(checkUpdate, 180000);
+      };
+
+      function hideLoading() {
+        document.getElementById('loadingScreen').classList.add('hide');
+        setTimeout(() => {
+          document.getElementById('loadingScreen').style.display = 'none';
+          document.getElementById('mainPage').classList.add('show');
+        }, 300);
+      }
+
+      function loadDataFromServer() {
+        fetch('/api/dashboard')
+          .then(r => r.json())
+          .then(init)
+          .catch(() => {
+            hideLoading();
+            document.getElementById('errCard').style.display = '';
+            document.getElementById('errMsg').textContent = 'Gagal memuat data. Periksa koneksi.';
+          });
+      }
+
+      function checkUpdate() {
+        fetch('/api/check-update')
+          .then(r => r.json())
+          .then(n => { if (n > lastRowCount) { lastRowCount = n; loadDataFromServer(); } })
+          .catch(() => {});
+      }
+
+      function parseTgl(tglStr) {
+        if (!tglStr || tglStr === '-') return null;
+        const p = tglStr.split('/');
+        if (p.length !== 3) return null;
+        const yr = parseInt(p[2]);
+        const fullYear = yr < 100 ? 2000 + yr : yr;
+        return new Date(fullYear, parseInt(p[1]) - 1, parseInt(p[0]));
+      }
+
+      function setFilter(f) {
+        activeFilter = f;
+        document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+        document.getElementById('fp-' + f).classList.add('active');
+        renderDetail();
+      }
+
+      function init(d) {
+        hideLoading();
+        if (d.error) {
+          document.getElementById('errCard').style.display = '';
+          document.getElementById('errMsg').textContent = d.error;
+          return;
+        }
+
+        dataGlobal = d;
+        lastRowCount = d.transaksi;
+        document.getElementById('hdStatus').textContent = 'Update: ' + d.lastUpdate;
+
+        const nowWITA = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Makassar' }));
+        currentPeriode = nowWITA.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit' }).slice(0, 7);
+
+        buildFilteredData();
+        document.getElementById('mainContent').style.display = '';
+        renderDetail();
+      }
+
+      function buildFilteredData() {
+        const nowWITA = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Makassar' }));
+        const today = new Date(nowWITA.getFullYear(), nowWITA.getMonth(), nowWITA.getDate());
+        filteredCabangData = {};
+        for (let c in dataGlobal.byCabang) {
+          let list;
+          if (activeFilter === 'semua') {
+            // Semua = periode bulan ini
+            list = dataGlobal.byCabang[c].list.filter(l => l.periode === currentPeriode);
+          } else if (activeFilter === 'hari') {
+            // Kemarin = berdasarkan tgl_inputan (tanggal pickup)
+            const yd = new Date(today); yd.setDate(today.getDate() - 1);
+            const ydStr = yd.toLocaleDateString('en-CA');
+            list = dataGlobal.byCabang[c].list.filter(l => l.tglRaw === ydStr);
+          } else if (activeFilter === 'minggu') {
+            // Minggu ini = berdasarkan tgl_inputan (tanggal pickup)
+            const sw = new Date(today); sw.setDate(today.getDate() - today.getDay());
+            const swStr = sw.toLocaleDateString('en-CA');
+            list = dataGlobal.byCabang[c].list.filter(l => l.tglRaw && l.tglRaw >= swStr);
+          } else {
+            list = dataGlobal.byCabang[c].list.filter(l => l.periode === currentPeriode);
+          }
+          if (list.length > 0) filteredCabangData[c] = { total: list.reduce((s, l) => s + l.nominal, 0), list };
+        }
+      }
+
+      function renderDetail() {
+        buildFilteredData();
+        const data = filteredCabangData[selectedCabang];
+        document.getElementById('selTotal').textContent = data ? 'Rp ' + data.total.toLocaleString('id-ID') : 'Rp 0';
+        document.getElementById('selTransaksi').textContent = data ? data.list.length + ' transaksi' : '0 transaksi';
+
+        const listEl = document.getElementById('detailTransferList');
+        if (!data || !data.list.length) {
+          listEl.innerHTML = '<div class="tr-empty"><i class="bi bi-inbox"></i>Tidak ada transfer pada periode ini</div>';
+          return;
+        }
+        const sorted = [...data.list].sort((a, b) => {
+          const da = parseTgl(a.tgl), db = parseTgl(b.tgl);
+          if (!da || !db) return 0;
+          if (db - da !== 0) return db - da;
+          // tiebreaker: gunakan timestamp jika tanggal sama
+          return new Date(b.ts || 0) - new Date(a.ts || 0);
+        });
+        listEl.innerHTML = sorted.map(l => `
+          <div class="tr-row">
+            <div class="tr-icon"><i class="bi bi-arrow-up-right"></i></div>
+            <div class="tr-body">
+              <span class="tr-bank">${escHtml(l.bank)}</span>
+              <div class="tr-tgl">${escHtml(l.tgl)}${l.ts ? ' · ' + fmtWITA(l.ts) : ''}</div>
+              ${l.ket && l.ket !== '-' ? `<div class="tr-ket">${escHtml(l.ket)}</div>` : ''}
+              ${l.bukti ? `<button class="btn-bukti-sm" data-image="${escHtml(l.bukti)}" onclick="openPic(this.dataset.image)"><i class="bi bi-image"></i> Lihat Bukti</button>` : ''}
+            </div>
+            <div class="tr-nom">Rp ${l.nominal.toLocaleString('id-ID')}</div>
+          </div>`).join('');
+      }
+
+      function fmtWITA(ts) {
+        if (!ts) return '';
+        try {
+          return new Date(ts).toLocaleTimeString('id-ID', { timeZone: 'Asia/Makassar', hour: '2-digit', minute: '2-digit' }) + ' WITA';
+        } catch { return ''; }
+      }
+
+      let rotateDeg = 0;
+      let modalProofPositionTimer = 0;
+
+      function scheduleModalProofActionsPosition() {
+        window.clearTimeout(modalProofPositionTimer);
+        positionModalProofActions();
+        requestAnimationFrame(() => {
+          positionModalProofActions();
+          requestAnimationFrame(positionModalProofActions);
+        });
+        modalProofPositionTimer = window.setTimeout(positionModalProofActions, 340);
+      }
+
+      function applyModalProofRotation() {
+        const img = document.getElementById('fullImg');
+        const normalized = ((rotateDeg % 360) + 360) % 360;
+        const sideways = normalized === 90 || normalized === 270;
+        img.style.transform = `rotate(${rotateDeg}deg)`;
+        img.style.maxWidth = sideways ? '80vh' : '100%';
+        img.style.maxHeight = sideways ? '100vw' : '80vh';
+        scheduleModalProofActionsPosition();
+      }
+
+      function autoRotate(img) {
+        // Jika portrait (tinggi > lebar), otomatis rotate ke landscape
+        rotateDeg = img.naturalHeight > img.naturalWidth ? -90 : 0;
+        applyModalProofRotation();
+      }
+
+      function getModalProofTarget() {
+        const img = document.getElementById('fullImg');
+        const err = document.getElementById('imgErr');
+        if (img.style.display !== 'none' && img.getBoundingClientRect().width > 0) return img;
+        if (err.style.display !== 'none' && err.getBoundingClientRect().width > 0) return err;
+        return null;
+      }
+
+      function positionModalProofActions() {
+        const modal = document.getElementById('modalImg');
+        const stage = document.getElementById('modalImgStage');
+        const actions = document.getElementById('modalImgActions');
+        if (!modal.classList.contains('show')) {
+          actions.style.visibility = 'hidden';
+          stage.style.width = '';
+          stage.style.height = '';
+          return;
+        }
+        const target = getModalProofTarget();
+        if (!target) {
+          actions.style.visibility = 'hidden';
+          stage.style.width = '';
+          stage.style.height = '';
+          return;
+        }
+        const rect = target.getBoundingClientRect();
+        stage.style.width = `${Math.ceil(rect.width)}px`;
+        stage.style.height = `${Math.ceil(rect.height)}px`;
+        actions.style.visibility = 'visible';
+      }
+
+      function rotateImg() {
+        const img = document.getElementById('fullImg');
+        if (!img.src) return;
+        rotateDeg = (rotateDeg + 90) % 360;
+        applyModalProofRotation();
+      }
+
+      function openPic(src) {
+        if (!src) return;
+        const allowed = /^(https:\/\/.*\.supabase\.co\/storage\/|\/api\/proxy-image\?|\/api\/image\?path=)/;
+        if (!allowed.test(src)) return;
+        const actions = document.getElementById('modalImgActions');
+        const modalEl = document.getElementById('modalImg');
+        const img = document.getElementById('fullImg');
+        const errEl = document.getElementById('imgErr');
+        actions.style.visibility = 'hidden';
+        document.getElementById('modalImgStage').style.width = '';
+        document.getElementById('modalImgStage').style.height = '';
+        img.style.display = '';
+        img.style.transform = '';
+        img.style.maxWidth = '100%';
+        img.style.maxHeight = '80vh';
+        rotateDeg = 0;
+        errEl.style.display = 'none';
+        img.src = src;
+        new bootstrap.Modal(modalEl).show();
+      }
+
+      document.getElementById('modalImg').addEventListener('shown.bs.modal', scheduleModalProofActionsPosition);
+      document.getElementById('modalImg').addEventListener('hidden.bs.modal', () => {
+        window.clearTimeout(modalProofPositionTimer);
+        document.getElementById('modalImgStage').style.width = '';
+        document.getElementById('modalImgStage').style.height = '';
+        document.getElementById('modalImgActions').style.visibility = 'hidden';
+      });
+      document.getElementById('fullImg').addEventListener('transitionend', scheduleModalProofActionsPosition);
+      window.addEventListener('resize', scheduleModalProofActionsPosition);
+
+      function getMaukirimStatusClass(status) {
+        const text = String(status || '').toLowerCase();
+        if (text.includes('diterima') || text.includes('selesai')) return 'diterima';
+        if (text.includes('antar')) return 'diantar';
+        if (text.includes('retur') || text.includes('batal')) return 'retur';
+        return 'proses';
+      }
+
+      function getMaukirimMethodClass(method) {
+        const text = String(method || '').toLowerCase();
+        return ['cod', 'dfod', 'noncod'].includes(text) ? text : 'other';
+      }
+
+      // ── Maukirim Orders ──────────────────────────────────────────────────────
+      async function loadMaukirimOrders() {
+        const el = document.getElementById('maukirimList');
+        const btn = document.getElementById('maukirimRefreshBtn');
+        el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--gray);font-size:0.8rem"><span class="spinner-border spinner-border-sm me-2"></span>Memuat...</div>';
+        if (btn) btn.disabled = true;
+        try {
+          const cabangParam = encodeURIComponent(selectedCabang);
+          const r = await fetch(`/api/maukirim?cabang=${cabangParam}`);
+          const d = await r.json();
+          if (!d.ok) throw new Error(d.error || 'Gagal memuat');
+          if (!d.orders.length) {
+            el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--gray);font-size:0.8rem"><i class="bi bi-inbox me-1"></i>Tidak ada order ditemukan untuk cabang ini</div>';
+            return;
+          }
+          el.innerHTML = d.orders.map(o => {
+            const metodeText = String(o.metode || '').toLowerCase();
+            const metodeClass = getMaukirimMethodClass(metodeText);
+            const statusClass = getMaukirimStatusClass(o.status);
+            return `<div class="mk-item">
+              <div class="mk-resi">
+                <i class="bi bi-box-seam" style="color:#7c3aed"></i>
+                <span>${escHtml(o.resi || '-')}</span>
+                <span class="mk-metode ${metodeClass}">${escHtml(metodeText ? metodeText.toUpperCase() : '-')}</span>
+                <span class="mk-badge ${statusClass}">${escHtml(o.status || '-')}</span>
+              </div>
+              <div class="mk-meta">
+                <span><i class="bi bi-person"></i> ${escHtml(o.penerima || '-')}</span>
+                <span><i class="bi bi-truck"></i> ${escHtml(o.ekspedisi || '-')}</span>
+                <span><i class="bi bi-calendar3"></i> ${escHtml(o.tanggal || '-')}</span>
+                <span><i class="bi bi-currency-exchange"></i> Rp ${escHtml(o.total || '0')}</span>
+              </div>
+            </div>`;
+          }).join('');
+        } catch(e) {
+          el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--red);font-size:0.8rem"><i class="bi bi-exclamation-circle me-1"></i>${e.message}</div>`;
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      }
+
+      // Auto-load after main data loaded
+      setTimeout(loadMaukirimOrders, 1500);
+    </script>
+  </body>
+</html>

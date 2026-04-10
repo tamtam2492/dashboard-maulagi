@@ -1,0 +1,72 @@
+const { createClient } = require('@supabase/supabase-js');
+const { cors } = require('./_cors');
+const { rateLimit } = require('./_ratelimit');
+
+const limiter = rateLimit({ windowMs: 60 * 1000, max: 300 });
+
+function getSupabase() {
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+}
+
+module.exports = async (req, res) => {
+  if (cors(req, res, { methods: 'GET, OPTIONS' })) return;
+  if (limiter(req, res)) return;
+
+  const { id, path } = req.query;
+
+  // --- Mode 1: Supabase storage path → generate fresh signed URL and redirect ---
+  if (path) {
+    if (!/^[a-zA-Z0-9_\-.]{5,200}$/.test(path)) {
+      return res.status(400).json({ error: 'Path tidak valid.' });
+    }
+    try {
+      const supabase = getSupabase();
+      const { data, error } = await supabase.storage
+        .from('bukti-transfer')
+        .createSignedUrl(path, 3600); // 1 hour
+      if (error || !data?.signedUrl) {
+        return res.status(404).json({ error: 'Gambar tidak ditemukan.' });
+      }
+      res.setHeader('Cache-Control', 'private, max-age=3600');
+      res.setHeader('Location', data.signedUrl);
+      return res.status(302).end();
+    } catch {
+      return res.status(500).json({ error: 'Gagal memuat gambar.' });
+    }
+  }
+
+  // --- Mode 2: Google Drive file ID → proxy image bytes ---
+  if (!id || !/^[a-zA-Z0-9_-]{10,}$/.test(id)) {
+    return res.status(400).json({ error: 'Parameter tidak valid.' });
+  }
+
+  try {
+    const driveUrl = `https://drive.google.com/uc?export=view&id=${id}`;
+    const response = await fetch(driveUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Accept': 'image/*,*/*',
+      },
+      redirect: 'follow',
+    });
+
+    if (!response.ok) {
+      return res.status(404).json({ error: 'Gambar tidak ditemukan.' });
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.startsWith('image/')) {
+      return res.status(415).json({ error: 'Bukan file gambar.' });
+    }
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+
+    const buffer = await response.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  } catch {
+    res.status(502).json({ error: 'Gagal mengambil gambar.' });
+  }
+};
+

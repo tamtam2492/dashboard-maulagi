@@ -1,0 +1,12 @@
+{
+  "name": "dashboard-transfer",
+  "version": "1.0.0",
+  "description": "Dashboard Rekap Transfer",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.102.1",
+    "bcryptjs": "^3.0.3",
+    "busboy": "^1.6.0",
+    "dotenv": "^17.4.1",
+    "xlsx": "^0.18.5"
+  }
+}
