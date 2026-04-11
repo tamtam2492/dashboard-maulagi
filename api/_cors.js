@@ -3,12 +3,16 @@
  * Sets proper headers and handles OPTIONS preflight.
  * Returns true if the request was a preflight (caller should return early).
  */
+function normalizeOrigin(value) {
+  return String(value || '').trim().replace(/\/+$/, '');
+}
+
 function cors(req, res, { methods = 'GET, OPTIONS', headers = 'Content-Type' } = {}) {
-  const origin = req.headers.origin || '';
+  const origin = normalizeOrigin(req.headers.origin || '');
   const allowed = [
     process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : '',
     process.env.ALLOWED_ORIGIN || '',
-  ].filter(Boolean);
+  ].map(normalizeOrigin).filter(Boolean);
 
   if (allowed.length && allowed.some(o => origin === o)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
