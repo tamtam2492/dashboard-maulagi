@@ -1,10 +1,6 @@
-const { createClient } = require('@supabase/supabase-js');
 const { requireAdmin } = require('./_auth');
 const { cors } = require('./_cors');
-
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-}
+const { getSupabase } = require('./_supabase');
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, max-age=0');

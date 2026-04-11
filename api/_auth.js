@@ -1,9 +1,5 @@
-const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
-
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-}
+const { getSupabase } = require('./_supabase');
 
 /**
  * Verify session token from X-Admin-Token header.

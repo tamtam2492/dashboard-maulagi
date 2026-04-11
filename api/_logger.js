@@ -1,4 +1,4 @@
-const { createClient } = require('@supabase/supabase-js');
+const { getSupabase } = require('./_supabase');
 
 /**
  * Log an error to the error_logs table (fire-and-forget).
@@ -8,7 +8,7 @@ const { createClient } = require('@supabase/supabase-js');
  */
 function logError(source, message, meta = {}) {
   try {
-    const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    const sb = getSupabase();
     sb.from('error_logs').insert({
       source,
       message: String(message).slice(0, 1000),

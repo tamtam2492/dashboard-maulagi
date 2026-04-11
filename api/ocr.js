@@ -8,7 +8,7 @@ const handler = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   if (cors(req, res, { methods: 'POST, OPTIONS' })) return;
 
-  if (ocrLimiter(req, res)) return;
+  if (await ocrLimiter(req, res)) return;
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed.' });

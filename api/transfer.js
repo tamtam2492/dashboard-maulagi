@@ -1,12 +1,8 @@
-const { createClient } = require('@supabase/supabase-js');
 const { requireAdmin } = require('./_auth');
 const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { normalizeBankName } = require('./_bank');
-
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-}
+const { getSupabase } = require('./_supabase');
 
 function normalizeProofUrl(buktiUrl) {
   let value = String(buktiUrl || '').trim();

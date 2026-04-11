@@ -1,11 +1,7 @@
-const { createClient } = require('@supabase/supabase-js');
 const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { MK_HOST, httpReq, ckStr, loginMaukirim } = require('./_maukirim');
-
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-}
+const { getSupabase } = require('./_supabase');
 
 // ── Maukirim helpers ─────────────────────────────────────────────────────────
 const MAUKIRIM_CACHE_TTL_MS = 60 * 1000;

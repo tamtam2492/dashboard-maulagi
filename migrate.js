@@ -3,30 +3,28 @@
  * Jalankan sekali: node migrate.js
  */
 require('dotenv').config();
-const XLSX = require('xlsx');
-const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
 const { normalizeBankName } = require('./api/_bank');
+const { getSupabase } = require('./api/_supabase');
+const { excelSerialToDate, getWorksheetByName, loadWorkbookFromFile, worksheetToMatrix } = require('./api/_excel');
 
 const EXCEL_PATH = path.join(
   process.env.EXCEL_PATH || 'C:/Users/Tams/Downloads/FORM BUKTI TRANSFER (1).xlsx'
 );
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+const supabase = getSupabase();
 
 function excelDateToISO(val) {
   if (!val) return null;
   if (val instanceof Date) {
     return val.toISOString().split('T')[0];
   }
-  // Excel serial number
   if (typeof val === 'number') {
-    const d = XLSX.SSF.parse_date_code(val);
-    return `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+    const date = excelSerialToDate(val);
+    return date ? date.toISOString().split('T')[0] : null;
   }
+  const parsed = new Date(val);
+  if (!isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
   return String(val).split('T')[0];
 }
 
@@ -34,15 +32,15 @@ function excelDateToTimestamp(val) {
   if (!val) return null;
   if (val instanceof Date) return val.toISOString();
   if (typeof val === 'number') {
-    const d = XLSX.SSF.parse_date_code(val);
-    return new Date(d.y, d.m - 1, d.d, d.H || 0, d.M || 0, d.S || 0).toISOString();
+    const date = excelSerialToDate(val);
+    return date ? date.toISOString() : null;
   }
   return new Date(val).toISOString();
 }
 
 async function migrate() {
   console.log('📖 Membaca Excel:', EXCEL_PATH);
-  const wb = XLSX.readFile(EXCEL_PATH, { cellDates: true });
+  const wb = await loadWorkbookFromFile(EXCEL_PATH);
 
   // Ambil semua data dari semua sheet bulanan + Form Responses
   // Deduplikasi berdasarkan timestamp + nama_cabang + nominal
@@ -51,9 +49,9 @@ async function migrate() {
   const TARGET_SHEETS = ['JANUARI', 'FEBRUARI', 'MARET', 'Form Responses'];
 
   for (const sheetName of TARGET_SHEETS) {
-    if (!wb.SheetNames.includes(sheetName)) continue;
-    const ws = wb.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+    const ws = getWorksheetByName(wb, sheetName);
+    if (!ws) continue;
+    const rows = worksheetToMatrix(ws);
     console.log(`  Sheet "${sheetName}": ${rows.length - 1} baris data`);
 
     for (let i = 1; i < rows.length; i++) {

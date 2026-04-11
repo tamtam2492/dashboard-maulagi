@@ -1,13 +1,17 @@
-const { createClient } = require("@supabase/supabase-js");
 const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { rateLimit } = require('./_ratelimit');
 const { normalizeBankName } = require('./_bank');
+const { getSupabase } = require('./_supabase');
 
 const dashboardLimiter = rateLimit({ windowMs: 60 * 1000, max: 60 });
+const DEFAULT_BATCH_SIZE = 1000;
+const MAX_BATCH_SIZE = 2000;
 
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+function getBatchSize(req) {
+  const requested = parseInt(req.query.batchSize, 10);
+  if (!Number.isFinite(requested)) return DEFAULT_BATCH_SIZE;
+  return Math.min(Math.max(requested, 100), MAX_BATCH_SIZE);
 }
 
 // Auto-cleanup: runs at most once per day, persisted in DB to avoid multi-instance double-run
@@ -37,65 +41,119 @@ async function runCleanup(supabase) {
   }
 }
 
+function normalizeProofUrl(buktiUrl) {
+  let value = String(buktiUrl || '').trim();
+  if (!value) return '';
+  if (value.includes('drive.google.com')) {
+    let fileId = null;
+    const byId = value.match(/[?&]id=([^&]+)/);
+    const byPath = value.match(/\/file\/d\/([^/]+)/);
+    if (byId) fileId = byId[1];
+    else if (byPath) fileId = byPath[1];
+    if (fileId) return '/api/proxy-image?id=' + fileId;
+  }
+  if (!value.startsWith('http')) {
+    return '/api/proxy-image?path=' + encodeURIComponent(value);
+  }
+  return value;
+}
+
+async function buildDashboardPayload(supabase, batchSize) {
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+  const rekapCabang = {};
+  const todayCabang = new Set();
+  const todayList = [];
+  let totalNominal = 0;
+  let transaksi = 0;
+  let batchCount = 0;
+  let from = 0;
+
+  while (true) {
+    const { data: rows, error } = await supabase
+      .from('transfers')
+      .select('timestamp, tgl_inputan, periode, nama_bank, nama_cabang, nominal, bukti_url, ket')
+      .order('timestamp', { ascending: true })
+      .range(from, from + batchSize - 1);
+
+    if (error) throw error;
+    if (!rows || rows.length === 0) break;
+
+    batchCount += 1;
+    transaksi += rows.length;
+
+    for (const row of rows) {
+      const nominal = parseFloat(row.nominal) || 0;
+      if (nominal <= 0) continue;
+
+      const cabang = (row.nama_cabang || 'Lainnya').trim();
+      const bank = row.nama_bank ? normalizeBankName(row.nama_bank) : 'Lainnya';
+      const tglRaw = row.tgl_inputan ? String(row.tgl_inputan).slice(0, 10) : null;
+      const tgl = tglRaw ? tglRaw.split('-').reverse().map((value, index) => index === 2 ? value.slice(2) : value).join('/') : '-';
+      const periode = row.periode || null;
+      const buktiUrl = normalizeProofUrl(row.bukti_url);
+
+      totalNominal += nominal;
+
+      const tsDate = new Date(row.timestamp);
+      const tsDateStr = tsDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+      if (tsDateStr === todayStr) {
+        todayCabang.add(cabang);
+        const jamStr = tsDate.toLocaleTimeString('id-ID', { timeZone: 'Asia/Makassar', hour: '2-digit', minute: '2-digit' });
+        todayList.push({ jam: jamStr, cabang, bank, nominal, bukti: buktiUrl, _ts: tsDate.getTime() });
+      }
+
+      if (!rekapCabang[cabang]) rekapCabang[cabang] = { total: 0, list: [] };
+      rekapCabang[cabang].total += nominal;
+      rekapCabang[cabang].list.push({ bank, nominal, tgl, tglRaw, periode, ket: row.ket || '-', bukti: buktiUrl, ts: row.timestamp });
+    }
+
+    if (rows.length < batchSize) break;
+    from += batchSize;
+  }
+
+  if (transaksi === 0) {
+    const now = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Makassar', hour: '2-digit', minute: '2-digit' });
+    return {
+      total: 0,
+      transaksi: 0,
+      todayCabang: 0,
+      todayList: [],
+      lastTransferTime: null,
+      byCabang: {},
+      lastUpdate: now,
+      meta: { batched: true, batchSize, batchCount: 0, rowsProcessed: 0 },
+    };
+  }
+
+  todayList.sort((a, b) => a._ts - b._ts);
+  const lastTransferTime = todayList.length > 0 ? todayList[todayList.length - 1].jam : null;
+  todayList.forEach(item => delete item._ts);
+  const now = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Makassar', hour: '2-digit', minute: '2-digit' });
+
+  return {
+    total: totalNominal,
+    transaksi,
+    todayCabang: todayCabang.size,
+    todayList,
+    lastTransferTime,
+    byCabang: rekapCabang,
+    lastUpdate: now,
+    meta: { batched: true, batchSize, batchCount, rowsProcessed: transaksi },
+  };
+}
+
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store, max-age=0");
   if (cors(req, res)) return;
-  if (dashboardLimiter(req, res)) return;
+  if (await dashboardLimiter(req, res)) return;
   try {
     const supabase = getSupabase();
+    const batchSize = getBatchSize(req);
 
     // Run daily cleanup (non-blocking)
     runCleanup(supabase).catch(() => {});
 
-    const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Makassar" });
-    const { data: rows, error } = await supabase
-      .from("transfers")
-      .select("timestamp, tgl_inputan, periode, nama_bank, nama_cabang, nominal, bukti_url, ket")
-      .order("timestamp", { ascending: true })
-      .limit(10000);
-    if (error) throw error;
-    if (!rows || rows.length === 0) {
-      const now = new Date().toLocaleTimeString("id-ID", { timeZone: "Asia/Makassar", hour: "2-digit", minute: "2-digit" });
-      return res.json({ total: 0, transaksi: 0, todayCabang: 0, todayList: [], lastTransferTime: null, byCabang: {}, lastUpdate: now });
-    }
-    let rekapCabang = {}, totalNominal = 0, todayCabang = new Set(), todayList = [];
-    for (const row of rows) {
-      const nominal = parseFloat(row.nominal) || 0;
-      if (nominal <= 0) continue;
-      const cabang = (row.nama_cabang || "Lainnya").trim();
-      const bank = row.nama_bank ? normalizeBankName(row.nama_bank) : 'Lainnya';
-      const tglRaw = row.tgl_inputan ? String(row.tgl_inputan).slice(0, 10) : null;
-      const tgl    = tglRaw ? tglRaw.split('-').reverse().map((v,i) => i===2 ? v.slice(2) : v).join('/') : "-";
-      const periode = row.periode || null;
-      let buktiUrl = row.bukti_url || "";
-      if (buktiUrl.includes("drive.google.com")) {
-        let fileId = null;
-        const byId = buktiUrl.match(/[?&]id=([^&]+)/);
-        const byPath = buktiUrl.match(/\/file\/d\/([^/]+)/);
-        if (byId) fileId = byId[1];
-        else if (byPath) fileId = byPath[1];
-        if (fileId) buktiUrl = "/api/proxy-image?id=" + fileId;
-      } else if (buktiUrl && !buktiUrl.startsWith("http")) {
-        // New format: plain filename stored in DB → serve via image proxy
-        buktiUrl = "/api/proxy-image?path=" + encodeURIComponent(buktiUrl);
-      }
-      totalNominal += nominal;
-      const tsDate = new Date(row.timestamp);
-      const tsDateStr = tsDate.toLocaleDateString("en-CA", { timeZone: "Asia/Makassar" });
-      if (tsDateStr === todayStr) {
-        todayCabang.add(cabang);
-        const jamStr = tsDate.toLocaleTimeString("id-ID", { timeZone: "Asia/Makassar", hour: "2-digit", minute: "2-digit" });
-        todayList.push({ jam: jamStr, cabang, bank, nominal, bukti: buktiUrl, _ts: tsDate.getTime() });
-      }
-      if (!rekapCabang[cabang]) rekapCabang[cabang] = { total: 0, list: [] };
-      rekapCabang[cabang].total += nominal;
-      rekapCabang[cabang].list.push({ bank, nominal, tgl, tglRaw, periode, ket: row.ket || "-", bukti: buktiUrl, ts: row.timestamp });
-    }
-    todayList.sort((a, b) => a._ts - b._ts);
-    const lastTransferTime = todayList.length > 0 ? todayList[todayList.length - 1].jam : null;
-    todayList.forEach(t => delete t._ts);
-    const now = new Date().toLocaleTimeString("id-ID", { timeZone: "Asia/Makassar", hour: "2-digit", minute: "2-digit" });
-    return res.json({ total: totalNominal, transaksi: rows.length, todayCabang: todayCabang.size, todayList, lastTransferTime, byCabang: rekapCabang, lastUpdate: now });
+    return res.json(await buildDashboardPayload(supabase, batchSize));
   } catch (err) {
     console.error(err);
     logError('dashboard', err.message, { method: req.method });

@@ -1,15 +1,11 @@
-const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { rateLimit } = require('./_ratelimit');
 const { cors } = require('./_cors');
 const { logError } = require('./_logger');
+const { getSupabase } = require('./_supabase');
 
 const authLimiter = rateLimit({ windowMs: 60 * 1000, max: 10 }); // 10 req/min per IP
-
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-}
 
 const PW_KEY = 'admin_password';
 const ALLOWED_KEYS = ['admin_password', 'dashboard_password'];
@@ -19,7 +15,7 @@ module.exports = async (req, res) => {
   if (cors(req, res, { methods: 'GET, POST, OPTIONS' })) return;
 
   // Rate limit POST (login/create/change)
-  if (req.method === 'POST' && authLimiter(req, res)) return;
+  if (req.method === 'POST' && await authLimiter(req, res)) return;
 
   const supabase = getSupabase();
 

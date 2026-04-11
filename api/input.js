@@ -1,15 +1,11 @@
-const { createClient } = require('@supabase/supabase-js');
 const { Readable } = require('stream');
 const { rateLimit } = require('./_ratelimit');
 const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { normalizeBankName } = require('./_bank');
+const { getSupabase } = require('./_supabase');
 
 const uploadLimiter = rateLimit({ windowMs: 60 * 1000, max: 5 }); // 5 uploads/min per IP
-
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-}
 
 // Parse multipart/form-data tanpa dependency eksternal tambahan (pakai busboy)
 const Busboy = require('busboy');
@@ -23,7 +19,7 @@ module.exports = async (req, res) => {
   }
 
   // Rate limit uploads
-  if (uploadLimiter(req, res)) return;
+  if (await uploadLimiter(req, res)) return;
 
   try {
     const fields = {};

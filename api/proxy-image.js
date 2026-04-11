@@ -1,16 +1,12 @@
-const { createClient } = require('@supabase/supabase-js');
 const { cors } = require('./_cors');
 const { rateLimit } = require('./_ratelimit');
+const { getSupabase } = require('./_supabase');
 
 const limiter = rateLimit({ windowMs: 60 * 1000, max: 300 });
 
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-}
-
 module.exports = async (req, res) => {
   if (cors(req, res, { methods: 'GET, OPTIONS' })) return;
-  if (limiter(req, res)) return;
+  if (await limiter(req, res)) return;
 
   const { id, path } = req.query;
 

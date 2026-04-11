@@ -16,7 +16,7 @@ Dashboard internal untuk rekap transfer, input bukti transfer, monitoring cabang
 - Vercel untuk hosting static pages dan serverless API.
 - Supabase untuk database dan object storage.
 - Vanilla HTML, CSS, dan JavaScript untuk UI.
-- `@supabase/supabase-js`, `bcryptjs`, `busboy`, dan `xlsx` di backend.
+- `@supabase/supabase-js`, `bcryptjs`, `busboy`, `exceljs`, dan utilitas serverless di backend.
 
 ## Halaman Utama
 
@@ -47,19 +47,24 @@ Salin `.env.example` menjadi `.env`, lalu isi nilai yang sesuai.
 ```env
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
 ALLOWED_ORIGIN=
 MAUKIRIM_WA=
 MAUKIRIM_PASS=
 GROQ_API_KEY=
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
 EXCEL_PATH=
 ```
 
 Keterangan singkat:
 
 - `SUPABASE_URL` dan `SUPABASE_ANON_KEY` wajib untuk seluruh API.
+- `SUPABASE_SERVICE_ROLE_KEY` sangat disarankan untuk server agar tabel `settings` bisa diproteksi dengan RLS tanpa memutus endpoint auth. Jangan pernah expose key ini ke browser.
 - `ALLOWED_ORIGIN` opsional untuk pembatasan CORS tambahan.
 - `MAUKIRIM_WA` dan `MAUKIRIM_PASS` dipakai auto sync noncod/dfod.
 - `GROQ_API_KEY` dipakai endpoint OCR.
+- `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN` opsional untuk rate limiter lintas instance. Jika kosong, limiter fallback ke memory per instance.
 - `EXCEL_PATH` hanya dipakai script migrasi lokal.
 
 ## Kebutuhan Supabase
@@ -75,6 +80,7 @@ Project ini mengandalkan resource berikut di Supabase:
 - Storage bucket `bukti-transfer`
 
 File `sql-indexes.sql` berisi indeks tambahan, bukan schema lengkap tabel.
+File `sql-security.sql` berisi hardening RLS untuk tabel `settings`.
 
 ## Menjalankan Lokal
 
@@ -88,9 +94,11 @@ File `sql-indexes.sql` berisi indeks tambahan, bukan schema lengkap tabel.
 
 1. Hubungkan repo ini ke project Vercel.
 2. Masukkan semua environment variable di Vercel Project Settings.
-3. Deploy branch `main`.
+3. Pastikan `SUPABASE_SERVICE_ROLE_KEY` terisi sebelum menerapkan `sql-security.sql`.
+4. Deploy branch `main`.
 
 ## Catatan
 
 - File sensitif seperti `.env`, `.vercel`, dan snapshot akun sudah diabaikan oleh Git.
 - Jangan masukkan kredensial asli ke repository.
+- `/api/dashboard` sekarang mengambil data Supabase secara bertahap per batch agar tidak menarik seluruh row sekaligus dalam satu query.

@@ -1,13 +1,9 @@
-const { createClient } = require('@supabase/supabase-js');
-const XLSX = require('xlsx');
 const { requireAdmin } = require('./_auth');
 const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { loginMaukirim, downloadOrdersWorkbook } = require('./_maukirim');
-
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-}
+const { getSupabase } = require('./_supabase');
+const { excelSerialToDate, loadWorkbookFromBuffer, worksheetToObjects } = require('./_excel');
 
 function normalizeMethod(value) {
   const method = String(value || '').trim().toLowerCase();
@@ -50,6 +46,12 @@ function normalizeSheetDate(val) {
     const d = String(val.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
   }
+  if (typeof val === 'number') {
+    const parsedDate = excelSerialToDate(val);
+    if (parsedDate) {
+      return parsedDate.toISOString().slice(0, 10);
+    }
+  }
   const parsed = new Date(String(val));
   if (!isNaN(parsed) && parsed.getFullYear() > 2000) {
     const y = parsed.getFullYear();
@@ -62,12 +64,11 @@ function normalizeSheetDate(val) {
   return String(val).slice(0, 30);
 }
 
-function parseWorkbookRows(workbookBuffer) {
-  const workbook = XLSX.read(workbookBuffer, { type: 'buffer', cellDates: true });
-  const sheetName = workbook.SheetNames[0];
-  if (!sheetName) return [];
-  const sheet = workbook.Sheets[sheetName];
-  const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+async function parseWorkbookRows(workbookBuffer) {
+  const workbook = await loadWorkbookFromBuffer(workbookBuffer);
+  const sheet = workbook.worksheets[0];
+  if (!sheet) return [];
+  const rawRows = worksheetToObjects(sheet);
   return rawRows.map(r => ({
     tanggal_buat: normalizeSheetDate(r['Tanggal Buat']),
     tanggal_pickup: normalizeSheetDate(r['Tanggal Pickup']),
@@ -176,7 +177,7 @@ async function maybeSyncMaukirimPeriod(supabase, periode) {
   const pending = (async () => {
     const cookies = await loginMaukirim();
     const workbookBuffer = await downloadOrdersWorkbook(cookies, periode);
-    const importedRows = parseWorkbookRows(workbookBuffer);
+    const importedRows = await parseWorkbookRows(workbookBuffer);
     const cleanRows = sanitizeNoncodRows(periode, importedRows);
     const inserted = await replacePeriodeRows(supabase, periode, cleanRows);
     const stats = summarizeInsertedRows(cleanRows);
