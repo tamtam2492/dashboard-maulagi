@@ -818,7 +818,7 @@
         }
         if (syncInfo.source === 'manual_upload') return ' · Data tersimpan sebelumnya' + stamp;
         if (syncInfo.performed) return ' · Baru sinkron dari MauKirim' + stamp;
-        return ' · Sinkron MauKirim' + stamp;
+        return ' · Data MauKirim tersimpan' + stamp;
       }
 
       function refreshModeUi() {
@@ -951,11 +951,11 @@
       }
 
       // ========= TAB: HARI INI =========
-      function getDateRange() {
-        const f = getDateFrom(), t = getDateTo();
+      function buildDateRange(from, to) {
         const dates = [];
-        let cur = new Date(f + 'T00:00:00');
-        const end = new Date(t + 'T00:00:00');
+        if (!from || !to) return dates;
+        let cur = new Date(from + 'T00:00:00');
+        const end = new Date(to + 'T00:00:00');
         const pad = n => String(n).padStart(2, '0');
         while (cur <= end) {
           dates.push(cur.getFullYear() + '-' + pad(cur.getMonth() + 1) + '-' + pad(cur.getDate()));
@@ -964,44 +964,101 @@
         return dates;
       }
 
-      function getTodayRows(opts) {
-        const dates = (opts && opts.dates) || getDateRange();
-        const q = (opts && opts.q) || getSearchQ();
-        const periode = document.getElementById('periodeSelect').value;
-        const statusFilter = (opts && opts.status) || activeStatus;
+      function getDateRange() {
+        return buildDateRange(getDateFrom(), getDateTo());
+      }
 
-        // Aggregate across all dates in range
+      function getPeriodeDateRange(periode) {
+        if (!/^\d{4}-\d{2}$/.test(String(periode || ''))) return [];
+        const [year, month] = String(periode).split('-').map(Number);
+        const lastDay = new Date(year, month, 0).getDate();
+        return buildDateRange(
+          periode + '-01',
+          periode + '-' + String(lastDay).padStart(2, '0')
+        );
+      }
+
+      function getScopedDates(dates, periode) {
+        const prefix = periode ? periode + '-' : '';
+        return Array.from(new Set((dates || []).filter(ds => !prefix || String(ds).startsWith(prefix)))).sort();
+      }
+
+      function getAggregatedRekonBaseRows(dates, periode) {
+        const scopedDates = getScopedDates(dates, periode);
         const aggNc = {}, aggTr = {};
-        for (const selDate of dates) {
+
+        for (const selDate of scopedDates) {
           const ncDay = ncByDay[selDate] || {};
           for (const c in ncDay) {
+            if (!c || c === '-') continue;
             if (!aggNc[c]) aggNc[c] = { ongkir: 0, resi: 0 };
-            aggNc[c].ongkir += ncDay[c].ongkir;
-            aggNc[c].resi += ncDay[c].resi;
+            aggNc[c].ongkir += ncDay[c].ongkir || 0;
+            aggNc[c].resi += ncDay[c].resi || 0;
           }
           for (const cabang in trByCabang) {
+            if (!cabang || cabang === '-') continue;
             const list = trByCabang[cabang].list.filter(l => l.periode === periode && l.tglRaw === selDate);
-            if (list.length > 0) {
-              if (!aggTr[cabang]) aggTr[cabang] = 0;
-              aggTr[cabang] += list.reduce((s, l) => s + l.nominal, 0);
-            }
+            if (!list.length) continue;
+            if (!aggTr[cabang]) aggTr[cabang] = 0;
+            aggTr[cabang] += list.reduce((sum, item) => sum + item.nominal, 0);
           }
         }
 
-        const allCabang = new Set([...Object.keys(aggNc), ...Object.keys(aggTr)]);
-        let rows = [];
-        allCabang.forEach(c => {
-          if (!filterByArea(c)) return;
-          if (q && !c.toLowerCase().includes(q)) return;
-          const ongkir = aggNc[c] ? aggNc[c].ongkir : 0;
-          const resi = aggNc[c] ? aggNc[c].resi : 0;
-          const transfer = aggTr[c] || 0;
-          const belum = ongkir - transfer;
-          // Status filter: sudah = fully covered (ongkir-transfer<=0), belum = still owing
-          if (statusFilter === 'sudah' && belum > 0) return;
-          if (statusFilter === 'belum' && belum <= 0) return;
-          rows.push({ cabang: c, resi, ongkir, transfer, belum });
+        return [...new Set([...Object.keys(aggNc), ...Object.keys(aggTr)])].map(cabang => {
+          const ongkir = aggNc[cabang] ? aggNc[cabang].ongkir : 0;
+          const resi = aggNc[cabang] ? aggNc[cabang].resi : 0;
+          const transfer = aggTr[cabang] || 0;
+          return {
+            cabang,
+            resi,
+            ongkir,
+            transfer,
+            belum: ongkir - transfer,
+          };
         });
+      }
+
+      function getFilteredRekonRows(baseRows, opts) {
+        const q = opts && Object.prototype.hasOwnProperty.call(opts, 'q') ? opts.q : getSearchQ();
+        const statusFilter = opts && opts.status ? opts.status : activeStatus;
+        return (baseRows || []).filter(row => {
+          if (!row.cabang || row.cabang === '-') return false;
+          if (!filterByArea(row.cabang)) return false;
+          if (q && !row.cabang.toLowerCase().includes(q)) return false;
+          if (statusFilter === 'sudah' && row.belum > 0) return false;
+          if (statusFilter === 'belum' && row.belum <= 0) return false;
+          return true;
+        });
+      }
+
+      function getAggregatedShipmentRows(dates, periode) {
+        const scopedDates = getScopedDates(dates, periode);
+        const agg = {};
+        for (const selDate of scopedDates) {
+          const shipDay = ncByDay[selDate] || {};
+          for (const cabang in shipDay) {
+            if (!cabang || cabang === '-') continue;
+            if (!agg[cabang]) agg[cabang] = { resi: 0, ongkir: 0, total: 0 };
+            agg[cabang].resi += shipDay[cabang].resi || 0;
+            agg[cabang].ongkir += shipDay[cabang].ongkir || 0;
+            agg[cabang].total += shipDay[cabang].total || 0;
+          }
+        }
+        return Object.keys(agg).map(cabang => ({
+          cabang,
+          resi: agg[cabang].resi,
+          ongkir: agg[cabang].ongkir,
+          total: agg[cabang].total,
+        }));
+      }
+
+      function getTodayRows(opts) {
+        const dates = (opts && opts.dates) || getDateRange();
+        const periode = document.getElementById('periodeSelect').value;
+        const rows = getFilteredRekonRows(
+          getAggregatedRekonBaseRows(dates, periode),
+          { q: opts && opts.q, status: opts && opts.status }
+        );
         rows.sort((a, b) => b.belum - a.belum);
         return rows;
       }
@@ -1054,29 +1111,12 @@
 
       function getShipmentTodayRows() {
         const dates = getDateRange();
+        const periode = document.getElementById('periodeSelect').value;
         const q = getSearchQ();
-        const agg = {};
-
-        for (const selDate of dates) {
-          const shipDay = ncByDay[selDate] || {};
-          for (const cabang in shipDay) {
-            if (!agg[cabang]) agg[cabang] = { resi: 0, ongkir: 0, total: 0 };
-            agg[cabang].resi += shipDay[cabang].resi || 0;
-            agg[cabang].ongkir += shipDay[cabang].ongkir || 0;
-            agg[cabang].total += shipDay[cabang].total || 0;
-          }
-        }
-
-        const rows = [];
-        Object.keys(agg).forEach(cabang => {
-          if (!filterByArea(cabang)) return;
-          if (q && !cabang.toLowerCase().includes(q)) return;
-          rows.push({
-            cabang,
-            resi: agg[cabang].resi,
-            ongkir: agg[cabang].ongkir,
-            total: agg[cabang].total,
-          });
+        const rows = getAggregatedShipmentRows(dates, periode).filter(row => {
+          if (!filterByArea(row.cabang)) return false;
+          if (q && !row.cabang.toLowerCase().includes(q)) return false;
+          return true;
         });
         rows.sort((a, b) => b.total - a.total || b.ongkir - a.ongkir);
         return rows;
@@ -1128,18 +1168,10 @@
 
       function getMonthlyCabangMap() {
         const periode = document.getElementById('periodeSelect').value;
-        const monthPrefix = periode ? (periode + '-') : '';
         const agg = {};
 
-        Object.keys(ncByDay || {}).forEach(day => {
-          if (!monthPrefix || !String(day).startsWith(monthPrefix)) return;
-          const dayRows = ncByDay[day] || {};
-          Object.keys(dayRows).forEach(cabang => {
-            if (!agg[cabang]) agg[cabang] = { ongkir: 0, resi: 0, total: 0 };
-            agg[cabang].ongkir += dayRows[cabang].ongkir || 0;
-            agg[cabang].resi += dayRows[cabang].resi || 0;
-            agg[cabang].total += dayRows[cabang].total || 0;
-          });
+        getAggregatedShipmentRows(getPeriodeDateRange(periode), periode).forEach(row => {
+          agg[row.cabang] = { ongkir: row.ongkir, resi: row.resi, total: row.total };
         });
 
         return agg;
@@ -1150,56 +1182,37 @@
       function renderMonthly() {
         const q = getSearchQ();
         const periode = document.getElementById('periodeSelect').value;
-        const ncMonth = getMonthlyCabangMap();
-
-        const trMonth = {};
-        for (const cabang in trByCabang) {
-          const list = trByCabang[cabang].list.filter(l => l.periode === periode);
-          if (list.length > 0) trMonth[cabang] = list.reduce((s, l) => s + l.nominal, 0);
-        }
-
-        const allCabang = new Set([...Object.keys(ncMonth), ...Object.keys(trMonth)]);
-        let rows = [];
-        allCabang.forEach(c => {
-          if (!c || c === '-') return;
-          if (!filterByArea(c)) return;
-          if (q && !c.toLowerCase().includes(q)) return;
-          const ongkir = ncMonth[c] ? ncMonth[c].ongkir : 0;
-          const resi = ncMonth[c] ? ncMonth[c].resi : 0;
-          const transfer = trMonth[c] || 0;
-          const selisih = Math.abs(transfer - ongkir);
-          const status = ongkir - transfer <= 0 ? 'done' : 'belum';
-          // Status filter: sudah = fully covered, belum = still owing
-          if (activeStatus === 'sudah' && ongkir - transfer > 0) return;
-          if (activeStatus === 'belum' && ongkir - transfer <= 0) return;
-          const area = cabangAreaMap[c] || '-';
-          rows.push({ cabang: c, resi, area, ongkir, transfer, selisih, status });
+        const baseRows = getAggregatedRekonBaseRows(getPeriodeDateRange(periode), periode);
+        let rows = getFilteredRekonRows(baseRows, { q, status: activeStatus }).map(row => {
+          const selisih = row.belum;
+          return {
+            cabang: row.cabang,
+            resi: row.resi,
+            area: cabangAreaMap[row.cabang] || '-',
+            ongkir: row.ongkir,
+            transfer: row.transfer,
+            selisih,
+            status: selisih <= 0 ? 'done' : 'belum',
+          };
         });
         // Sort: area desc, cabang asc
         rows.sort((a, b) => b.area.localeCompare(a.area) || a.cabang.localeCompare(b.cabang));
         _monthlyRows = rows;
 
         // Build unfiltered stats for counts
-        let allRows = [];
-        allCabang.forEach(c => {
-          if (!c || c === '-') return;
-          if (!filterByArea(c)) return;
-          if (q && !c.toLowerCase().includes(q)) return;
-          const ongkir = ncMonth[c] ? ncMonth[c].ongkir : 0;
-          const resi = ncMonth[c] ? ncMonth[c].resi : 0;
-          const transfer = trMonth[c] || 0;
-          allRows.push({ ongkir, resi, transfer });
-        });
+        const allRows = getFilteredRekonRows(baseRows, { q, status: 'semua' });
         const cntDone = allRows.filter(r => r.ongkir - r.transfer <= 0).length;
         const cntBelum = allRows.filter(r => r.ongkir - r.transfer > 0).length;
         const allTotOngkir = allRows.reduce((s, r) => s + r.ongkir, 0);
         const allTotTransfer = allRows.reduce((s, r) => s + r.transfer, 0);
         const allTotResi = allRows.reduce((s, r) => s + r.resi, 0);
         const allSelisih = allTotOngkir - allTotTransfer;
+        const allSelisihLabel = allSelisih > 0 ? 'Rp ' + fmtNom(allSelisih) : allSelisih === 0 ? 'Rp 0' : '-Rp ' + fmtNom(Math.abs(allSelisih));
+        const allSelisihColor = allSelisih > 0 ? 'var(--red)' : allSelisih < 0 ? 'var(--green)' : 'var(--dark)';
 
         setStats('Total Ongkir', 'Rp ' + fmtNom(allTotOngkir), 'var(--blue)',
                  'Total Transfer', 'Rp ' + fmtNom(allTotTransfer), 'var(--green)',
-                 'Selisih', allSelisih > 0 ? 'Rp ' + fmtNom(allSelisih) : 'Rp 0', 'var(--red)',
+           'Selisih', allSelisihLabel, allSelisihColor,
                  allRows.length + ' cabang · ' + fmtNom(allTotResi) + ' resi',
                  cntDone + ' done',
                  cntBelum + ' belum');
@@ -1216,13 +1229,15 @@
 
         html += rows.map(r => {
           const badge = r.status === 'done' ? '<span class="badge-done">DONE</span>' : '<span class="badge-belum">BELUM</span>';
+          const selisihClass = r.selisih > 0 ? 'td-pos' : r.selisih < 0 ? 'td-zero' : '';
+          const selisihLabel = r.selisih > 0 ? fmtNom(r.selisih) : r.selisih < 0 ? '-' + fmtNom(Math.abs(r.selisih)) : '0';
           return '<tr>' +
             '<td class="td-cabang" title="' + esc(r.cabang) + '">' + esc(r.cabang) + '</td>' +
             '<td class="td-nom">' + (r.resi > 0 ? fmtNom(r.resi) : '-') + '</td>' +
             '<td style="font-size:0.65rem;color:#94a3b8">' + esc(r.area) + '</td>' +
             '<td class="td-nom">' + (r.ongkir > 0 ? fmtNom(r.ongkir) : '-') + '</td>' +
             '<td class="td-nom" style="color:var(--green)">' + (r.transfer > 0 ? fmtNom(r.transfer) : '-') + '</td>' +
-            '<td class="td-nom ' + (r.selisih > 0 ? 'td-pos' : '') + '">' + (r.selisih > 0 ? fmtNom(r.selisih) : '') + '</td>' +
+            '<td class="td-nom ' + selisihClass + '">' + selisihLabel + '</td>' +
             '<td class="td-status">' + badge + '</td>' +
             '</tr>';
         }).join('');

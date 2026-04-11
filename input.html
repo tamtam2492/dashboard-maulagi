@@ -193,8 +193,8 @@
           <span class="lbl-icon" style="background:#e0e7ff;color:#4338ca"><i class="bi bi-calendar-month-fill"></i></span>
           Periode Rekap
         </div>
-        <div class="field-ket warn"><i class="bi bi-exclamation-triangle-fill me-1"></i>Hanya diganti jika di awal bulan sesuai dengan tanggal pickup</div>
-        <select class="form-select" id="periodeInput" onchange="checkReady()"></select>
+        <div class="field-ket"><i class="bi bi-info-circle me-1"></i>Otomatis mengikuti tanggal input / pickup agar tidak salah periode</div>
+        <select class="form-select" id="periodeInput" disabled aria-disabled="true"></select>
       </div>
 
       <!-- Tanggal Input/Pickup -->
@@ -274,6 +274,28 @@
       // Init tanggal default (today)
       const BULAN_ID_FULL = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
+      function ensurePeriodeOption(periode) {
+        if (!periode) return;
+        const [year, month] = periode.split('-');
+        if (!year || !month) return;
+        const exists = Array.from(periodeEl.options).some(opt => opt.value === periode);
+        if (exists) {
+          periodeEl.value = periode;
+          return;
+        }
+        const option = document.createElement('option');
+        option.value = periode;
+        option.textContent = BULAN_ID_FULL[parseInt(month, 10) - 1] + ' ' + year;
+        periodeEl.insertBefore(option, periodeEl.firstChild);
+        periodeEl.value = periode;
+      }
+
+      function syncPeriodeFromPickup() {
+        const tglPickup = document.getElementById('tglPickup').value;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(tglPickup)) return;
+        ensurePeriodeOption(tglPickup.slice(0, 7));
+      }
+
       function buildDayPicker() {
         const today = now;
         const selTgl = document.getElementById('pickTgl');
@@ -308,6 +330,7 @@
         const b = String(today.getMonth() + 1).padStart(2,'0');
         const y = today.getFullYear();
         document.getElementById('tglPickup').value = y + '-' + b + '-' + t;
+        syncPeriodeFromPickup();
       }
 
       function rebuildDays(selectedDay) {
@@ -331,6 +354,7 @@
         const b = document.getElementById('pickBulan').value;
         const y = document.getElementById('pickTahun').value;
         document.getElementById('tglPickup').value = y + '-' + b + '-' + t;
+        syncPeriodeFromPickup();
         checkReady();
       }
 
@@ -340,6 +364,7 @@
         const b = document.getElementById('pickBulan').value;
         const y = document.getElementById('pickTahun').value;
         document.getElementById('tglPickup').value = y + '-' + b + '-' + t;
+        syncPeriodeFromPickup();
         checkReady();
       }
 

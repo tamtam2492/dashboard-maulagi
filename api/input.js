@@ -10,6 +10,11 @@ const uploadLimiter = rateLimit({ windowMs: 60 * 1000, max: 5 }); // 5 uploads/m
 // Parse multipart/form-data tanpa dependency eksternal tambahan (pakai busboy)
 const Busboy = require('busboy');
 
+function getPeriodeFromDate(dateText) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateText || ''))) return '';
+  return String(dateText).slice(0, 7);
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   if (cors(req, res, { methods: 'POST, OPTIONS' })) return;
@@ -65,18 +70,19 @@ module.exports = async (req, res) => {
     });
 
     // Validasi fields
-    const { tgl_inputan, nama_bank, nama_cabang, nominal, periode } = fields;
-    if (!tgl_inputan || !nama_bank || !nama_cabang || !nominal || !periode) {
+    const { tgl_inputan, nama_bank, nama_cabang, nominal } = fields;
+    if (!tgl_inputan || !nama_bank || !nama_cabang || !nominal) {
       return res.status(400).json({ error: 'Semua field wajib diisi.' });
     }
     if (parseFloat(nominal) <= 0 || isNaN(parseFloat(nominal))) {
       return res.status(400).json({ error: 'Nominal harus lebih dari 0.' });
     }
-    if (!/^\d{4}-\d{2}$/.test(periode)) {
-      return res.status(400).json({ error: 'Format periode tidak valid (YYYY-MM).' });
-    }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(tgl_inputan)) {
       return res.status(400).json({ error: 'Format tanggal tidak valid (YYYY-MM-DD).' });
+    }
+    const periode = getPeriodeFromDate(tgl_inputan);
+    if (!periode) {
+      return res.status(400).json({ error: 'Periode tidak dapat diturunkan dari tanggal input.' });
     }
 
     const supabase = getSupabase();

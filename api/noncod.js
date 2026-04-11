@@ -15,7 +15,6 @@ function createMetric() {
   return { grandOngkir: 0, grandTotal: 0, totalResi: 0, cabangCount: 0 };
 }
 
-const AUTO_SYNC_TTL_MS = 10 * 60 * 1000;
 const MAUKIRIM_SYNC_KEY_PREFIX = 'maukirim_sync_';
 const syncPendingByPeriode = new Map();
 
@@ -35,6 +34,18 @@ function isAutoSyncablePeriode(periode) {
 
 function getSyncSettingKey(periode) {
   return MAUKIRIM_SYNC_KEY_PREFIX + periode;
+}
+
+function buildSyncInfo(periode, meta) {
+  return {
+    enabled: canAutoSyncMaukirim(),
+    eligible: isAutoSyncablePeriode(periode),
+    performed: false,
+    source: meta && meta.source ? meta.source : 'database',
+    syncedAt: meta && meta.syncedAt ? meta.syncedAt : null,
+    inserted: meta && Number.isFinite(meta.inserted) ? meta.inserted : 0,
+    stats: meta && meta.stats ? meta.stats : null,
+  };
 }
 
 function normalizeSheetDate(val) {
@@ -157,21 +168,21 @@ async function writeSyncMeta(supabase, periode, meta) {
   });
 }
 
-async function maybeSyncMaukirimPeriod(supabase, periode) {
+async function maybeSyncMaukirimPeriod(supabase, periode, options = {}) {
   const enabled = canAutoSyncMaukirim();
   const eligible = isAutoSyncablePeriode(periode);
+  const force = !!options.force;
+  const currentMeta = await readSyncMeta(supabase, periode);
   if (!enabled || !eligible) {
-    return { enabled, eligible, performed: false, source: 'database' };
+    return buildSyncInfo(periode, currentMeta);
+  }
+
+  if (!force && currentMeta) {
+    return buildSyncInfo(periode, currentMeta);
   }
 
   if (syncPendingByPeriode.has(periode)) {
     return syncPendingByPeriode.get(periode);
-  }
-
-  const currentMeta = await readSyncMeta(supabase, periode);
-  const currentStamp = currentMeta && currentMeta.syncedAt ? Date.parse(currentMeta.syncedAt) : 0;
-  if (currentStamp && (Date.now() - currentStamp) < AUTO_SYNC_TTL_MS) {
-    return { enabled: true, eligible: true, performed: false, ...currentMeta };
   }
 
   const pending = (async () => {
@@ -195,6 +206,10 @@ async function maybeSyncMaukirimPeriod(supabase, periode) {
 
   syncPendingByPeriode.set(periode, pending);
   return pending;
+}
+
+function getShipmentDateKey(row) {
+  return normalizeSheetDate(row && row.tanggal_pickup) || normalizeSheetDate(row && row.tanggal_buat);
 }
 
 async function fetchAllRowsByPeriode(supabase, periode) {
@@ -238,46 +253,32 @@ module.exports = async (req, res) => {
     try {
       const periode = (req.query.periode || '').trim();
       const mode = String(req.query.mode || 'noncod').trim().toLowerCase();
+      const forceSync = req.query.sync === '1' || req.query.refresh === '1';
       if (!periode || !/^\d{4}-\d{2}$/.test(periode)) {
         return res.status(400).json({ error: 'Parameter periode wajib (YYYY-MM).' });
       }
       if (!['noncod', 'dfod', 'all'].includes(mode)) {
         return res.status(400).json({ error: 'Mode tidak valid. Gunakan noncod, dfod, atau all.' });
       }
+      if (forceSync && !(await requireAdmin(req, res))) return;
 
-      let syncInfo = { enabled: canAutoSyncMaukirim(), eligible: isAutoSyncablePeriode(periode), performed: false, source: 'database' };
-      try {
-        syncInfo = await maybeSyncMaukirimPeriod(supabase, periode);
-      } catch (syncErr) {
-        console.error('[noncod sync]', syncErr.message);
-        logError('noncod', syncErr.message, { method: 'GET', action: 'sync', periode });
-        syncInfo = {
-          enabled: canAutoSyncMaukirim(),
-          eligible: isAutoSyncablePeriode(periode),
-          performed: false,
-          source: 'database',
-          error: syncErr.message,
-        };
-      }
+      const syncMeta = await readSyncMeta(supabase, periode);
+      let syncInfo = buildSyncInfo(periode, syncMeta);
+      let data = await fetchAllRowsByPeriode(supabase, periode);
 
-      const data = await fetchAllRowsByPeriode(supabase, periode);
-
-      // Helper: normalize any date string to YYYY-MM-DD
-      function toYMD(val) {
-        if (!val) return '';
-        const s = String(val).trim();
-        // Already YYYY-MM-DD
-        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
-        // Try JS Date parse (handles "07 Apr 2026", ISO, etc)
-        const d = new Date(s);
-        if (!isNaN(d.getTime()) && d.getFullYear() > 2000) {
-          return d.toISOString().slice(0, 10);
+      const shouldSync = syncInfo.enabled && syncInfo.eligible && (forceSync || !data.length);
+      if (shouldSync) {
+        try {
+          syncInfo = await maybeSyncMaukirimPeriod(supabase, periode, { force: true });
+          data = await fetchAllRowsByPeriode(supabase, periode);
+        } catch (syncErr) {
+          console.error('[noncod sync]', syncErr.message);
+          logError('noncod', syncErr.message, { method: 'GET', action: 'sync', periode, forceSync });
+          syncInfo = {
+            ...buildSyncInfo(periode, syncMeta),
+            error: syncErr.message,
+          };
         }
-        // DD/MM/YYYY or DD-MM-YYYY
-        const m = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-        if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
-        if (s) console.warn('[noncod] toYMD: format tanggal tidak dikenal:', s);
-        return '';
       }
 
       const summary = {
@@ -316,7 +317,7 @@ module.exports = async (req, res) => {
         if (!c || c === '-') continue;
         const ongkir = parseFloat(row.ongkir) || 0;
         const total = parseFloat(row.total_pengiriman) || 0;
-        const tgl = toYMD(row.tanggal_buat);
+        const tgl = getShipmentDateKey(row);
         const inActualMonth = !!(tgl && tgl.startsWith(periode + '-'));
 
         summary[method].grandOngkir += ongkir;
@@ -356,7 +357,7 @@ module.exports = async (req, res) => {
         grandTotal += total;
         totalResi++;
 
-        // Daily grouping by tanggal_buat (normalized to YYYY-MM-DD)
+        // Daily grouping follows pickup date first so it stays aligned with transfer.tgl_inputan.
         if (tgl) {
           if (!byDay[tgl]) byDay[tgl] = {};
           if (!byDay[tgl][c]) byDay[tgl][c] = { ongkir: 0, resi: 0, total: 0 };
@@ -372,6 +373,12 @@ module.exports = async (req, res) => {
       monthSummary.noncod.cabangCount = monthSummaryCabang.noncod.size;
       monthSummary.dfod.cabangCount = monthSummaryCabang.dfod.size;
       monthSummary.all.cabangCount = monthSummaryCabang.all.size;
+      if (!syncInfo.stats) {
+        syncInfo.stats = {
+          noncod: summary.noncod.totalResi,
+          dfod: summary.dfod.totalResi,
+        };
+      }
 
       return res.json({
         periode,

@@ -4,6 +4,11 @@ const { logError } = require('./_logger');
 const { normalizeBankName } = require('./_bank');
 const { getSupabase } = require('./_supabase');
 
+function getPeriodeFromDate(dateText) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateText || ''))) return '';
+  return String(dateText).slice(0, 7);
+}
+
 function normalizeProofUrl(buktiUrl) {
   let value = String(buktiUrl || '').trim();
   if (!value) return '';
@@ -92,7 +97,7 @@ module.exports = async (req, res) => {
 
     // Validasi tiap baris
     for (const r of rows) {
-      if (!r.tgl_inputan || !r.nominal || parseFloat(r.nominal) <= 0) {
+      if (!r.tgl_inputan || !/^\d{4}-\d{2}-\d{2}$/.test(String(r.tgl_inputan)) || !r.nominal || parseFloat(r.nominal) <= 0) {
         return res.status(400).json({ error: 'Setiap baris harus punya tanggal dan nominal > 0.' });
       }
     }
@@ -101,7 +106,7 @@ module.exports = async (req, res) => {
     const newRows = rows.map(r => ({
       timestamp: orig.timestamp,
       tgl_inputan: r.tgl_inputan,
-      periode: orig.periode,
+      periode: getPeriodeFromDate(r.tgl_inputan),
       nama_bank: normalizeBankName(orig.nama_bank),
       nama_cabang: orig.nama_cabang,
       nominal: Math.round(parseFloat(r.nominal)),
@@ -131,12 +136,14 @@ module.exports = async (req, res) => {
     if (!tgl_inputan || !/^\d{4}-\d{2}-\d{2}$/.test(tgl_inputan)) {
       return res.status(400).json({ error: 'Format tanggal tidak valid (YYYY-MM-DD).' });
     }
-    const update = { tgl_inputan };
+    const periode = getPeriodeFromDate(tgl_inputan);
+    if (!periode) return res.status(400).json({ error: 'Periode tidak dapat diturunkan dari tanggal.' });
+    const update = { tgl_inputan, periode };
     if (ket !== undefined) update.ket = ket?.trim() || null;
 
     const { error: updErr } = await supabase.from('transfers').update(update).eq('id', id);
     if (updErr) return res.status(500).json({ error: updErr.message });
-    return res.json({ success: true });
+    return res.json({ success: true, periode });
   }
 
   // DELETE — hapus satu baris transfer

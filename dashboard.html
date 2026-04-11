@@ -1697,8 +1697,10 @@
           return;
         }
 
-        banner.dataset.tone = 'ok';
-        main.textContent = (syncInfo.performed ? 'Baru sinkron dari MauKirim' : 'Sinkron MauKirim aktif') + (timeLabel ? ' · ' + timeLabel : '');
+        banner.dataset.tone = syncInfo.performed ? 'ok' : 'warn';
+        main.textContent = syncInfo.performed
+          ? 'Baru sinkron dari MauKirim' + (timeLabel ? ' · ' + timeLabel : '')
+          : 'Memakai data MauKirim tersimpan' + (timeLabel ? ' · ' + timeLabel : '');
         sub.textContent = statsText;
       }
 

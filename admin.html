@@ -169,7 +169,7 @@
       .proof-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.82); z-index: 260; align-items: center; justify-content: center; padding: 18px; overflow: auto; }
       .proof-overlay.show { display: flex; }
       .proof-panel { width: 100%; max-width: 960px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-      #proofImg { width: auto; height: auto; max-width: 100%; max-height: 78vh; object-fit: contain; border-radius: 14px; border: 5px solid white; box-shadow: 0 14px 36px rgba(0,0,0,0.35); transition: transform 0.25s ease; }
+      #proofImg { width: auto; height: auto; max-width: 100%; max-height: 78vh; object-fit: contain; image-orientation: from-image; border-radius: 14px; border: 5px solid white; box-shadow: 0 14px 36px rgba(0,0,0,0.35); transition: transform 0.25s ease; }
       .proof-stage { position: relative; display: inline-flex; align-items: center; justify-content: center; max-width: 100%; max-height: 78vh; overflow: visible; }
       .proof-actions { position: absolute; top: 14px; right: 14px; display: flex; align-items: center; gap: 8px; z-index: 2; visibility: hidden; }
       .proof-btn { width: 42px; height: 42px; border: none; border-radius: 50%; background: rgba(255,255,255,0.96); color: var(--dark); box-shadow: 0 10px 28px rgba(0,0,0,0.25); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 1rem; padding: 0; }
@@ -1258,7 +1258,7 @@
         const img = document.getElementById('proofImg');
         document.getElementById('proofErr').style.display = 'none';
         img.style.display = '';
-        proofRotateDeg = img.naturalHeight > img.naturalWidth ? -90 : 0;
+        proofRotateDeg = 0;
         applyProofRotation();
       }
 
@@ -1435,12 +1435,8 @@
           if (!res.ok) { showToast(json.error || 'Gagal menyimpan', 'error'); }
           else {
             showToast('Tanggal diperbarui', 'success');
-            // Update allTransfers cache
-            const idx = allTransfers.findIndex(x => x.id === id);
-            if (idx !== -1) { allTransfers[idx].tgl_inputan = tgl; allTransfers[idx].ket = ket || null; }
-            duplicateTransferIds = buildDuplicateTransferSet(allTransfers);
             cancelEditTr(id);
-            applyTrFilter();
+            await loadTransfers();
             loadMismatchMonitor();
           }
         } catch { showToast('Kesalahan jaringan', 'error'); }
@@ -1687,7 +1683,8 @@
             <div class="mon-dot amber"></div>
             <div class="mon-info">
               <div class="mon-name">${escHtmlAdmin(item.cabang)}</div>
-              <div class="mon-meta">Transfer tercatat ${fmtTanggalId(item.transferDate)}${item.transferBank ? ' · ' + escHtmlAdmin(item.transferBank) : ''} → nominal sama dengan NONCOD ${fmtTanggalId(item.targetDate)}</div>
+              <div class="mon-meta">Kelebihan transfer Rp ${item.nominal.toLocaleString('id-ID')} tercatat ${fmtTanggalId(item.transferDate)}${item.transferBank ? ' · ' + escHtmlAdmin(item.transferBank) : ''} dan nominalnya sama dengan kekurangan NONCOD ${fmtTanggalId(item.targetDate)}</div>
+              <div class="mon-meta">Perlu cek apakah sebagian nominal seharusnya masuk ke tanggal ${fmtTanggalId(item.targetDate)}.</div>
             </div>
           </div>
           <div class="mon-right">
@@ -1764,9 +1761,9 @@
           sumEl.style.display = 'grid';
           let html = '<div class="today-body">';
 
-          html += `<div class="today-sec amber"><i class="bi bi-calendar-event"></i>Indikasi Salah Tanggal <span class="sec-badge">${mismatchState.suspects.length}</span></div>`;
+          html += `<div class="today-sec amber"><i class="bi bi-calendar-event"></i>Indikasi Kelebihan vs Kekurangan <span class="sec-badge">${mismatchState.suspects.length}</span></div>`;
           if (!mismatchState.suspects.length) {
-            html += '<div class="mon-empty">Belum ada kandidat salah tanggal dengan nominal yang sama.</div>';
+            html += '<div class="mon-empty">Belum ada kandidat kelebihan transfer yang nilainya sama dengan kekurangan NONCOD di tanggal lain.</div>';
           } else {
             mismatchState.suspects.forEach(item => { html += renderSuspectItem(item, periode); });
           }
