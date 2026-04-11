@@ -29,7 +29,6 @@
       body { background: var(--bg); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; color: var(--dark); -webkit-font-smoothing: antialiased; }
       body.embed { background: transparent; }
       body.embed .hdr-btn { display: none; }
-      body.embed .upload-btn,
       body.embed .download-btn { display: none !important; }
       body.embed .page-body { max-width: none; padding: 14px 14px 24px; }
 
@@ -199,44 +198,6 @@
       .empty-msg i { font-size: 2.2rem; display: block; margin-bottom: 10px; color: var(--gray3); }
       .err-card { background: var(--card); border-radius: var(--radius); border: 1px solid #fecaca; padding: 20px; text-align: center; color: var(--red); font-size: 0.85rem; font-weight: 600; }
 
-      /* Upload Modal Overlay */
-      .upload-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.52); backdrop-filter: blur(4px); z-index: 300; align-items: flex-end; justify-content: center; padding: 0; }
-      .upload-overlay.show { display: flex; }
-      @media (min-width: 540px) { .upload-overlay { align-items: center; padding: 16px; } }
-      .upload-panel { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-width: 500px; max-height: 92vh; display: flex; flex-direction: column; animation: slideUpUpload 0.22s ease; overflow: hidden; }
-      @media (min-width: 540px) { .upload-panel { border-radius: 20px; max-height: 86vh; } }
-      @keyframes slideUpUpload { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-      .upload-head { padding: 14px 16px 12px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-      .upload-head-icon { width: 32px; height: 32px; border-radius: 9px; background: #dcfce7; color: var(--green); display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
-      .upload-head-title { font-size: 0.92rem; font-weight: 800; color: var(--dark); margin: 0; flex: 1; letter-spacing: -0.01em; }
-      .upload-close { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border); background: #f8fafc; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--gray); font-size: 0.85rem; flex-shrink: 0; transition: 0.15s; }
-      .upload-close:hover { background: #f1f5f9; color: var(--dark); }
-      .upload-body { padding: 14px 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 10px; }
-      .upload-section { display: flex; flex-direction: column; gap: 10px; }
-      .us-title { font-size: 0.78rem; font-weight: 800; color: var(--dark); display: flex; align-items: center; gap: 6px; }
-      .drop-zone { background: #f0fdf4; border: 1.5px dashed #86efac; border-radius: 12px; padding: 22px 16px; text-align: center; cursor: pointer; transition: 0.15s; }
-      .drop-zone:hover { border-color: var(--green); background: #dcfce7; }
-      .drop-zone .dz-icon { font-size: 1.8rem; color: var(--green); display: block; margin-bottom: 6px; }
-      .drop-zone .dz-title { font-size: 0.82rem; font-weight: 700; color: #15803d; }
-      .drop-zone .dz-sub { font-size: 0.7rem; color: #86efac; margin-top: 3px; }
-      .file-info { background: #f8fafc; border-radius: 10px; padding: 10px 12px; border: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
-      .file-info .fi-icon { width: 34px; height: 34px; border-radius: 10px; background: #dcfce7; color: var(--green); display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
-      .file-info .fi-body { flex: 1; min-width: 0; }
-      .file-info .fi-name { font-size: 0.8rem; font-weight: 700; color: var(--dark); }
-      .file-info .fi-meta { font-size: 0.68rem; color: var(--gray2); }
-      .fi-remove { width: 26px; height: 26px; border-radius: 50%; border: 1px solid #fecaca; background: #fff1f2; color: var(--red); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.72rem; flex-shrink: 0; }
-      .up-stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
-      .up-stat-card { background: #f8fafc; border-radius: 8px; padding: 6px 8px; text-align: center; border: 1px solid #f1f5f9; }
-      .up-stat-card .sv { font-size: 0.82rem; font-weight: 800; }
-      .up-stat-card .sl { font-size: 0.58rem; font-weight: 600; color: var(--gray2); }
-      .btn-upload { width: 100%; border-radius: 10px; background: var(--green); color: white; border: none; padding: 10px; font-size: 0.85rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; transition: 0.2s; }
-      .btn-upload:hover { background: #059669; }
-      .btn-upload:disabled { background: var(--gray2); cursor: not-allowed; }
-      .existing-box { background: #f8fafc; border-radius: 10px; padding: 10px 12px; border: 1px solid #f1f5f9; }
-      .existing-box .eb-title { font-size: 0.7rem; font-weight: 700; color: var(--gray2); margin-bottom: 4px; display: flex; align-items: center; gap: 5px; }
-      .existing-box .eb-info { font-size: 0.78rem; color: var(--gray2); text-align: center; padding: 4px; }
-      .eb-ok { background: #f0fdf4; border-radius: 8px; padding: 8px 10px; border: 1px solid #bbf7d0; display: flex; align-items: center; gap: 6px; }
-
       /* ── Transfer Notif Banner ── */
       .tr-notif {
         position: fixed; top: 16px; left: 50%; transform: translateX(-50%) translateY(-120%);
@@ -323,7 +284,6 @@
         <div class="hdr-action-group">
           <div class="hdr-action" id="btnScreenshot" onclick="captureScreenshot()" title="Screenshot ke Clipboard"><i class="bi bi-camera"></i><span class="ha-label">Capture</span></div>
           <div class="hdr-action download-btn" id="btnDownload" onclick="downloadXlsx()" title="Download XLSX"><i class="bi bi-download"></i><span class="ha-label">Download</span></div>
-          <div class="hdr-action upload-btn" id="btnToggleUpload" onclick="toggleUpload()" title="Upload XLSX"><i class="bi bi-file-earmark-arrow-up"></i><span class="ha-label">Upload</span></div>
         </div>
       </div>
 
@@ -415,49 +375,6 @@
       </div>
     </div>
 
-    <!-- Upload Modal -->
-    <div class="upload-overlay" id="uploadOverlay" onclick="toggleUpload()">
-      <div class="upload-panel" onclick="event.stopPropagation()">
-        <div class="upload-head">
-          <div class="upload-head-icon"><i class="bi bi-file-earmark-spreadsheet"></i></div>
-          <div class="upload-head-title">Upload Data Shipments</div>
-          <div class="upload-close" onclick="toggleUpload()"><i class="bi bi-x"></i></div>
-        </div>
-        <div class="upload-body">
-          <div class="upload-section" id="uploadSection">
-            <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-              <i class="bi bi-cloud-arrow-up dz-icon"></i>
-              <div class="dz-title">Upload Data Shipments</div>
-              <div class="dz-sub">Klik untuk pilih file atau drag & drop file .xlsx. Sistem hanya menyimpan NONCOD dan DFOD.</div>
-              <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" onchange="handleFile(this)">
-            </div>
-            <div id="previewSection" style="display:none">
-              <div class="file-info" style="margin-bottom:6px">
-                <div class="fi-icon"><i class="bi bi-file-earmark-check"></i></div>
-                <div class="fi-body">
-                  <div class="fi-name" id="fileName">-</div>
-                  <div class="fi-meta" id="fileMeta">-</div>
-                </div>
-                <div class="fi-remove" onclick="clearFile()"><i class="bi bi-x"></i></div>
-              </div>
-              <div class="up-stat-row" style="margin-bottom:6px">
-                <div class="up-stat-card"><div class="sv text-primary" id="pvResi">-</div><div class="sl">Total Resi</div></div>
-                <div class="up-stat-card"><div class="sv text-success" id="pvNoncod">-</div><div class="sl">NONCOD</div></div>
-                <div class="up-stat-card"><div class="sv text-warning" id="pvDfod">-</div><div class="sl">DFOD</div></div>
-              </div>
-              <button class="btn-upload" id="btnUpload" onclick="doUploadXlsx()">
-                <i class="bi bi-cloud-upload"></i> Upload & Simpan
-              </button>
-            </div>
-            <div class="existing-box">
-              <div class="eb-title"><i class="bi bi-database"></i> Data tersimpan periode ini</div>
-              <div id="existingInfo" class="eb-info">Pilih periode & muat data</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Transfer Notif Banner -->
     <div class="tr-notif" id="trNotif">
       <div class="tn-icon">💸</div>
@@ -470,7 +387,7 @@
     <div class="toast-box" id="toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <script>
       const PAGE_PARAMS = new URLSearchParams(location.search);
       const EMBED_MODE = PAGE_PARAMS.get('embed') === '1' || window.self !== window.top;
@@ -517,6 +434,71 @@
       function fmtDate(d) { const dt = new Date(d + 'T00:00:00'); return HARI_ID[dt.getDay()] + ', ' + dt.getDate() + ' ' + BULAN_ID[dt.getMonth()]; }
       function todayStr() { return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' }); }
 
+      function getWorksheetColumnWidth(header, rows) {
+        const maxLength = rows.reduce((max, row) => {
+          const value = row[header];
+          const length = value == null ? 0 : String(value).length;
+          return Math.max(max, length);
+        }, String(header).length);
+        return Math.min(36, Math.max(10, maxLength + 2));
+      }
+
+      function isNumericColumn(rows, header) {
+        return rows.some(row => typeof row[header] === 'number')
+          && rows.every(row => row[header] == null || row[header] === '' || typeof row[header] === 'number');
+      }
+
+      async function downloadRowsAsXlsx(rows, sheetName, fileName) {
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'Dashboard Maulagi';
+        workbook.created = new Date();
+
+        const worksheet = workbook.addWorksheet(String(sheetName || 'Sheet1').slice(0, 31) || 'Sheet1');
+        const headers = rows.length ? Object.keys(rows[0]) : [];
+
+        worksheet.columns = headers.map(header => ({
+          header,
+          key: header,
+          width: getWorksheetColumnWidth(header, rows),
+        }));
+
+        rows.forEach(row => worksheet.addRow(row));
+
+        worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+        if (headers.length) {
+          worksheet.autoFilter = {
+            from: { row: 1, column: 1 },
+            to: { row: Math.max(1, worksheet.rowCount), column: headers.length },
+          };
+        }
+
+        const headerRow = worksheet.getRow(1);
+        headerRow.eachCell(cell => {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        });
+
+        headers.forEach((header, index) => {
+          if (isNumericColumn(rows, header)) {
+            worksheet.getColumn(index + 1).numFmt = '#,##0';
+          }
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob(
+          [buffer],
+          { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+        );
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
       const SESSION_TIMEOUT = 60 * 60 * 1000; // 60 menit
       const SESSION_CHECK_INTERVAL = 5000;
 
@@ -537,17 +519,6 @@
         if (!prefix) return true;
         const ts = parseInt(sessionStorage.getItem(prefix + 'AuthTs') || '0');
         return !ts || (Date.now() - ts > SESSION_TIMEOUT);
-      }
-      function isAdminWorkspace() {
-        return getActiveSessionPrefix() === 'admin';
-      }
-      function applyRoleUi() {
-        const canUpload = isAdminWorkspace();
-        const uploadBtn = document.getElementById('btnToggleUpload');
-        if (uploadBtn) uploadBtn.style.display = canUpload ? '' : 'none';
-        if (!canUpload) {
-          document.getElementById('uploadOverlay').classList.remove('show');
-        }
       }
       function clearWorkspaceSessions() {
         sessionStorage.removeItem('dashAuth');
@@ -602,7 +573,6 @@
         initPeriode();
         document.getElementById('modeSelect').value = activeMode;
         refreshModeUi();
-        applyRoleUi();
         const t = todayStr();
         const dt = new Date(t + 'T00:00:00');
         calViewYear = dt.getFullYear();
@@ -846,7 +816,7 @@
             }) + ' WITA';
           } catch {}
         }
-        if (syncInfo.source === 'manual_upload') return ' · Data manual' + stamp;
+        if (syncInfo.source === 'manual_upload') return ' · Data tersimpan sebelumnya' + stamp;
         if (syncInfo.performed) return ' · Baru sinkron dari MauKirim' + stamp;
         return ' · Sinkron MauKirim' + stamp;
       }
@@ -1323,12 +1293,12 @@
       }
 
       // ========= DOWNLOAD XLSX =========
-      function downloadXlsx() {
+      async function downloadXlsx() {
         if (activeTab === 'today') return downloadTodayXlsx();
         return downloadMonthlyXlsx();
       }
 
-      function downloadTodayXlsx() {
+      async function downloadTodayXlsx() {
         if (activeMode !== 'noncod') {
           const rows = getShipmentTodayRows();
           if (!rows.length) { showToast('Tidak ada data untuk diunduh', 'error'); return; }
@@ -1346,10 +1316,6 @@
           const totalOmset = rows.reduce((sum, row) => sum + row.total, 0);
           data.push({ 'No': '', 'Cabang': 'TOTAL', 'Resi': totalResi, 'Ongkir': totalOngkir, 'Omset': totalOmset });
 
-          const ws = XLSX.utils.json_to_sheet(data);
-          const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, 'Hari Ini');
-
           const modeName = getModeLabel(activeMode).replace(/\s+/g, '_');
           const dF = new Date(dateFrom + 'T00:00:00');
           const dT = new Date(dateTo + 'T00:00:00');
@@ -1358,7 +1324,7 @@
           let fname = 'Rekap_' + modeName.toLowerCase() + '_daily_' + dF.getDate() + '_' + bF + '_' + dF.getFullYear();
           if (dateFrom !== dateTo) fname += '_-_' + dT.getDate() + '_' + bT + '_' + dT.getFullYear();
           fname += '.xlsx';
-          XLSX.writeFile(wb, fname);
+          await downloadRowsAsXlsx(data, 'Hari Ini', fname);
           showToast('File ' + fname + ' berhasil diunduh', 'success');
           return;
         }
@@ -1383,10 +1349,6 @@
         const totTransfer = rows.reduce((s, r) => s + r.transfer, 0);
         data.push({ 'No': '', 'Cabang': 'TOTAL', 'Resi': totResi, 'Ongkir': totOngkir, 'Transfer': totTransfer, 'Belum': totOngkir - totTransfer, 'Status': '' });
 
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Hari Ini');
-
         const f = dateFrom, t = dateTo;
         const dF = new Date(f + 'T00:00:00'), dT = new Date(t + 'T00:00:00');
         const bF = BULAN_ID[dF.getMonth()].toLowerCase(), bT = BULAN_ID[dT.getMonth()].toLowerCase();
@@ -1398,11 +1360,11 @@
         if (areaLabel) fname += '_' + areaLabel.replace(/\s+/g, '_');
         if (statusLabel) fname += '_' + statusLabel;
         fname += '.xlsx';
-        XLSX.writeFile(wb, fname);
+        await downloadRowsAsXlsx(data, 'Hari Ini', fname);
         showToast('File ' + fname + ' berhasil diunduh', 'success');
       }
 
-      function downloadMonthlyXlsx() {
+      async function downloadMonthlyXlsx() {
         if (activeMode !== 'noncod') {
           if (!_monthlyRows.length) { showToast('Tidak ada data untuk diunduh', 'error'); return; }
           const periode = document.getElementById('periodeSelect').value;
@@ -1423,11 +1385,8 @@
           const totalOmset = _monthlyRows.reduce((sum, row) => sum + row.total, 0);
           data.push({ 'Cabang': 'TOTAL', 'Resi': totalResi, 'Area': '', 'Ongkir': totalOngkir, 'Omset': totalOmset });
 
-          const ws = XLSX.utils.json_to_sheet(data);
-          const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, 'Rekap Bulanan');
           const fname = 'Rekap_' + modeName + '_' + bulanNama + '_' + pY + '.xlsx';
-          XLSX.writeFile(wb, fname);
+          await downloadRowsAsXlsx(data, 'Rekap Bulanan', fname);
           showToast('File ' + fname + ' berhasil diunduh', 'success');
           return;
         }
@@ -1453,16 +1412,13 @@
         const totTransfer = _monthlyRows.reduce((s, r) => s + r.transfer, 0);
         data.push({ 'Cabang': 'TOTAL', 'Resi': totResi, 'Area': '', 'Ongkir': totOngkir, 'Transfer': totTransfer, 'Selisih': totOngkir - totTransfer, 'Status': '' });
 
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Rekap Bulanan');
         const [pY, pM] = periode.split('-');
         const bulanNama = BULAN_ID[parseInt(pM) - 1].toLowerCase();
         let fname = 'Rekap_' + bulanNama + '_' + pY;
         if (areaLabel !== 'Semua Area') fname += '_' + areaLabel.replace(/\s+/g, '_');
         if (statusLabel !== 'Semua') fname += '_' + statusLabel;
         fname += '.xlsx';
-        XLSX.writeFile(wb, fname);
+        await downloadRowsAsXlsx(data, 'Rekap Bulanan', fname);
         showToast('File ' + fname + ' berhasil diunduh', 'success');
       }
 
@@ -1481,188 +1437,6 @@
         document.getElementById('stCnt2').textContent = cnt2 || '';
         document.getElementById('stCnt3').textContent = cnt3 || '';
       }
-
-      // ========= DATE NORMALIZER =========
-      function normDate(val) {
-        if (!val) return '';
-        // Already YYYY-MM-DD
-        if (/^\d{4}-\d{2}-\d{2}/.test(String(val))) return String(val).slice(0, 10);
-        // Date object from SheetJS cellDates
-        if (val instanceof Date && !isNaN(val)) {
-          const y = val.getFullYear(), m = String(val.getMonth()+1).padStart(2,'0'), d = String(val.getDate()).padStart(2,'0');
-          return y + '-' + m + '-' + d;
-        }
-        // Try parsing string (e.g. "07 Apr 2026", "4/7/2026", "07/04/2026")
-        const parsed = new Date(String(val));
-        if (!isNaN(parsed) && parsed.getFullYear() > 2000) {
-          const y = parsed.getFullYear(), m = String(parsed.getMonth()+1).padStart(2,'0'), d = String(parsed.getDate()).padStart(2,'0');
-          return y + '-' + m + '-' + d;
-        }
-        // DD/MM/YYYY format
-        const parts = String(val).match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-        if (parts) return parts[3] + '-' + parts[2].padStart(2,'0') + '-' + parts[1].padStart(2,'0');
-        return String(val).slice(0, 30);
-      }
-
-      // ========= UPLOAD XLSX =========
-      let parsedRows = null;
-
-      function toggleUpload() {
-        if (!isAdminWorkspace()) return;
-        const overlay = document.getElementById('uploadOverlay');
-        const btn = document.getElementById('btnToggleUpload');
-        if (overlay.classList.contains('show')) {
-          overlay.classList.remove('show');
-          btn.classList.remove('active');
-        } else {
-          overlay.classList.add('show');
-          btn.classList.add('active');
-          loadExisting();
-        }
-      }
-
-      async function loadExisting() {
-        const periode = document.getElementById('periodeSelect').value;
-        const el = document.getElementById('existingInfo');
-        if (!periode) { el.innerHTML = 'Pilih periode...'; return; }
-        el.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Memuat...';
-        try {
-          const res = await fetch('/api/noncod?periode=' + encodeURIComponent(periode) + '&mode=all');
-          const json = await res.json();
-          if (json.totalResi > 0) {
-            const allSummary = (json.summary && json.summary.all) || {};
-            const noncodSummary = (json.summary && json.summary.noncod) || {};
-            const dfodSummary = (json.summary && json.summary.dfod) || {};
-            el.innerHTML = '<div class="eb-ok">' +
-              '<i class="bi bi-check-circle-fill" style="font-size:0.9rem;color:var(--green)"></i>' +
-              '<div style="flex:1">' +
-                '<div><span style="font-weight:700;color:#15803d">' + fmtNom(allSummary.totalResi || 0) + ' resi</span> \u00B7 <span style="color:var(--gray)">' + fmtNom(allSummary.cabangCount || 0) + ' cabang</span> \u00B7 <span style="color:var(--blue)">Rp ' + fmtNom(allSummary.grandTotal || 0) + '</span></div>' +
-                '<div style="font-size:0.68rem;color:var(--gray2);margin-top:3px">NONCOD ' + fmtNom(noncodSummary.totalResi || 0) + ' resi \u00B7 DFOD ' + fmtNom(dfodSummary.totalResi || 0) + ' resi</div>' +
-              '</div>' +
-              '</div>';
-          } else {
-            el.innerHTML = '<span style="color:#94a3b8">Belum ada data</span>';
-          }
-        } catch { el.innerHTML = '<span style="color:#ef4444">Gagal memuat</span>'; }
-      }
-
-      function handleFile(input) {
-        const file = input.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
-            const ws = wb.Sheets[wb.SheetNames[0]];
-            const raw = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
-            const preparedRows = raw.map(r => ({
-              tanggal_buat: normDate(r['Tanggal Buat']),
-              tanggal_pickup: normDate(r['Tanggal Pickup']),
-              tanggal_kirim: normDate(r['Tanggal Kirim']),
-              tanggal_terima: normDate(r['Tanggal Terima']),
-              status_terakhir: String(r['Status Terakhir'] || '').slice(0, 50),
-              nama_pengirim: String(r['Nama Pengirim'] || '').slice(0, 200),
-              kecamatan_pengirim: String(r['Kecamatan Pengirim'] || '').slice(0, 100),
-              nama_penerima: String(r['Nama Penerima'] || '').slice(0, 200),
-              provinsi_penerima: String(r['Provinsi Penerima'] || '').slice(0, 100),
-              kab_kota_penerima: String(r['Kab/Kota Penerima'] || '').slice(0, 100),
-              nomor_resi: String(r['Nomor Resi'] || '').slice(0, 50),
-              ongkir: parseFloat(r['Ongkos Kirim']) || 0,
-              total_pengiriman: parseFloat(r['Total Pengiriman']) || 0,
-              metode_pembayaran: String(r['Metode Pembayaran'] || '').trim().toLowerCase().slice(0, 30),
-              nama_ekspedisi: String(r['Nama Ekspedisi'] || '').slice(0, 50),
-              cabang: String(r['Dibuat Oleh SubUser'] || '').slice(0, 100),
-            })).filter(r => ['noncod', 'dfod'].includes(r.metode_pembayaran) && (r.nomor_resi || r.ongkir > 0 || r.total_pengiriman > 0));
-            const ignoredBatalCount = preparedRows.filter(r => String(r.status_terakhir || '').trim().toUpperCase() === 'BATAL').length;
-            parsedRows = preparedRows.filter(r => String(r.status_terakhir || '').trim().toUpperCase() !== 'BATAL');
-            if (!parsedRows.length) { showToast('File tidak berisi data valid', 'error'); return; }
-            document.getElementById('dropZone').style.display = 'none';
-            document.getElementById('previewSection').style.display = '';
-            document.getElementById('fileName').textContent = file.name;
-            const totalOngkir = parsedRows.reduce((s, r) => s + r.ongkir, 0);
-            const totalOmset = parsedRows.reduce((s, r) => s + r.total_pengiriman, 0);
-            const cabangSet = new Set(parsedRows.map(r => r.cabang).filter(Boolean));
-            const noncodCount = parsedRows.filter(r => r.metode_pembayaran === 'noncod').length;
-            const dfodCount = parsedRows.filter(r => r.metode_pembayaran === 'dfod').length;
-            const metaParts = [
-              parsedRows.length + ' baris valid',
-              cabangSet.size + ' cabang',
-              'Rp ' + totalOmset.toLocaleString('id-ID')
-            ];
-            if (ignoredBatalCount > 0) metaParts.push(ignoredBatalCount + ' BATAL diabaikan');
-            document.getElementById('fileMeta').textContent = metaParts.join(' · ');
-            document.getElementById('pvResi').textContent = parsedRows.length.toLocaleString('id-ID');
-            document.getElementById('pvNoncod').textContent = noncodCount.toLocaleString('id-ID');
-            document.getElementById('pvDfod').textContent = dfodCount.toLocaleString('id-ID');
-          } catch (err) {
-            showToast('Gagal membaca file: ' + err.message, 'error');
-          }
-        };
-        reader.readAsArrayBuffer(file);
-      }
-
-      function clearFile() {
-        parsedRows = null;
-        document.getElementById('fileInput').value = '';
-        document.getElementById('dropZone').style.display = '';
-        document.getElementById('previewSection').style.display = 'none';
-      }
-
-      function getOpsToken() {
-        return isAdminWorkspace() ? (sessionStorage.getItem('adminToken') || '') : '';
-      }
-
-      async function doUploadXlsx() {
-        if (!parsedRows || !parsedRows.length) return;
-        const periode = document.getElementById('periodeSelect').value;
-        if (!periode) { showToast('Pilih periode dulu', 'error'); return; }
-        const token = getOpsToken();
-        if (!token) {
-          showToast('Session upload tidak ada. Login ulang workspace atau verifikasi admin dulu.', 'error');
-          return;
-        }
-        const btn = document.getElementById('btnUpload');
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Mengupload...';
-        try {
-          const res = await fetch('/api/noncod', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Admin-Token': token },
-            body: JSON.stringify({ periode, rows: parsedRows }),
-          });
-          const json = await res.json();
-          if (!res.ok) {
-            if (res.status === 401 || res.status === 403) {
-              doLogout();
-              return;
-            }
-            showToast(json.error || 'Gagal upload', 'error');
-          }
-          else {
-            const noncodInfo = json.stats ? ' · NONCOD ' + (json.stats.noncod || 0) : '';
-            const dfodInfo = json.stats ? ' · DFOD ' + (json.stats.dfod || 0) : '';
-            showToast(json.inserted + ' data berhasil disimpan' + noncodInfo + dfodInfo, 'success');
-            clearFile();
-            loadExisting();
-            loadDashboard();
-          }
-        } catch { showToast('Kesalahan jaringan', 'error'); }
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-cloud-upload"></i> Upload & Simpan';
-      }
-
-      // Drag & drop
-      const dz = document.getElementById('dropZone');
-      dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor = '#10b981'; dz.style.background = '#dcfce7'; });
-      dz.addEventListener('dragleave', () => { dz.style.borderColor = '#86efac'; dz.style.background = '#f0fdf4'; });
-      dz.addEventListener('drop', e => {
-        e.preventDefault();
-        dz.style.borderColor = '#86efac'; dz.style.background = '#f0fdf4';
-        if (e.dataTransfer.files.length) {
-          document.getElementById('fileInput').files = e.dataTransfer.files;
-          handleFile(document.getElementById('fileInput'));
-        }
-      });
 
       async function captureScreenshot() {
         const btn = document.getElementById('btnScreenshot');

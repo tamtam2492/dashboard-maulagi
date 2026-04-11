@@ -224,12 +224,8 @@ async function fetchAllRowsByPeriode(supabase, periode) {
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
-  if (cors(req, res, { methods: 'GET, POST, DELETE, OPTIONS', headers: 'Content-Type, X-Admin-Token' })) return;
+  if (cors(req, res, { methods: 'GET, DELETE, OPTIONS', headers: 'Content-Type, X-Admin-Token' })) return;
 
-  // POST: admin only
-  if (req.method === 'POST') {
-    if (!(await requireAdmin(req, res))) return;
-  }
   // DELETE: admin only
   if (req.method === 'DELETE') {
     if (!(await requireAdmin(req, res))) return;
@@ -394,47 +390,6 @@ module.exports = async (req, res) => {
       console.error(err);
       logError('noncod', err.message, { method: 'GET' });
       return res.status(500).json({ error: 'Gagal memuat data noncod.' });
-    }
-  }
-
-  // POST /api/noncod — upload batch data dari XLSX (parsed di client)
-  if (req.method === 'POST') {
-    try {
-      const { periode, rows } = req.body || {};
-      if (!periode || !/^\d{4}-\d{2}$/.test(periode)) {
-        return res.status(400).json({ error: 'Periode wajib (YYYY-MM).' });
-      }
-      const [, mmPost] = periode.split('-');
-      if (parseInt(mmPost) < 1 || parseInt(mmPost) > 12) {
-        return res.status(400).json({ error: 'Bulan tidak valid.' });
-      }
-      if (!Array.isArray(rows) || rows.length === 0) {
-        return res.status(400).json({ error: 'Data rows kosong.' });
-      }
-      if (rows.length > 10000) {
-        return res.status(400).json({ error: 'Maksimal 10.000 baris per upload.' });
-      }
-
-      const clean = sanitizeNoncodRows(periode, rows);
-
-      if (!clean.length) {
-        return res.status(400).json({ error: 'File tidak berisi data NONCOD / DFOD valid yang bisa diproses.' });
-      }
-
-      const stats = summarizeInsertedRows(clean);
-      const inserted = await replacePeriodeRows(supabase, periode, clean);
-      await writeSyncMeta(supabase, periode, {
-        source: 'manual_upload',
-        syncedAt: new Date().toISOString(),
-        inserted,
-        stats,
-      });
-
-      return res.json({ success: true, inserted, periode, stats });
-    } catch (err) {
-      console.error(err);
-      logError('noncod', err.message, { method: 'POST' });
-      return res.status(500).json({ error: 'Gagal menyimpan data: ' + (err.message || err) });
     }
   }
 

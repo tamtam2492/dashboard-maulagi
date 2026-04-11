@@ -8,7 +8,7 @@ Dashboard internal untuk rekap transfer, input bukti transfer, monitoring cabang
 - Input bukti transfer dengan upload gambar ke bucket Supabase `bukti-transfer`.
 - Rekap transfer per cabang dan ringkasan aktivitas harian.
 - Panel admin untuk kelola cabang, transfer, log error, dan password.
-- Modul noncod/dfod dengan impor data dan auto sync dari Maukirim.
+- Modul noncod/dfod dengan sinkron data dari Maukirim.
 - OCR bukti transfer melalui Groq untuk bantu isi nominal dan channel.
 
 ## Stack
@@ -34,7 +34,7 @@ Dashboard internal untuk rekap transfer, input bukti transfer, monitoring cabang
 - `/api/input` untuk simpan transfer baru dan upload bukti.
 - `/api/cabang` untuk list dan CRUD cabang.
 - `/api/transfer` untuk list, edit, hapus, dan split transfer dari admin.
-- `/api/noncod` untuk summary, impor batch, dan hapus data per periode.
+- `/api/noncod` untuk summary, sinkron data MauKirim, dan hapus data per periode.
 - `/api/check-update` untuk ringkasan update transfer.
 - `/api/check-dupe` untuk cek duplikasi sebelum input transfer.
 - `/api/ocr` untuk ekstraksi data bukti transfer dari gambar.
