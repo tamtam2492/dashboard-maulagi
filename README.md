@@ -62,7 +62,9 @@ Dashboard internal untuk input bukti transfer, rekap transfer cabang, monitoring
 - Akun dan project Supabase.
 - Project Vercel untuk menjalankan API secara lokal maupun production.
 
-### Instalasi
+### Menjalankan Lokal
+
+Ikuti langkah berikut untuk menjalankan proyek di environment lokal:
 
 1. Install dependency:
 
@@ -71,12 +73,14 @@ npm install
 ```
 
 2. Salin `.env.example` menjadi `.env`.
-3. Isi environment variable sesuai environment Anda.
+3. Isi environment variable di `.env` sesuai environment Anda.
 4. Jalankan aplikasi lokal:
 
 ```bash
 npx vercel dev
 ```
+
+5. Buka URL lokal yang ditampilkan oleh Vercel.
 
 ## Environment Variables
 
