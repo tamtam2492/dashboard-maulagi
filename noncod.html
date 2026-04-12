@@ -388,6 +388,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+    <script src="/lib/noncod-aggregation.js"></script>
     <script>
       const PAGE_PARAMS = new URLSearchParams(location.search);
       const EMBED_MODE = PAGE_PARAMS.get('embed') === '1' || window.self !== window.top;
@@ -410,6 +411,11 @@
       let lastSyncInfo = null;
       let _prevTransferCount = -1;
       let _notifTimer = null;
+      const noncodAggregation = window.NoncodAggregation;
+
+      if (!noncodAggregation) {
+        throw new Error('Noncod aggregation module gagal dimuat.');
+      }
 
       function showTransferNotif(cabang, nominal) {
         const title = document.getElementById('trNotifTitle');
@@ -952,16 +958,7 @@
 
       // ========= TAB: HARI INI =========
       function buildDateRange(from, to) {
-        const dates = [];
-        if (!from || !to) return dates;
-        let cur = new Date(from + 'T00:00:00');
-        const end = new Date(to + 'T00:00:00');
-        const pad = n => String(n).padStart(2, '0');
-        while (cur <= end) {
-          dates.push(cur.getFullYear() + '-' + pad(cur.getMonth() + 1) + '-' + pad(cur.getDate()));
-          cur.setDate(cur.getDate() + 1);
-        }
-        return dates;
+        return noncodAggregation.buildDateRange(from, to);
       }
 
       function getDateRange() {
@@ -969,87 +966,29 @@
       }
 
       function getPeriodeDateRange(periode) {
-        if (!/^\d{4}-\d{2}$/.test(String(periode || ''))) return [];
-        const [year, month] = String(periode).split('-').map(Number);
-        const lastDay = new Date(year, month, 0).getDate();
-        return buildDateRange(
-          periode + '-01',
-          periode + '-' + String(lastDay).padStart(2, '0')
-        );
+        return noncodAggregation.getPeriodeDateRange(periode);
       }
 
       function getScopedDates(dates, periode) {
-        const prefix = periode ? periode + '-' : '';
-        return Array.from(new Set((dates || []).filter(ds => !prefix || String(ds).startsWith(prefix)))).sort();
+        return noncodAggregation.getScopedDates(dates, periode);
       }
 
       function getAggregatedRekonBaseRows(dates, periode) {
-        const scopedDates = getScopedDates(dates, periode);
-        const aggNc = {}, aggTr = {};
-
-        for (const selDate of scopedDates) {
-          const ncDay = ncByDay[selDate] || {};
-          for (const c in ncDay) {
-            if (!c || c === '-') continue;
-            if (!aggNc[c]) aggNc[c] = { ongkir: 0, resi: 0 };
-            aggNc[c].ongkir += ncDay[c].ongkir || 0;
-            aggNc[c].resi += ncDay[c].resi || 0;
-          }
-          for (const cabang in trByCabang) {
-            if (!cabang || cabang === '-') continue;
-            const list = trByCabang[cabang].list.filter(l => l.periode === periode && l.tglRaw === selDate);
-            if (!list.length) continue;
-            if (!aggTr[cabang]) aggTr[cabang] = 0;
-            aggTr[cabang] += list.reduce((sum, item) => sum + item.nominal, 0);
-          }
-        }
-
-        return [...new Set([...Object.keys(aggNc), ...Object.keys(aggTr)])].map(cabang => {
-          const ongkir = aggNc[cabang] ? aggNc[cabang].ongkir : 0;
-          const resi = aggNc[cabang] ? aggNc[cabang].resi : 0;
-          const transfer = aggTr[cabang] || 0;
-          return {
-            cabang,
-            resi,
-            ongkir,
-            transfer,
-            belum: ongkir - transfer,
-          };
-        });
+        return noncodAggregation.getAggregatedRekonBaseRows({ dates, periode, ncByDay, trByCabang });
       }
 
       function getFilteredRekonRows(baseRows, opts) {
         const q = opts && Object.prototype.hasOwnProperty.call(opts, 'q') ? opts.q : getSearchQ();
         const statusFilter = opts && opts.status ? opts.status : activeStatus;
-        return (baseRows || []).filter(row => {
-          if (!row.cabang || row.cabang === '-') return false;
-          if (!filterByArea(row.cabang)) return false;
-          if (q && !row.cabang.toLowerCase().includes(q)) return false;
-          if (statusFilter === 'sudah' && row.belum > 0) return false;
-          if (statusFilter === 'belum' && row.belum <= 0) return false;
-          return true;
+        return noncodAggregation.filterRekonRows(baseRows, {
+          query: q,
+          status: statusFilter,
+          filterByArea,
         });
       }
 
       function getAggregatedShipmentRows(dates, periode) {
-        const scopedDates = getScopedDates(dates, periode);
-        const agg = {};
-        for (const selDate of scopedDates) {
-          const shipDay = ncByDay[selDate] || {};
-          for (const cabang in shipDay) {
-            if (!cabang || cabang === '-') continue;
-            if (!agg[cabang]) agg[cabang] = { resi: 0, ongkir: 0, total: 0 };
-            agg[cabang].resi += shipDay[cabang].resi || 0;
-            agg[cabang].ongkir += shipDay[cabang].ongkir || 0;
-            agg[cabang].total += shipDay[cabang].total || 0;
-          }
-        }
-        return Object.keys(agg).map(cabang => ({
-          cabang,
-          resi: agg[cabang].resi,
-          ongkir: agg[cabang].ongkir,
-          total: agg[cabang].total,
-        }));
+        return noncodAggregation.getAggregatedShipmentRows({ dates, periode, ncByDay });
       }
 
       function getTodayRows(opts) {

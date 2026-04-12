@@ -3,11 +3,14 @@ const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { normalizeBankName } = require('./_bank');
 const { getSupabase } = require('./_supabase');
-
-function getPeriodeFromDate(dateText) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateText || ''))) return '';
-  return String(dateText).slice(0, 7);
-}
+const {
+  buildTransferUpdate,
+  getPeriodeFromDate,
+  isPositiveTransferNominal,
+  isValidTransferDate,
+  normalizeTransferKet,
+  roundTransferNominal,
+} = require('./_transfer-utils');
 
 function normalizeProofUrl(buktiUrl) {
   let value = String(buktiUrl || '').trim();
@@ -87,8 +90,8 @@ module.exports = async (req, res) => {
     if (fetchErr || !orig) return res.status(404).json({ error: 'Transfer tidak ditemukan.' });
 
     // Validasi total rincian = nominal asli
-    const totalRincian = rows.reduce((s, r) => s + (Math.round(parseFloat(r.nominal || 0))), 0);
-    const origNominal = Math.round(parseFloat(orig.nominal));
+    const totalRincian = rows.reduce((sum, row) => sum + roundTransferNominal(row.nominal || 0), 0);
+    const origNominal = roundTransferNominal(orig.nominal);
     if (totalRincian !== origNominal) {
       return res.status(400).json({
         error: `Total rincian (${totalRincian}) tidak sama dengan nominal asli (${orig.nominal}).`
@@ -97,7 +100,7 @@ module.exports = async (req, res) => {
 
     // Validasi tiap baris
     for (const r of rows) {
-      if (!r.tgl_inputan || !/^\d{4}-\d{2}-\d{2}$/.test(String(r.tgl_inputan)) || !r.nominal || parseFloat(r.nominal) <= 0) {
+      if (!isValidTransferDate(r.tgl_inputan) || !isPositiveTransferNominal(r.nominal)) {
         return res.status(400).json({ error: 'Setiap baris harus punya tanggal dan nominal > 0.' });
       }
     }
@@ -109,9 +112,9 @@ module.exports = async (req, res) => {
       periode: getPeriodeFromDate(r.tgl_inputan),
       nama_bank: normalizeBankName(orig.nama_bank),
       nama_cabang: orig.nama_cabang,
-      nominal: Math.round(parseFloat(r.nominal)),
+      nominal: roundTransferNominal(r.nominal),
       bukti_url: orig.bukti_url,
-      ket: r.ket?.trim() || orig.ket || null,
+      ket: normalizeTransferKet(r.ket) || orig.ket || null,
     }));
 
     const { error: delErr } = await supabase.from('transfers').delete().eq('id', id);
@@ -133,17 +136,15 @@ module.exports = async (req, res) => {
   if (req.method === 'PUT') {
     const { id, tgl_inputan, ket } = req.body || {};
     if (!id) return res.status(400).json({ error: 'ID diperlukan.' });
-    if (!tgl_inputan || !/^\d{4}-\d{2}-\d{2}$/.test(tgl_inputan)) {
+    if (!isValidTransferDate(tgl_inputan)) {
       return res.status(400).json({ error: 'Format tanggal tidak valid (YYYY-MM-DD).' });
     }
-    const periode = getPeriodeFromDate(tgl_inputan);
-    if (!periode) return res.status(400).json({ error: 'Periode tidak dapat diturunkan dari tanggal.' });
-    const update = { tgl_inputan, periode };
-    if (ket !== undefined) update.ket = ket?.trim() || null;
+    const update = buildTransferUpdate(tgl_inputan, ket);
+    if (!update) return res.status(400).json({ error: 'Periode tidak dapat diturunkan dari tanggal.' });
 
     const { error: updErr } = await supabase.from('transfers').update(update).eq('id', id);
     if (updErr) return res.status(500).json({ error: updErr.message });
-    return res.json({ success: true, periode });
+    return res.json({ success: true, periode: update.periode });
   }
 
   // DELETE — hapus satu baris transfer

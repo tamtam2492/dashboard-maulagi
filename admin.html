@@ -620,6 +620,7 @@
     </div>
 
     <div class="toast-box" id="toast"></div>
+    <script src="/lib/admin-proof-viewer.js"></script>
     <script>
       const EMBED_MODE = new URLSearchParams(location.search).get('embed') === '1' || window.self !== window.top;
       if (EMBED_MODE) document.body.classList.add('embed');
@@ -1196,124 +1197,54 @@
         }
       }
 
-      let proofRotateDeg = 0;
-      let proofActionPositionTimer = 0;
+      const adminProofViewerModule = window.AdminProofViewer;
+      if (!adminProofViewerModule) {
+        throw new Error('Admin proof viewer module gagal dimuat.');
+      }
+      const proofViewer = adminProofViewerModule.createProofViewer({
+        overlay: document.getElementById('proofOverlay'),
+        stage: document.getElementById('proofStage'),
+        actions: document.getElementById('proofActions'),
+        image: document.getElementById('proofImg'),
+        error: document.getElementById('proofErr'),
+      });
 
       function handleProofOverlay(event) {
-        if (event.target === document.getElementById('proofOverlay')) closeProof();
+        proofViewer.handleOverlay(event);
       }
 
       function scheduleProofActionsPosition() {
-        window.clearTimeout(proofActionPositionTimer);
-        positionProofActions();
-        requestAnimationFrame(() => {
-          positionProofActions();
-          requestAnimationFrame(positionProofActions);
-        });
-        proofActionPositionTimer = window.setTimeout(positionProofActions, 300);
-      }
-
-      function getProofActionTarget() {
-        const img = document.getElementById('proofImg');
-        const err = document.getElementById('proofErr');
-        if (img.style.display !== 'none' && img.getBoundingClientRect().width > 0) return img;
-        if (err.style.display !== 'none' && err.getBoundingClientRect().width > 0) return err;
-        return null;
+        proofViewer.scheduleActionsPosition();
       }
 
       function positionProofActions() {
-        const overlay = document.getElementById('proofOverlay');
-        const stage = document.getElementById('proofStage');
-        const actions = document.getElementById('proofActions');
-        if (!overlay.classList.contains('show')) {
-          actions.style.visibility = 'hidden';
-          stage.style.width = '';
-          stage.style.height = '';
-          return;
-        }
-        const target = getProofActionTarget();
-        if (!target) {
-          actions.style.visibility = 'hidden';
-          stage.style.width = '';
-          stage.style.height = '';
-          return;
-        }
-        const rect = target.getBoundingClientRect();
-        stage.style.width = `${Math.ceil(rect.width)}px`;
-        stage.style.height = `${Math.ceil(rect.height)}px`;
-        actions.style.visibility = 'visible';
-      }
-
-      function applyProofRotation() {
-        const img = document.getElementById('proofImg');
-        const normalized = ((proofRotateDeg % 360) + 360) % 360;
-        const sideways = normalized === 90 || normalized === 270;
-        img.style.transform = `rotate(${proofRotateDeg}deg)`;
-        img.style.maxWidth = sideways ? '78vh' : '100%';
-        img.style.maxHeight = sideways ? '92vw' : '78vh';
-        scheduleProofActionsPosition();
+        proofViewer.positionActions();
       }
 
       function handleProofLoad() {
-        const img = document.getElementById('proofImg');
-        document.getElementById('proofErr').style.display = 'none';
-        img.style.display = '';
-        proofRotateDeg = 0;
-        applyProofRotation();
+        proofViewer.handleLoad();
       }
 
       function handleProofError() {
-        document.getElementById('proofImg').style.display = 'none';
-        document.getElementById('proofErr').style.display = 'block';
-        scheduleProofActionsPosition();
+        proofViewer.handleError();
       }
 
       function openProof(src) {
-        if (!src) return;
-        const img = document.getElementById('proofImg');
-        document.getElementById('proofStage').style.width = '';
-        document.getElementById('proofStage').style.height = '';
-        document.getElementById('proofActions').style.visibility = 'hidden';
-        document.getElementById('proofErr').style.display = 'none';
-        proofRotateDeg = 0;
-        img.style.display = '';
-        img.style.transform = '';
-        img.style.maxWidth = '100%';
-        img.style.maxHeight = '78vh';
-        img.src = src;
-        document.getElementById('proofOverlay').classList.add('show');
-        scheduleProofActionsPosition();
+        proofViewer.open(src);
       }
 
       function closeProof() {
-        const overlay = document.getElementById('proofOverlay');
-        const actions = document.getElementById('proofActions');
-        const img = document.getElementById('proofImg');
-        overlay.classList.remove('show');
-        window.clearTimeout(proofActionPositionTimer);
-        document.getElementById('proofStage').style.width = '';
-        document.getElementById('proofStage').style.height = '';
-        actions.style.visibility = 'hidden';
-        img.src = '';
-        img.style.transform = '';
+        proofViewer.close();
       }
 
       function rotateProof() {
-        const img = document.getElementById('proofImg');
-        if (!img.src) return;
-        proofRotateDeg += 90;
-        applyProofRotation();
+        proofViewer.rotate();
       }
 
-      document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && document.getElementById('proofOverlay').classList.contains('show')) {
-          closeProof();
-        }
-      });
-
-      document.getElementById('proofImg').addEventListener('transitionend', scheduleProofActionsPosition);
-      window.addEventListener('resize', scheduleProofActionsPosition);
-      document.getElementById('proofOverlay').addEventListener('scroll', positionProofActions);
+      document.addEventListener('keydown', proofViewer.handleKeydown);
+      document.getElementById('proofImg').addEventListener('transitionend', proofViewer.scheduleActionsPosition);
+      window.addEventListener('resize', proofViewer.scheduleActionsPosition);
+      document.getElementById('proofOverlay').addEventListener('scroll', proofViewer.positionActions);
 
       async function openTransferReview(periode, cabangEncoded = '', tgl = '', transferId = '', action = '') {
         const cabang = cabangEncoded ? decodeURIComponent(cabangEncoded) : '';

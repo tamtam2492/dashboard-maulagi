@@ -257,6 +257,7 @@
       <button class="btn btn-primary rounded-pill px-5 mt-3 fw-bold" onclick="resetForm()">Upload Lagi</button>
     </div>
 
+    <script src="/lib/input-ocr.js"></script>
     <script>
       // Init periode dropdown
       const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Makassar' }));
@@ -493,9 +494,12 @@
 
       // File preview + OCR auto-scan
       const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-      let ocrFilled = {}; // track which fields were filled by OCR
-      let ocrBusy = false; // lock to prevent concurrent scans
-      let ocrCooldownUntil = 0; // cooldown timestamp
+      const inputOcrModule = window.InputOcrModule;
+      let ocrController = null;
+
+      if (!inputOcrModule) {
+        throw new Error('Input OCR module gagal dimuat.');
+      }
 
       // Compress image to reduce base64 size for OCR API
       function compressImage(dataUrl, maxWidth = 800) {
@@ -560,12 +564,7 @@
       }
 
       function normalizeBankNameInput(value) {
-        const raw = String(value || '').trim();
-        if (!raw) return '';
-        const upper = raw.toUpperCase();
-        const compact = upper.replace(/[^A-Z0-9]/g, '');
-        if (['MTRANSFER', 'MTRANSFERBCA', 'MBCA', 'BCAMOBILE', 'MBANKINGBCA', 'MYBANK'].includes(compact)) return 'BCA';
-        return upper;
+        return inputOcrModule.normalizeBankNameInput(value);
       }
 
       function normalizeBankInputField() {
@@ -576,110 +575,12 @@
 
       // Map OCR channel to bank name
       function matchBank(channel) {
-        if (!channel || channel === 'Unknown') return '';
-        const ch = channel.toUpperCase();
-        const directMatch = normalizeBankNameInput(ch);
-        if (directMatch === 'BCA') return 'BCA';
-        const banks = ['BCA','MANDIRI','BNI','BRI','BSI','DANA','OVO','GOPAY','SHOPEEPAY'];
-        for (const b of banks) {
-          if (ch.includes(b)) return b;
-        }
-        if (ch.includes('LIVIN')) return 'MANDIRI';
-        if (ch.includes('BRIMO')) return 'BRI';
-        if (ch.includes('MYBANK') || ch.includes('M-BANKING BCA') || ch.includes('MBCA') || ch.includes('BCA MOBILE')) return 'BCA';
-        if (ch.includes('BSI MOBILE')) return 'BSI';
-        if (ch.includes('BNI MOBILE') || ch.includes('BNI M-BANKING')) return 'BNI';
-        return channel; // return original if no match — user can edit
+        return inputOcrModule.matchBank(channel);
       }
 
       async function runOCR(base64DataUrl) {
-        // Prevent concurrent scans — lock + cooldown 8s between scans
-        if (ocrBusy) {
-          setOcrStatus('error', 'Scan sedang berjalan, tunggu sebentar...');
-          return;
-        }
-        const cooldownLeft = Math.ceil((ocrCooldownUntil - Date.now()) / 1000);
-        if (cooldownLeft > 0) {
-          setOcrStatus('error', 'Tunggu ' + cooldownLeft + ' detik sebelum scan berikutnya.');
-          showFields();
-          return;
-        }
-
-        ocrBusy = true;
-        setOcrStatus('scanning', 'Membaca bukti transfer...');
-        ocrFilled = {};
-        try {
-          // Compress image to stay within Vercel body limit
-          const compressed = await compressImage(base64DataUrl, 800);
-          
-          // Check base64 size before sending
-          const sizeKB = Math.round(compressed.length * 0.75 / 1024);
-          if (sizeKB > 3500) {
-            throw new Error('Gambar terlalu besar (' + sizeKB + 'KB). Gunakan screenshot yang lebih kecil.');
-          }
-
-          const res = await fetch('/api/ocr', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: compressed }),
-          });
-
-          // Try to parse response body
-          const text = await res.text();
-          let json;
-          try {
-            json = JSON.parse(text);
-          } catch {
-            // Response is not JSON (HTML error page from Vercel)
-            console.error('Non-JSON response:', res.status, text.slice(0, 200));
-            if (res.status === 504 || res.status === 408) {
-              throw new Error('Server timeout — gambar mungkin terlalu besar. Coba screenshot yang lebih kecil.');
-            }
-            throw new Error('Server error (' + res.status + '). Coba lagi atau isi manual.');
-          }
-
-          if (!res.ok) throw new Error(json.error || 'Gagal scan');
-
-          let filled = 0;
-
-          // Fill bank
-          const bank = matchBank(json.channel);
-          if (bank) {
-            document.getElementById('namaBank').value = bank;
-            ocrFilled.bank = true;
-            setBadge('bankBadge', true);
-            filled++;
-          }
-
-          // Fill nominal (Total_Bayar - Admin)
-          if (json.nominal !== null && json.nominal > 0) {
-            document.getElementById('nominal').value = Number(json.nominal).toLocaleString('id-ID');
-            ocrFilled.nominal = true;
-            setBadge('nominalBadge', true);
-            filled++;
-          }
-
-          checkReady();
-
-          if (filled === 2) {
-            setOcrStatus('success', 'Bank & Nominal terisi otomatis — periksa & edit jika perlu');
-          } else if (filled > 0) {
-            const missing = [];
-            if (!ocrFilled.bank) missing.push('Bank');
-            if (!ocrFilled.nominal) missing.push('Nominal');
-            setOcrStatus('info', filled + ' field terisi — lengkapi ' + missing.join(', ') + ' secara manual');
-          } else {
-            setOcrStatus('info', 'Bukti transfer terdeteksi — silahkan masukkan data manual');
-          }
-          showFields();
-        } catch (err) {
-          console.error('OCR error:', err);
-          setOcrStatus('error', 'Gagal scan: ' + (err.message || 'coba lagi'));
-          showFields();
-        } finally {
-          ocrBusy = false;
-          ocrCooldownUntil = Date.now() + 8000; // 8 second cooldown
-        }
+        if (!ocrController) return;
+        await ocrController.runOCR(base64DataUrl);
       }
 
       function checkReady() {
@@ -690,6 +591,22 @@
           document.getElementById('fileBukti').files.length > 0;
         document.getElementById('btnSubmit').disabled = !ok;
       }
+
+      ocrController = inputOcrModule.createInputOcrController({
+        compressImage,
+        fetchImpl: window.fetch.bind(window),
+        setStatus: setOcrStatus,
+        showFields,
+        setBadge,
+        setBankValue(value) {
+          document.getElementById('namaBank').value = value;
+        },
+        setNominalValue(value) {
+          document.getElementById('nominal').value = Number(value).toLocaleString('id-ID');
+        },
+        onReadyChange: checkReady,
+        log: console.error.bind(console),
+      });
 
       // Collect form values helper
       function getFormValues() {
@@ -830,7 +747,7 @@
         document.getElementById('btnSubmit').style.display = 'none';
         setBadge('bankBadge', false);
         setBadge('nominalBadge', false);
-        ocrFilled = {};
+        if (ocrController) ocrController.resetState();
         periodeEl.selectedIndex = 0;
         checkReady();
       }

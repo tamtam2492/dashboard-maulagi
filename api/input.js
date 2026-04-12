@@ -4,16 +4,18 @@ const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { normalizeBankName } = require('./_bank');
 const { getSupabase } = require('./_supabase');
+const {
+  getPeriodeFromDate,
+  isPositiveTransferNominal,
+  isValidTransferDate,
+  normalizeTransferKet,
+  parseTransferNominal,
+} = require('./_transfer-utils');
 
 const uploadLimiter = rateLimit({ windowMs: 60 * 1000, max: 5 }); // 5 uploads/min per IP
 
 // Parse multipart/form-data tanpa dependency eksternal tambahan (pakai busboy)
 const Busboy = require('busboy');
-
-function getPeriodeFromDate(dateText) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateText || ''))) return '';
-  return String(dateText).slice(0, 7);
-}
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
@@ -74,10 +76,10 @@ module.exports = async (req, res) => {
     if (!tgl_inputan || !nama_bank || !nama_cabang || !nominal) {
       return res.status(400).json({ error: 'Semua field wajib diisi.' });
     }
-    if (parseFloat(nominal) <= 0 || isNaN(parseFloat(nominal))) {
+    if (!isPositiveTransferNominal(nominal)) {
       return res.status(400).json({ error: 'Nominal harus lebih dari 0.' });
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(tgl_inputan)) {
+    if (!isValidTransferDate(tgl_inputan)) {
       return res.status(400).json({ error: 'Format tanggal tidak valid (YYYY-MM-DD).' });
     }
     const periode = getPeriodeFromDate(tgl_inputan);
@@ -128,8 +130,8 @@ module.exports = async (req, res) => {
       periode,
       nama_bank: normalizeBankName(nama_bank),
       nama_cabang: nama_cabang.trim().toUpperCase(),
-      nominal: parseFloat(nominal),
-      ket: fields.ket?.trim() || null,
+      nominal: parseTransferNominal(nominal),
+      ket: normalizeTransferKet(fields.ket),
       bukti_url: buktiUrl,
     }).select().single();
 
