@@ -1,75 +1,112 @@
 # Dashboard Maulagi
 
-Dashboard internal untuk rekap transfer, input bukti transfer, monitoring cabang, dan pengelolaan data noncod/dfod. Frontend disajikan dari file HTML statis di root project, sedangkan backend menggunakan Vercel Serverless Functions dengan penyimpanan utama di Supabase.
+Dashboard internal untuk input bukti transfer, rekap transfer cabang, monitoring NONCOD/DFOD, dan operasi admin. Aplikasi memakai halaman HTML statis di root project dan API serverless di folder `api/`, dengan penyimpanan data dan file di Supabase.
 
-## Fitur Utama
+## Ringkasan
 
-- Login admin dan dashboard dengan password yang disimpan di tabel `settings`.
-- Input bukti transfer dengan upload gambar ke bucket Supabase `bukti-transfer`.
-- Rekap transfer per cabang dan ringkasan aktivitas harian.
-- Panel admin untuk kelola cabang, transfer, log error, dan password.
-- Modul noncod/dfod dengan sinkron data dari Maukirim.
-- OCR bukti transfer melalui Groq untuk bantu isi nominal dan channel.
+- Login admin berbasis password yang disimpan di tabel `settings`.
+- Input transfer dengan upload bukti ke bucket `bukti-transfer`.
+- Rekap transfer dan monitoring aktivitas cabang.
+- Dashboard NONCOD dan DFOD dengan sinkronisasi data MauKirim.
+- OCR bukti transfer untuk bantu baca nominal dan channel bank.
+- Panel admin untuk kelola cabang, transfer, password, dan log error.
 
-## Stack
+## Tech Stack
 
-- Vercel untuk hosting static pages dan serverless API.
+- Vercel untuk static hosting dan serverless functions.
 - Supabase untuk database dan object storage.
-- Vanilla HTML, CSS, dan JavaScript untuk UI.
-- `@supabase/supabase-js`, `bcryptjs`, `busboy`, `exceljs`, dan utilitas serverless di backend.
+- HTML, CSS, dan JavaScript tanpa framework untuk frontend.
+- Node.js untuk runtime API dan utilitas lokal.
+
+## Struktur Proyek
+
+```text
+.
+|-- api/           # Vercel serverless functions dan helper backend
+|-- lib/           # Modul browser/shared logic
+|-- scripts/       # Utilitas pengecekan lokal
+|-- tests/         # Test Node bawaan
+|-- *.html         # Halaman aplikasi
+|-- code.gs        # Skrip pendukung Google Apps Script
+|-- sql-*.sql      # SQL tambahan untuk index dan security
+|-- vercel.json    # Konfigurasi deployment Vercel
+```
 
 ## Halaman Utama
 
-- `/index.html` untuk landing dan akses dashboard.
-- `/dashboard.html` untuk workspace utama dan ringkasan data.
-- `/input.html` untuk upload bukti transfer.
+- `/index.html` untuk landing dan akses awal.
+- `/dashboard.html` untuk workspace utama.
+- `/input.html` untuk input transfer dan OCR bukti.
 - `/rekap.html` untuk rekap transfer per cabang.
-- `/noncod.html` untuk dashboard noncod/dfod.
+- `/noncod.html` untuk monitoring NONCOD dan DFOD.
 - `/admin.html` untuk operasi admin.
 
-## API Penting
+## Endpoint API
 
-- `/api/auth` untuk cek password, login, buat password awal, dan ganti password.
-- `/api/dashboard` untuk ringkasan transfer dan cleanup data lama.
+- `/api/auth` untuk login, setup password awal, dan ganti password.
+- `/api/dashboard` untuk ringkasan transfer dashboard.
 - `/api/input` untuk simpan transfer baru dan upload bukti.
-- `/api/cabang` untuk list dan CRUD cabang.
-- `/api/transfer` untuk list, edit, hapus, dan split transfer dari admin.
-- `/api/noncod` untuk summary, sinkron data MauKirim, dan hapus data per periode.
+- `/api/cabang` untuk list dan CRUD data cabang.
+- `/api/transfer` untuk list, edit, hapus, dan split transfer.
+- `/api/noncod` untuk summary NONCOD/DFOD dan sinkron data MauKirim.
 - `/api/check-update` untuk ringkasan update transfer.
-- `/api/check-dupe` untuk cek duplikasi sebelum input transfer.
-- `/api/ocr` untuk ekstraksi data bukti transfer dari gambar.
-- `/api/logs`, `/api/visit`, dan `/api/proxy-image` untuk utilitas operasional.
+- `/api/check-dupe` untuk cek duplikasi sebelum input.
+- `/api/ocr` untuk ekstraksi data bukti transfer.
+- `/api/logs`, `/api/visit`, dan `/api/proxy-image` untuk kebutuhan operasional.
+
+## Persiapan Lokal
+
+### Prasyarat
+
+- Node.js 18 atau lebih baru.
+- Akun dan project Supabase.
+- Project Vercel untuk menjalankan API secara lokal maupun production.
+
+### Instalasi
+
+1. Install dependency:
+
+```bash
+npm install
+```
+
+2. Salin `.env.example` menjadi `.env`.
+3. Isi environment variable sesuai environment Anda.
+4. Jalankan aplikasi lokal:
+
+```bash
+npx vercel dev
+```
 
 ## Environment Variables
 
-Salin `.env.example` menjadi `.env`, lalu isi nilai yang sesuai.
+Template tersedia di `.env.example`.
 
 ```env
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-ALLOWED_ORIGIN=
-MAUKIRIM_WA=
-MAUKIRIM_PASS=
-GROQ_API_KEY=
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
-EXCEL_PATH=
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+ALLOWED_ORIGIN=https://your-domain.vercel.app
+MAUKIRIM_WA=628xxxxxxxxxx
+MAUKIRIM_PASS=your-maukirim-password
+GROQ_API_KEY=your-groq-api-key
+UPSTASH_REDIS_REST_URL=https://your-upstash-instance.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-upstash-token
+EXCEL_PATH=C:/path/to/source.xlsx
 ```
 
-Keterangan singkat:
+Kebutuhan utama:
 
-- `SUPABASE_URL` dan `SUPABASE_ANON_KEY` wajib untuk seluruh API.
-- `SUPABASE_SERVICE_ROLE_KEY` sangat disarankan untuk server agar tabel `settings` bisa diproteksi dengan RLS tanpa memutus endpoint auth. Jangan pernah expose key ini ke browser.
-- `ALLOWED_ORIGIN` opsional untuk pembatasan CORS tambahan.
-- `MAUKIRIM_WA` dan `MAUKIRIM_PASS` dipakai auto sync noncod/dfod.
-- `GROQ_API_KEY` dipakai endpoint OCR.
-- `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN` opsional untuk rate limiter lintas instance. Jika kosong, limiter fallback ke memory per instance.
+- `SUPABASE_URL` dan `SUPABASE_ANON_KEY` wajib untuk API.
+- `SUPABASE_SERVICE_ROLE_KEY` dipakai endpoint server yang butuh akses penuh.
+- `MAUKIRIM_WA` dan `MAUKIRIM_PASS` dipakai untuk sync NONCOD/DFOD.
+- `GROQ_API_KEY` dipakai fitur OCR.
+- `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN` dipakai rate limiter lintas instance.
 - `EXCEL_PATH` hanya dipakai script migrasi lokal.
 
-## Kebutuhan Supabase
+## Resource Supabase
 
-Project ini mengandalkan resource berikut di Supabase:
+Project ini mengandalkan resource berikut:
 
 - Tabel `settings`
 - Tabel `cabang`
@@ -77,28 +114,29 @@ Project ini mengandalkan resource berikut di Supabase:
 - Tabel `noncod`
 - Tabel `visitors`
 - Tabel `error_logs`
-- Storage bucket `bukti-transfer`
+- Bucket storage `bukti-transfer`
 
-File `sql-indexes.sql` berisi indeks tambahan, bukan schema lengkap tabel.
-File `sql-security.sql` berisi hardening RLS untuk tabel `settings`.
+Tambahan SQL di repo:
 
-## Menjalankan Lokal
+- `sql-indexes.sql` untuk indeks tambahan.
+- `sql-security.sql` untuk hardening akses tabel `settings`.
 
-1. Install dependency dengan `npm install`.
-2. Buat file `.env` dari `.env.example`.
-3. Isi environment variable yang dibutuhkan.
-4. Jalankan lokal dengan `npx vercel dev`.
-5. Buka aplikasi di URL lokal yang ditampilkan Vercel.
+## Scripts
 
-## Deploy
+- `npm run lint` untuk syntax check file JavaScript.
+- `npm run test` untuk menjalankan seluruh test.
+- `npm run check` untuk menjalankan lint dan test sekaligus.
 
-1. Hubungkan repo ini ke project Vercel.
-2. Masukkan semua environment variable di Vercel Project Settings.
-3. Pastikan `SUPABASE_SERVICE_ROLE_KEY` terisi sebelum menerapkan `sql-security.sql`.
+## Deployment
+
+1. Hubungkan repository ke project Vercel.
+2. Isi semua environment variable di Vercel Project Settings.
+3. Pastikan konfigurasi Supabase sudah sesuai dengan resource yang dibutuhkan.
 4. Deploy branch `main`.
 
-## Catatan
+## Pengembangan
 
-- File sensitif seperti `.env`, `.vercel`, dan snapshot akun sudah diabaikan oleh Git.
-- Jangan masukkan kredensial asli ke repository.
-- `/api/dashboard` sekarang mengambil data Supabase secara bertahap per batch agar tidak menarik seluruh row sekaligus dalam satu query.
+- Helper backend ada di `api/_*.js`.
+- Shared frontend logic ada di `lib/`.
+- Test memakai `node --test` tanpa framework tambahan.
+- File HTML utama tetap menjadi entry point tiap modul halaman.

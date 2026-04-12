@@ -159,8 +159,8 @@
       .tr-item-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
       .tr-item-nominal { font-size: 0.84rem; font-weight: 800; color: var(--blue); white-space: nowrap; }
       .tr-dup-flag { font-size: 0.58rem; font-weight: 800; background: #fee2e2; color: #dc2626; border-radius: 999px; padding: 2px 7px; letter-spacing: 0.04em; text-transform: uppercase; }
-      .btn-proof-tr { font-size: 0.63rem; font-weight: 700; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 2px 8px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px; transition: 0.15s; }
-      .btn-proof-tr:hover { background: #dbeafe; }
+      .btn-proof-tr { font-size: 0.63rem; font-weight: 700; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 2px 8px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px; transition: 0.15s; text-decoration: none; }
+      .btn-proof-tr:hover { background: #dbeafe; color: #1d4ed8; text-decoration: none; }
       .btn-split-item { font-size: 0.63rem; font-weight: 700; color: #d97706; background: #fef9c3; border: 1px solid #fde68a; border-radius: 6px; padding: 2px 9px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px; transition: 0.15s; }
       .btn-split-item:hover { background: #fef08a; }
       .btn-del-tr { font-size: 0.63rem; font-weight: 700; color: #dc2626; background: #fee2e2; border: 1px solid #fecaca; border-radius: 6px; padding: 2px 8px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px; transition: 0.15s; }
@@ -1197,54 +1197,82 @@
         }
       }
 
-      const adminProofViewerModule = window.AdminProofViewer;
-      if (!adminProofViewerModule) {
-        throw new Error('Admin proof viewer module gagal dimuat.');
+      function isAllowedProofUrl(src) {
+        if (!src) return false;
+        try {
+          const url = new URL(src, window.location.origin);
+          if (url.origin === window.location.origin && (url.pathname === '/api/proxy-image' || url.pathname === '/api/image')) {
+            return true;
+          }
+          return /^https:\/\/.*\.supabase\.co\/storage\//.test(url.href);
+        } catch {
+          return false;
+        }
       }
-      const proofViewer = adminProofViewerModule.createProofViewer({
-        overlay: document.getElementById('proofOverlay'),
-        stage: document.getElementById('proofStage'),
-        actions: document.getElementById('proofActions'),
-        image: document.getElementById('proofImg'),
-        error: document.getElementById('proofErr'),
-      });
+
+      const adminProofViewerModule = window.AdminProofViewer;
+      const proofViewer = adminProofViewerModule
+        ? adminProofViewerModule.createProofViewer({
+            overlay: document.getElementById('proofOverlay'),
+            stage: document.getElementById('proofStage'),
+            actions: document.getElementById('proofActions'),
+            image: document.getElementById('proofImg'),
+            error: document.getElementById('proofErr'),
+          })
+        : null;
 
       function handleProofOverlay(event) {
+        if (!proofViewer) return;
         proofViewer.handleOverlay(event);
       }
 
       function scheduleProofActionsPosition() {
+        if (!proofViewer) return;
         proofViewer.scheduleActionsPosition();
       }
 
       function positionProofActions() {
+        if (!proofViewer) return;
         proofViewer.positionActions();
       }
 
       function handleProofLoad() {
+        if (!proofViewer) return;
         proofViewer.handleLoad();
       }
 
       function handleProofError() {
+        if (!proofViewer) return;
         proofViewer.handleError();
       }
 
       function openProof(src) {
-        proofViewer.open(src);
+        if (!isAllowedProofUrl(src)) return false;
+        if (!proofViewer) return true;
+        try {
+          proofViewer.open(src);
+          return false;
+        } catch {
+          return true;
+        }
       }
 
       function closeProof() {
+        if (!proofViewer) return;
         proofViewer.close();
       }
 
       function rotateProof() {
+        if (!proofViewer) return;
         proofViewer.rotate();
       }
 
-      document.addEventListener('keydown', proofViewer.handleKeydown);
-      document.getElementById('proofImg').addEventListener('transitionend', proofViewer.scheduleActionsPosition);
-      window.addEventListener('resize', proofViewer.scheduleActionsPosition);
-      document.getElementById('proofOverlay').addEventListener('scroll', proofViewer.positionActions);
+      if (proofViewer) {
+        document.addEventListener('keydown', proofViewer.handleKeydown);
+        document.getElementById('proofImg').addEventListener('transitionend', proofViewer.scheduleActionsPosition);
+        window.addEventListener('resize', proofViewer.scheduleActionsPosition);
+        document.getElementById('proofOverlay').addEventListener('scroll', proofViewer.positionActions);
+      }
 
       async function openTransferReview(periode, cabangEncoded = '', tgl = '', transferId = '', action = '') {
         const cabang = cabangEncoded ? decodeURIComponent(cabangEncoded) : '';
@@ -1282,7 +1310,7 @@
             : '';
           const proofUrl = getTransferProofUrl(t);
           const proofButton = proofUrl
-            ? '<span class="btn-proof-tr" data-proof="' + escHtmlAdmin(proofUrl) + '" onclick="openProof(this.dataset.proof)" title="Lihat bukti transfer"><i class="bi bi-image"></i> Bukti</span>'
+            ? '<a class="btn-proof-tr" href="' + escHtmlAdmin(proofUrl) + '" target="_blank" rel="noopener noreferrer" onclick="return openProof(this.href)" title="Lihat bukti transfer"><i class="bi bi-image"></i> Bukti</a>'
             : '';
           const tglDisplay = t.tgl_inputan
             ? new Date(normTgl(t.tgl_inputan) + 'T00:00:00').toLocaleDateString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric' })

@@ -89,8 +89,8 @@
       .tr-row .tr-tgl { font-size: 0.72rem; color: var(--gray); }
       .tr-row .tr-ket { font-size: 0.67rem; color: var(--gray2); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
       .tr-row .tr-nom { font-size: 0.9rem; font-weight: 800; color: var(--blue); white-space: nowrap; flex-shrink: 0; }
-      .btn-bukti-sm { font-size: 0.63rem; font-weight: 700; color: #7c3aed; background: #ede9fe; border: none; border-radius: 6px; padding: 2px 8px; cursor: pointer; margin-top: 3px; display: inline-flex; align-items: center; gap: 3px; transition: 0.15s; white-space: nowrap; }
-      .btn-bukti-sm:hover { background: #ddd6fe; }
+      .btn-bukti-sm { font-size: 0.63rem; font-weight: 700; color: #7c3aed; background: #ede9fe; border: none; border-radius: 6px; padding: 2px 8px; cursor: pointer; margin-top: 3px; display: inline-flex; align-items: center; gap: 3px; transition: 0.15s; white-space: nowrap; text-decoration: none; }
+      .btn-bukti-sm:hover { background: #ddd6fe; color: #6d28d9; text-decoration: none; }
       .tr-empty { text-align: center; padding: 36px 0; color: var(--gray2); font-size: 0.85rem; }
       .tr-empty i { font-size: 2rem; display: block; margin-bottom: 8px; }
 
@@ -338,7 +338,7 @@
               <span class="tr-bank">${escHtml(l.bank)}</span>
               <div class="tr-tgl">${escHtml(l.tgl)}${l.ts ? ' · ' + fmtWITA(l.ts) : ''}</div>
               ${l.ket && l.ket !== '-' ? `<div class="tr-ket">${escHtml(l.ket)}</div>` : ''}
-              ${l.bukti ? `<button class="btn-bukti-sm" data-image="${escHtml(l.bukti)}" onclick="openPic(this.dataset.image)"><i class="bi bi-image"></i> Lihat Bukti</button>` : ''}
+              ${l.bukti ? `<a class="btn-bukti-sm" href="${escHtml(l.bukti)}" target="_blank" rel="noopener noreferrer" onclick="return openPic(this.href)"><i class="bi bi-image"></i> Lihat Bukti</a>` : ''}
             </div>
             <div class="tr-nom">Rp ${l.nominal.toLocaleString('id-ID')}</div>
           </div>`).join('');
@@ -417,25 +417,41 @@
         applyModalProofRotation();
       }
 
+      function isAllowedProofImageUrl(src) {
+        if (!src) return false;
+        try {
+          const url = new URL(src, window.location.origin);
+          if (url.origin === window.location.origin && (url.pathname === '/api/proxy-image' || url.pathname === '/api/image')) {
+            return true;
+          }
+          return /^https:\/\/.*\.supabase\.co\/storage\//.test(url.href);
+        } catch {
+          return false;
+        }
+      }
+
       function openPic(src) {
-        if (!src) return;
-        const allowed = /^(https:\/\/.*\.supabase\.co\/storage\/|\/api\/proxy-image\?|\/api\/image\?path=)/;
-        if (!allowed.test(src)) return;
-        const actions = document.getElementById('modalImgActions');
-        const modalEl = document.getElementById('modalImg');
-        const img = document.getElementById('fullImg');
-        const errEl = document.getElementById('imgErr');
-        actions.style.visibility = 'hidden';
-        document.getElementById('modalImgStage').style.width = '';
-        document.getElementById('modalImgStage').style.height = '';
-        img.style.display = '';
-        img.style.transform = '';
-        img.style.maxWidth = '100%';
-        img.style.maxHeight = '80vh';
-        rotateDeg = 0;
-        errEl.style.display = 'none';
-        img.src = src;
-        new bootstrap.Modal(modalEl).show();
+        if (!isAllowedProofImageUrl(src)) return false;
+        try {
+          const actions = document.getElementById('modalImgActions');
+          const modalEl = document.getElementById('modalImg');
+          const img = document.getElementById('fullImg');
+          const errEl = document.getElementById('imgErr');
+          actions.style.visibility = 'hidden';
+          document.getElementById('modalImgStage').style.width = '';
+          document.getElementById('modalImgStage').style.height = '';
+          img.style.display = '';
+          img.style.transform = '';
+          img.style.maxWidth = '100%';
+          img.style.maxHeight = '80vh';
+          rotateDeg = 0;
+          errEl.style.display = 'none';
+          img.src = src;
+          new bootstrap.Modal(modalEl).show();
+          return false;
+        } catch {
+          return true;
+        }
       }
 
       document.getElementById('modalImg').addEventListener('shown.bs.modal', scheduleModalProofActionsPosition);

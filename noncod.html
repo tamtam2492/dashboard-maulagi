@@ -978,8 +978,10 @@
       }
 
       function getFilteredRekonRows(baseRows, opts) {
-        const q = opts && Object.prototype.hasOwnProperty.call(opts, 'q') ? opts.q : getSearchQ();
-        const statusFilter = opts && opts.status ? opts.status : activeStatus;
+        const hasExplicitQuery = opts && Object.prototype.hasOwnProperty.call(opts, 'q') && opts.q !== undefined;
+        const hasExplicitStatus = opts && Object.prototype.hasOwnProperty.call(opts, 'status') && opts.status !== undefined;
+        const q = hasExplicitQuery ? opts.q : getSearchQ();
+        const statusFilter = hasExplicitStatus ? opts.status : activeStatus;
         return noncodAggregation.filterRekonRows(baseRows, {
           query: q,
           status: statusFilter,
@@ -994,9 +996,12 @@
       function getTodayRows(opts) {
         const dates = (opts && opts.dates) || getDateRange();
         const periode = document.getElementById('periodeSelect').value;
+        const filterOpts = {};
+        if (opts && Object.prototype.hasOwnProperty.call(opts, 'q')) filterOpts.q = opts.q;
+        if (opts && Object.prototype.hasOwnProperty.call(opts, 'status')) filterOpts.status = opts.status;
         const rows = getFilteredRekonRows(
           getAggregatedRekonBaseRows(dates, periode),
-          { q: opts && opts.q, status: opts && opts.status }
+          filterOpts
         );
         rows.sort((a, b) => b.belum - a.belum);
         return rows;
@@ -1004,7 +1009,7 @@
 
       function renderToday() {
         const rows = getTodayRows();
-        // Count all rows (unfiltered) for stat counts
+        // Statistik mengikuti search/area aktif, tetapi tanpa filter status.
         const allRows = getTodayRows({ status: 'semua' });
         const cntSudah = allRows.filter(r => r.belum <= 0).length;
         const cntBelum = allRows.filter(r => r.belum > 0).length;
