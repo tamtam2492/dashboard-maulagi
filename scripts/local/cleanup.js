@@ -1,8 +1,8 @@
 /**
  * cleanup.js
  * Hapus data transfers + foto bukti lebih dari 2 bulan
- * Jalankan: node -r dotenv/config cleanup.js
- * Atau dry-run: node -r dotenv/config cleanup.js --dry-run
+ * Jalankan: node -r dotenv/config scripts/local/cleanup.js
+ * Atau dry-run: node -r dotenv/config scripts/local/cleanup.js --dry-run
  */
 const { createClient } = require('@supabase/supabase-js');
 
@@ -88,7 +88,7 @@ async function run() {
 
   if (DRY_RUN) {
     console.log('\nJalankan tanpa --dry-run untuk menghapus permanen:');
-    console.log('  node -r dotenv/config cleanup.js');
+    console.log('  node -r dotenv/config scripts/local/cleanup.js');
   }
 }
 

@@ -24,10 +24,9 @@ Dashboard internal untuk input bukti transfer, rekap transfer cabang, monitoring
 .
 |-- api/           # Fungsi serverless Vercel dan helper backend
 |-- lib/           # Modul browser/shared logic
-|-- scripts/       # Utilitas pengecekan lokal
+|-- scripts/       # Utilitas lokal, pengecekan, dan arsip lama
 |-- tests/         # Test Node bawaan
 |-- *.html         # Halaman aplikasi
-|-- code.gs        # Skrip pendukung Google Apps Script
 |-- sql-*.sql      # SQL tambahan untuk indeks dan keamanan
 |-- vercel.json    # Konfigurasi deployment Vercel
 ```
@@ -128,6 +127,12 @@ Tambahan SQL di repo:
 - `npm run lint` untuk pemeriksaan sintaks file JavaScript.
 - `npm run test` untuk menjalankan seluruh test.
 - `npm run check` untuk menjalankan lint dan test sekaligus.
+- `npm run local:cleanup` untuk cleanup manual data transfer lama.
+- `npm run local:cleanup:dry` untuk simulasi cleanup tanpa hapus data.
+- `npm run local:seed-cabang` untuk isi ulang master data cabang.
+
+Utilitas maintenance yang masih aktif disimpan di `scripts/local/`.
+Skrip migrasi dan integrasi lama yang sifatnya one-off diarsipkan di `scripts/legacy/`.
 
 ## Deploy
 

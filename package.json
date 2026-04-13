@@ -5,7 +5,10 @@
   "scripts": {
     "lint": "node scripts/check-syntax.js",
     "test": "node --test",
-    "check": "npm run lint && npm run test"
+    "check": "npm run lint && npm run test",
+    "local:cleanup": "node -r dotenv/config scripts/local/cleanup.js",
+    "local:cleanup:dry": "node -r dotenv/config scripts/local/cleanup.js --dry-run",
+    "local:seed-cabang": "node -r dotenv/config scripts/local/seed-cabang.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.102.1",

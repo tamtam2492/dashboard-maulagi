@@ -39,7 +39,7 @@
       .field-ket.warn { color: var(--orange); }
 
       .form-control, .form-select { border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.88rem; padding: 10px 14px; color: var(--dark); background: #f8fafc; transition: border-color 0.2s, box-shadow 0.2s; font-family: 'Inter', sans-serif; }
-      .form-control:focus, .form-select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); background: var(--card); outline: none; }
+      .form-control:focus, .form-select:focus { border-color: rgba(19,27,46,0.5); box-shadow: 0 0 0 3px rgba(19,27,46,0.07); background: var(--card); outline: none; }
 
       /* Tanggal 3 kolom */
       .date-row { display: grid; grid-template-columns: 2fr 3fr 2.5fr; gap: 8px; }
@@ -49,32 +49,51 @@
       .nominal-wrap { position: relative; }
       .nominal-wrap .prefix { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-weight: 700; color: var(--gray); font-size: 0.9rem; pointer-events: none; }
       .nominal-wrap .form-control { padding-left: 38px; }
-      #nominalPreview { font-size: 0.78rem; color: var(--blue); font-weight: 600; margin-top: 6px; min-height: 18px; }
+      #nominalPreview { font-size: 0.78rem; color: var(--dark); font-weight: 600; margin-top: 6px; min-height: 18px; }
 
 
 
       /* Upload bukti */
-      .upload-area { border: 2px dashed var(--gray3); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: #f8fafc; position: relative; }
-      .upload-area:hover, .upload-area.dragover { border-color: var(--blue); background: #eff6ff; }
+      .upload-area { border: 1.5px solid var(--border); border-radius: 12px; padding: 0; text-align: center; cursor: pointer; transition: all 0.2s; background: #f8fafc; position: relative; overflow: hidden; }
+      .upload-area:hover, .upload-area.dragover { border-color: rgba(19,27,46,0.45); background: rgba(19,27,46,0.03); }
       .upload-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-      .upload-area .up-icon { font-size: 2rem; color: #93c5fd; margin-bottom: 6px; }
-      .upload-area .up-text { font-size: 0.82rem; font-weight: 600; color: var(--gray); }
-      .upload-area .up-sub { font-size: 0.72rem; color: var(--gray2); margin-top: 2px; }
-      #previewImg { width: 100%; max-height: 220px; object-fit: contain; border-radius: 10px; display: none; margin-top: 10px; border: 1px solid var(--border); }
+      .upload-placeholder { display: flex; align-items: center; gap: 16px; padding: 20px 22px; text-align: left; }
+      .upload-area .up-icon { width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, #e0e7ff, #c7d2fe); color: #4338ca; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
+      .upload-area .up-copy { flex: 1; min-width: 0; }
+      .upload-area .up-text { font-size: 0.95rem; font-weight: 700; color: var(--dark); letter-spacing: -0.01em; }
+      .upload-area .up-sub { font-size: 0.72rem; color: var(--gray2); margin-top: 3px; }
+      .upload-area .up-cta { flex-shrink: 0; padding: 8px 16px; border-radius: 10px; background: var(--dark); color: white; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; }
+      #previewImg { width: 100%; max-height: 260px; object-fit: contain; display: none; border-radius: 10px; }
 
       /* OCR scanning */
       .ocr-status { display: none; align-items: center; gap: 8px; margin-top: 10px; padding: 10px 14px; border-radius: 10px; font-size: 0.82rem; font-weight: 600; }
-      .ocr-status.scanning { display: flex; background: #eff6ff; color: var(--blue); }
+      .ocr-status.scanning { display: flex; background: rgba(19,27,46,0.05); color: var(--dark); }
       .ocr-status.success { display: flex; background: #f0fdf4; color: #16a34a; }
       .ocr-status.error { display: flex; background: #fef2f2; color: var(--red); }
       .ocr-status.info { display: flex; background: #fffbeb; color: #b45309; }
       .ocr-status .spinner-border { width: 16px; height: 16px; border-width: 2px; }
-      .ocr-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: #dbeafe; color: #2563eb; white-space: nowrap; flex-shrink: 0; }
+      .ocr-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: rgba(19,27,46,0.08); color: var(--dark); white-space: nowrap; flex-shrink: 0; }
 
       /* Hidden fields container — revealed after scan */
       #formFields { display: none; flex-direction: column; gap: 12px; }
       #formFields.show { display: flex; animation: slideIn 0.35s ease-out; }
+      #detailAfterCabang { display: none; flex-direction: column; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border); }
+      #detailAfterCabang.show { display: flex; animation: slideIn 0.35s ease-out; }
       @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+      .cabang-stage-note {
+        display: none;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px dashed #cbd5e1;
+        background: #f8fafc;
+        color: var(--gray);
+        font-size: 0.78rem;
+        line-height: 1.5;
+      }
+      .cabang-stage-note i { color: var(--dark2); margin-top: 2px; }
 
       /* Compact inline field row */
       .inline-field { display: flex; align-items: center; gap: 10px; padding: 12px 16px; }
@@ -82,33 +101,62 @@
       .inline-field .if-body { flex: 1; min-width: 0; }
       .inline-field .if-label { font-size: 0.7rem; font-weight: 700; color: var(--gray); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 2px; }
       .inline-field .if-value { font-size: 0.95rem; font-weight: 600; color: var(--dark); border: none; background: transparent; width: 100%; padding: 0; outline: none; font-family: 'Inter', sans-serif; }
-      .inline-field .if-value:focus { color: var(--blue); }
+      .inline-field .if-value:focus { color: var(--dark); }
       .inline-field .if-value::placeholder { color: var(--gray3); font-weight: 400; }
 
       /* Day picker pills */
       .day-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
       .day-pill { flex: 1; min-width: 0; padding: 8px 6px; border-radius: 10px; border: 1.5px solid var(--border); background: #f8fafc; font-size: 0.75rem; font-weight: 600; color: var(--gray); text-align: center; cursor: pointer; transition: all 0.15s; line-height: 1.3; }
       .day-pill .pill-day { font-size: 0.95rem; font-weight: 700; color: var(--dark); display: block; }
-      .day-pill:hover { border-color: var(--blue); background: #eff6ff; }
-      .day-pill.active { border-color: var(--blue); background: #dbeafe; color: var(--blue); }
-      .day-pill.active .pill-day { color: var(--blue); }
+      .day-pill:hover { border-color: rgba(19,27,46,0.3); background: #f1f5f9; }
+      .day-pill.active { border-color: var(--dark); background: var(--dark); color: white; }
+      .day-pill.active .pill-day { color: white; }
 
       /* Search dropdown */
       .search-dd { position: relative; }
       .search-dd input { width: 100%; border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.88rem; padding: 10px 14px 10px 36px; color: var(--dark); background: #f8fafc; transition: border-color 0.2s, box-shadow 0.2s; font-family: 'Inter', sans-serif; }
-      .search-dd input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); background: var(--card); outline: none; }
+      .search-dd input:focus { border-color: rgba(19,27,46,0.5); box-shadow: 0 0 0 3px rgba(19,27,46,0.07); background: var(--card); outline: none; }
       .search-dd .dd-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--gray2); font-size: 0.85rem; pointer-events: none; z-index: 1; }
       .search-dd .dd-list { display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--card); border: 1.5px solid var(--border); border-radius: 10px; max-height: 220px; overflow-y: auto; z-index: 20; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
       .search-dd.open .dd-list { display: block; }
       .search-dd .dd-group { font-size: 0.68rem; font-weight: 700; color: var(--gray); text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 14px 4px; }
-      .search-dd .dd-item { padding: 9px 14px; font-size: 0.85rem; cursor: pointer; color: var(--dark); transition: background 0.15s; }
-      .search-dd .dd-item:hover, .search-dd .dd-item.active { background: #eff6ff; color: var(--blue); }
+      .search-dd .dd-item { padding: 10px 14px; font-size: 0.85rem; cursor: pointer; color: var(--dark); transition: background 0.15s; }
+      .search-dd .dd-item:hover, .search-dd .dd-item.active { background: #f1f5f9; color: var(--dark); }
       .search-dd .dd-item:last-child { border-radius: 0 0 10px 10px; }
       .search-dd .dd-empty { padding: 12px 14px; font-size: 0.82rem; color: var(--gray2); text-align: center; }
+      .search-dd .dd-name { font-size: 0.84rem; font-weight: 700; color: var(--dark); }
+      .search-dd .dd-meta { font-size: 0.72rem; color: var(--gray2); margin-top: 2px; }
+      .search-dd .dd-item:hover .dd-meta, .search-dd .dd-item.active .dd-meta { color: var(--gray); }
+      .search-dd input:disabled { background: #eef2f7; color: var(--gray2); cursor: not-allowed; }
+      .search-dd input:disabled::placeholder { color: var(--gray2); }
+
+      .branch-summary { display: none; }
+      .branch-summary.show { display: block; }
+      .branch-summary-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+      .branch-summary-title { font-size: 1rem; font-weight: 800; color: var(--dark); letter-spacing: -0.02em; }
+      .branch-summary-meta { font-size: 0.74rem; color: var(--gray); margin-top: 4px; line-height: 1.45; }
+      .branch-summary-badge { padding: 7px 12px; border-radius: 999px; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.03em; background: #e2e8f0; color: var(--dark); white-space: normal; text-align: center; line-height: 1.25; max-width: 150px; }
+      .branch-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .branch-summary-stat { background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+      .branch-summary-stat-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray); margin-bottom: 6px; }
+      .branch-summary-stat-value { font-size: 0.9rem; font-weight: 700; color: var(--dark); line-height: 1.35; }
+      .branch-summary-note { margin-top: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: #f8fafc; font-size: 0.8rem; line-height: 1.55; color: var(--dark2); }
+      .branch-summary-editor-label { font-size: 0.74rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray); margin-bottom: 2px; }
+      .branch-summary[data-tone="ok"] .branch-summary-badge { background: #dcfce7; color: #166534; }
+      .branch-summary[data-tone="ok"] .branch-summary-note { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+      .branch-summary[data-tone="info"] .branch-summary-badge { background: #dbeafe; color: #1d4ed8; }
+      .branch-summary[data-tone="info"] .branch-summary-note { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+      .branch-summary[data-tone="warn"] .branch-summary-badge { background: #fef3c7; color: #b45309; }
+      .branch-summary[data-tone="warn"] .branch-summary-note { background: #fffbeb; border-color: #fde68a; color: #b45309; }
+      .branch-summary[data-tone="pending"] .branch-summary-badge { background: #e2e8f0; color: var(--dark); }
+      .branch-summary[data-tone="pending"] .branch-summary-note { background: #f8fafc; border-color: var(--border); color: var(--dark2); }
+      @media (max-width: 640px) {
+        .branch-summary-grid { grid-template-columns: 1fr; }
+      }
 
       /* Submit */
-      .btn-submit { width: 100%; padding: 14px; border-radius: var(--radius); font-size: 1rem; font-weight: 700; border: none; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; box-shadow: 0 4px 14px rgba(59,130,246,0.35); transition: all 0.2s; letter-spacing: -0.01em; }
-      .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(59,130,246,0.45); }
+      .btn-submit { width: 100%; padding: 14px; border-radius: var(--radius); font-size: 1rem; font-weight: 700; border: none; background: linear-gradient(135deg, #131b2e, #202b46); color: white; box-shadow: 0 4px 14px rgba(19,27,46,0.28); transition: all 0.2s; letter-spacing: -0.01em; }
+      .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(19,27,46,0.35); }
       .btn-submit:active { transform: translateY(0); }
       .btn-submit:disabled { background: var(--gray2); box-shadow: none; transform: none; }
 
@@ -136,15 +184,42 @@
       .dupe-btns .btn-force { background:linear-gradient(135deg,var(--orange),#d97706); color:white; box-shadow:0 4px 14px rgba(245,158,11,0.35); }
       .dupe-btns .btn-force:hover { box-shadow:0 6px 20px rgba(245,158,11,0.45); }
     </style>
+    <link rel="stylesheet" href="/lib/maulagi-sovereign.css">
   </head>
-  <body>
+  <body class="app-input">
 
     <div class="top-bar">
       <a href="/"><i class="bi bi-arrow-left"></i></a>
-      <h1><i class="bi bi-cloud-upload-fill text-primary me-2"></i>Upload Bukti Transfer</h1>
+      <div class="top-bar-info">
+        <div class="top-bar-kicker">Maulagi &middot; Internal</div>
+        <h1>Upload Bukti Transfer</h1>
+      </div>
     </div>
 
     <div class="form-wrap" id="formWrap">
+
+      <!-- Step progress indicator -->
+      <div class="input-steps" id="inputSteps">
+        <div class="is-step is-active" data-s="1">
+          <div class="is-dot"><i class="bi bi-image-fill"></i></div>
+          <div class="is-label">Upload</div>
+        </div>
+        <div class="is-connector" id="isConn1"></div>
+        <div class="is-step" data-s="2">
+          <div class="is-dot"><i class="bi bi-geo-alt-fill"></i></div>
+          <div class="is-label">Cabang</div>
+        </div>
+        <div class="is-connector" id="isConn2"></div>
+        <div class="is-step" data-s="3">
+          <div class="is-dot"><i class="bi bi-cash-stack"></i></div>
+          <div class="is-label">Detail</div>
+        </div>
+        <div class="is-connector" id="isConn3"></div>
+        <div class="is-step" data-s="4">
+          <div class="is-dot"><i class="bi bi-send-fill"></i></div>
+          <div class="is-label">Kirim</div>
+        </div>
+      </div>
 
       <!-- Bukti Transfer + OCR (upload first, auto-fills fields below) -->
       <div class="field-card">
@@ -152,13 +227,16 @@
           <span class="lbl-icon" style="background:#ede9fe;color:#7c3aed"><i class="bi bi-image-fill"></i></span>
           Bukti Transfer
         </div>
-        <div class="field-ket">Upload screenshot bukti transfer — data akan otomatis dibaca oleh AI</div>
+        <div class="field-ket">Upload foto bukti transfer &mdash; AI baca otomatis.</div>
         <div class="upload-area" id="uploadArea">
           <input type="file" id="fileBukti" accept="image/*">
-          <div id="uploadPlaceholder">
-            <div class="up-icon"><i class="bi bi-cloud-arrow-up"></i></div>
-            <div class="up-text">Tap untuk pilih foto</div>
-            <div class="up-sub">Upload → AI Scan otomatis &nbsp;·&nbsp; JPG, PNG</div>
+          <div id="uploadPlaceholder" class="upload-placeholder">
+            <div class="up-icon"><i class="bi bi-cloud-upload-fill"></i></div>
+            <div class="up-copy">
+              <div class="up-text">Tap untuk pilih foto</div>
+              <div class="up-sub">AI scan otomatis &middot; JPG, PNG</div>
+            </div>
+            <div class="up-cta">Pilih Foto</div>
           </div>
           <img id="previewImg" src="" alt="preview">
         </div>
@@ -166,51 +244,7 @@
       </div>
 
       <!-- Fields hidden until scan done -->
-      <div id="formFields">
-
-      <!-- Bank -->
-      <div class="field-card inline-field">
-        <div class="if-icon" style="background:#fef9c3;color:#ca8a04"><i class="bi bi-bank2"></i></div>
-        <div class="if-body">
-          <div class="if-label">Bank</div>
-          <input type="text" class="if-value" id="namaBank" placeholder="Nama bank..." oninput="checkReady()" onblur="normalizeBankInputField(); checkReady()" autocomplete="off">
-        </div>
-        <span class="ocr-badge" id="bankBadge" style="display:none"><i class="bi bi-robot"></i>AI</span>
-      </div>
-
-      <div class="field-card inline-field">
-        <div class="if-icon" style="background:#dcfce7;color:#16a34a"><i class="bi bi-cash-stack"></i></div>
-        <div class="if-body">
-          <div class="if-label">Nominal Transfer <span style="font-weight:400;color:var(--gray2)">(tanpa admin)</span></div>
-          <input type="text" class="if-value" id="nominal" placeholder="0" inputmode="numeric" oninput="formatNominal(this); checkReady()" autocomplete="off">
-        </div>
-        <span class="ocr-badge" id="nominalBadge" style="display:none"><i class="bi bi-robot"></i>AI</span>
-      </div>
-
-      <!-- Periode -->
-      <div class="field-card">
-        <div class="field-label">
-          <span class="lbl-icon" style="background:#e0e7ff;color:#4338ca"><i class="bi bi-calendar-month-fill"></i></span>
-          Periode Rekap
-        </div>
-        <div class="field-ket"><i class="bi bi-info-circle me-1"></i>Otomatis mengikuti tanggal input / pickup agar tidak salah periode</div>
-        <select class="form-select" id="periodeInput" disabled aria-disabled="true"></select>
-      </div>
-
-      <!-- Tanggal Input/Pickup -->
-      <div class="field-card">
-        <div class="field-label">
-          <span class="lbl-icon" style="background:#fef3c7;color:#d97706"><i class="bi bi-truck"></i></span>
-          Tanggal Input / Pickup
-        </div>
-        <div class="field-ket"><i class="bi bi-info-circle me-1"></i>Sesuaikan dengan tanggal input/pickup yang sudah anda input/pickup hari ini atau kemarin</div>
-        <input type="hidden" id="tglPickup">
-        <div style="display:grid;grid-template-columns:1fr 2fr 1.2fr;gap:8px;margin-top:4px">
-          <select class="form-select" id="pickTgl" onchange="updateTglPickupDay()"></select>
-          <select class="form-select" id="pickBulan" onchange="updateTglPickup()"></select>
-          <select class="form-select" id="pickTahun" onchange="updateTglPickup()"></select>
-        </div>
-      </div>
+      <div id="formFields" class="show">
 
       <!-- Nama Cabang -->
       <div class="field-card">
@@ -218,13 +252,80 @@
           <span class="lbl-icon" style="background:#fce7f3;color:#db2777"><i class="bi bi-geo-alt-fill"></i></span>
           Nama Cabang
         </div>
-        <div class="field-ket">Ketik untuk mencari cabang</div>
+        <div class="field-ket">Pilih cabang untuk cek duplikat sebelum simpan.</div>
         <div class="search-dd" id="cabangDD">
           <i class="bi bi-search dd-icon"></i>
           <input type="text" id="cabangSearch" placeholder="Cari cabang..." autocomplete="off">
           <input type="hidden" id="namaCabang">
           <div class="dd-list" id="cabangList"></div>
         </div>
+      </div>
+
+      <div class="field-card branch-summary" id="cabangSummaryCard" data-tone="pending">
+        <div class="branch-summary-head">
+          <div>
+            <div class="branch-summary-title" id="cabangSummaryName">Cabang belum dipilih</div>
+            <div class="branch-summary-meta" id="cabangSummaryMeta">Pilih cabang agar ringkasan area dan transfer hari itu terlihat jelas.</div>
+          </div>
+          <div class="branch-summary-badge" id="cabangSummaryBadge">Tunggu</div>
+        </div>
+        <div class="branch-summary-grid">
+          <div class="branch-summary-stat">
+            <div class="branch-summary-stat-label">Area</div>
+            <div class="branch-summary-stat-value" id="cabangAreaValue">-</div>
+          </div>
+          <div class="branch-summary-stat">
+            <div class="branch-summary-stat-label">Tanggal NONCOD</div>
+            <div class="branch-summary-stat-value" id="cabangDateValue">-</div>
+          </div>
+          <div class="branch-summary-stat">
+            <div class="branch-summary-stat-label">Ongkir NONCOD</div>
+            <div class="branch-summary-stat-value" id="cabangOngkirValue">-</div>
+          </div>
+          <div class="branch-summary-stat">
+            <div class="branch-summary-stat-label">Selisih</div>
+            <div class="branch-summary-stat-value" id="cabangDiffValue">-</div>
+          </div>
+        </div>
+        <div class="branch-summary-note" id="cabangSummaryNote">Setelah cabang dan nominal terisi, sistem akan otomatis mencocokkan dengan data NONCOD untuk menentukan tanggal transfer.</div>
+
+        <div id="detailAfterCabang">
+          <div class="branch-summary-editor-label">Lengkapi Transfer</div>
+
+          <div class="field-card inline-field">
+            <div class="if-icon" style="background:#fef9c3;color:#ca8a04"><i class="bi bi-bank2"></i></div>
+            <div class="if-body">
+              <div class="if-label">Bank</div>
+              <input type="text" class="if-value" id="namaBank" placeholder="Nama bank..." oninput="checkReady(); scheduleCabangSummaryRefresh()" onblur="normalizeBankInputField(); checkReady(); scheduleCabangSummaryRefresh()" autocomplete="off">
+            </div>
+            <span class="ocr-badge" id="bankBadge" style="display:none"><i class="bi bi-robot"></i>AI</span>
+          </div>
+
+          <div class="field-card inline-field">
+            <div class="if-icon" style="background:#dcfce7;color:#16a34a"><i class="bi bi-cash-stack"></i></div>
+            <div class="if-body">
+              <div class="if-label">Nominal Transfer <span style="font-weight:400;color:var(--gray2)">(tanpa admin)</span></div>
+              <input type="text" class="if-value" id="nominal" placeholder="0" inputmode="numeric" oninput="formatNominal(this); checkReady(); scheduleCabangSummaryRefresh()" autocomplete="off">
+            </div>
+            <span class="ocr-badge" id="nominalBadge" style="display:none"><i class="bi bi-robot"></i>AI</span>
+          </div>
+
+          <div class="field-card">
+            <div class="field-label">
+              <span class="lbl-icon" style="background:#e0e7ff;color:#4338ca"><i class="bi bi-calendar-month-fill"></i></span>
+              Periode Rekap
+            </div>
+            <div class="field-ket"><i class="bi bi-info-circle me-1"></i>Otomatis mengikuti tanggal NONCOD yang cocok</div>
+            <select class="form-select" id="periodeInput" disabled aria-disabled="true"></select>
+          </div>
+
+          <input type="hidden" id="tglInput">
+        </div>
+      </div>
+
+      <div class="cabang-stage-note" id="cabangStageNote">
+        <i class="bi bi-arrow-down-circle-fill"></i>
+        <div id="cabangStageNoteText">Sistem cek duplikat setelah cabang dipilih. Rekonsiliasi NONCOD di admin.</div>
       </div>
 
       </div><!-- end #formFields -->
@@ -235,11 +336,10 @@
 
     </div>
 
-    <!-- Dupe warning modal -->
     <div class="dupe-overlay" id="dupeOverlay">
       <div class="dupe-box">
         <div class="dupe-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
-        <h3>⚠️ Data yang sama sudah ada ⚠️</h3>
+        <h3>⚠️ Area, tanggal, dan nominal yang sama sudah ada ⚠️</h3>
         <div class="dupe-detail" id="dupeDetail"></div>
         <div class="dupe-question">Yakin ingin menambah transfer baru?</div>
         <div class="dupe-btns">
@@ -253,7 +353,7 @@
     <div class="success-screen" id="successScreen">
       <div class="s-icon"><i class="bi bi-check-lg"></i></div>
       <h2>Berhasil Dikirim!</h2>
-      <p>Data transfer Anda sudah masuk.<br>Terima kasih!</p>
+      <p id="successMessage">Data transfer Anda sudah masuk.<br>Terima kasih!</p>
       <button class="btn btn-primary rounded-pill px-5 mt-3 fw-bold" onclick="resetForm()">Upload Lagi</button>
     </div>
 
@@ -291,85 +391,13 @@
         periodeEl.value = periode;
       }
 
-      function syncPeriodeFromPickup() {
-        const tglPickup = document.getElementById('tglPickup').value;
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(tglPickup)) return;
-        ensurePeriodeOption(tglPickup.slice(0, 7));
+      function syncPeriodeFromTglInput() {
+        const tglInput = document.getElementById('tglInput').value;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(tglInput)) return;
+        ensurePeriodeOption(tglInput.slice(0, 7));
       }
 
-      function buildDayPicker() {
-        const today = now;
-        const selTgl = document.getElementById('pickTgl');
-        const selBulan = document.getElementById('pickBulan');
-        const selTahun = document.getElementById('pickTahun');
-
-        // Months
-        selBulan.innerHTML = '';
-        BULAN_ID_FULL.forEach((b, i) => {
-          const o = document.createElement('option');
-          o.value = String(i + 1).padStart(2,'0');
-          o.textContent = b;
-          selBulan.appendChild(o);
-        });
-
-        // Years: current - 1 to current
-        selTahun.innerHTML = '';
-        for (let y = today.getFullYear() - 1; y <= today.getFullYear(); y++) {
-          const o = document.createElement('option');
-          o.value = y;
-          o.textContent = y;
-          selTahun.appendChild(o);
-        }
-
-        // Set default to today
-        selBulan.value = String(today.getMonth() + 1).padStart(2,'0');
-        selTahun.value = today.getFullYear();
-        rebuildDays(today.getDate());
-
-        // Set hidden tglPickup value to today
-        const t = String(today.getDate()).padStart(2,'0');
-        const b = String(today.getMonth() + 1).padStart(2,'0');
-        const y = today.getFullYear();
-        document.getElementById('tglPickup').value = y + '-' + b + '-' + t;
-        syncPeriodeFromPickup();
-      }
-
-      function rebuildDays(selectedDay) {
-        const selTgl = document.getElementById('pickTgl');
-        const b = parseInt(document.getElementById('pickBulan').value);
-        const y = parseInt(document.getElementById('pickTahun').value);
-        const maxDay = new Date(y, b, 0).getDate(); // day 0 of next month = last day of current month
-        const prev = selectedDay || parseInt(selTgl.value) || 1;
-        selTgl.innerHTML = '';
-        for (let d = 1; d <= maxDay; d++) {
-          const o = document.createElement('option');
-          o.value = String(d).padStart(2,'0');
-          o.textContent = d;
-          selTgl.appendChild(o);
-        }
-        selTgl.value = String(Math.min(prev, maxDay)).padStart(2,'0');
-      }
-
-      function updateTglPickupDay() {
-        const t = document.getElementById('pickTgl').value;
-        const b = document.getElementById('pickBulan').value;
-        const y = document.getElementById('pickTahun').value;
-        document.getElementById('tglPickup').value = y + '-' + b + '-' + t;
-        syncPeriodeFromPickup();
-        checkReady();
-      }
-
-      function updateTglPickup() {
-        rebuildDays();
-        const t = document.getElementById('pickTgl').value;
-        const b = document.getElementById('pickBulan').value;
-        const y = document.getElementById('pickTahun').value;
-        document.getElementById('tglPickup').value = y + '-' + b + '-' + t;
-        syncPeriodeFromPickup();
-        checkReady();
-      }
-
-      buildDayPicker();
+      // tglInput sekarang otomatis dari NONCOD match — tidak ada date picker manual
 
       // Format nominal — strip non-numeric, add thousand separator
       function formatNominal(el) {
@@ -386,6 +414,11 @@
       // Load cabang dari API
       // Cabang data store
       let cabangData = []; // [{nama, area}]
+      let cabangSummaryTimer = null;
+      let lastSummaryKey = '';
+      let lastSummaryRequestId = 0;
+      let lastDupeContext = null;
+      let detailStageUnlocked = false;
 
       async function loadCabang() {
         try {
@@ -434,9 +467,219 @@
             lastArea = c.area;
             html += '<div class="dd-group">' + lastArea + '</div>';
           }
-          html += '<div class="dd-item" data-value="' + c.nama.replace(/"/g, '&quot;') + '">' + c.nama + '</div>';
+          html += '<div class="dd-item" data-value="' + c.nama.replace(/"/g, '&quot;') + '">' +
+            '<div class="dd-name">' + c.nama + '</div>' +
+            '<div class="dd-meta">Area ' + c.area + '</div>' +
+            '</div>';
         });
         list.innerHTML = html;
+      }
+
+      function getSelectedCabangRecord() {
+        const selectedName = document.getElementById('namaCabang').value;
+        return cabangData.find(c => c.nama === selectedName) || null;
+      }
+
+      function setCabangSummaryView({ tone, badge, meta, dateValue, ongkirValue, diffValue, note }) {
+        const card = document.getElementById('cabangSummaryCard');
+        card.dataset.tone = tone;
+        document.getElementById('cabangSummaryBadge').textContent = badge;
+        document.getElementById('cabangSummaryMeta').textContent = meta;
+        document.getElementById('cabangDateValue').textContent = dateValue || '-';
+        document.getElementById('cabangOngkirValue').textContent = ongkirValue || '-';
+        document.getElementById('cabangDiffValue').textContent = diffValue || '-';
+        document.getElementById('cabangSummaryNote').textContent = note;
+      }
+
+      function renderCabangSummary(context) {
+        const card = document.getElementById('cabangSummaryCard');
+        const selectedCabang = getSelectedCabangRecord();
+        const vals = getFormValues();
+
+        if (!selectedCabang) {
+          card.classList.remove('show');
+          return;
+        }
+
+        card.classList.add('show');
+        document.getElementById('cabangSummaryName').textContent = selectedCabang.nama;
+        document.getElementById('cabangAreaValue').textContent = selectedCabang.area || '-';
+
+        const scopeLabel = selectedCabang.area ? 'Area ' + selectedCabang.area : 'Cabang ini';
+
+        if (!context) {
+          if (vals.nominal <= 0) {
+            setCabangSummaryView({
+              tone: 'pending',
+              badge: 'Lengkapi data',
+              meta: 'Isi nominal agar sistem bisa mencocokkan dengan data NONCOD.',
+              dateValue: '-',
+              ongkirValue: '-',
+              diffValue: '-',
+              note: 'Setelah nominal terisi, sistem otomatis mencocokkan dengan data NONCOD cabang ini.',
+            });
+          } else {
+            setCabangSummaryView({
+              tone: 'pending',
+              badge: 'Mencocokkan...',
+              meta: selectedCabang.nama + ' · Nominal ' + fmtNom(vals.nominal),
+              dateValue: '...',
+              ongkirValue: '...',
+              diffValue: '...',
+              note: 'Sedang mencocokkan nominal transfer dengan data NONCOD...',
+            });
+          }
+          return;
+        }
+
+        const nc = context.noncodMatch;
+
+        if (!nc) {
+          setCabangSummaryView({
+            tone: 'info',
+            badge: 'Info',
+            meta: selectedCabang.nama,
+            dateValue: '-',
+            ongkirValue: '-',
+            diffValue: '-',
+            note: 'Data NONCOD belum tersedia.',
+          });
+          return;
+        }
+
+        if (nc.match) {
+          const hasDupes = context.dupes && context.dupes.length > 0;
+          const tone = hasDupes ? 'warn' : 'ok';
+          const badge = hasDupes ? 'Cocok, Ada Serupa' : 'Cocok NONCOD';
+          const note = hasDupes
+            ? 'Cocok NONCOD tgl ' + fmtTgl(nc.match.tanggal_buat) + ', tapi ada transfer serupa (area/tanggal/nominal sama) yang sudah tersimpan. Cek ulang.'
+            : 'Cocok dengan NONCOD tgl ' + fmtTgl(nc.match.tanggal_buat) + '. Belum ada bukti transfer untuk tanggal ini. Aman disimpan.';
+          setCabangSummaryView({
+            tone,
+            badge,
+            meta: scopeLabel + ' · Nominal ' + fmtNom(vals.nominal),
+            dateValue: fmtTgl(nc.match.tanggal_buat),
+            ongkirValue: fmtNom(nc.match.totalOngkir),
+            diffValue: nc.match.diff === 0 ? 'Rp 0 (persis)' : fmtNom(nc.match.diff),
+            note,
+          });
+        } else if (nc.blocked) {
+          const firstCand = nc.candidates && nc.candidates[0];
+          setCabangSummaryView({
+            tone: 'warn',
+            badge: 'Indikasi Dobel',
+            meta: scopeLabel + ' · Nominal ' + fmtNom(vals.nominal),
+            dateValue: firstCand ? fmtTgl(firstCand.tanggal_buat) : '-',
+            ongkirValue: firstCand ? fmtNom(firstCand.totalOngkir) : '-',
+            diffValue: '-',
+            note: nc.message || 'Semua tanggal NONCOD yang cocok sudah memiliki bukti transfer.',
+          });
+        } else {
+          setCabangSummaryView({
+            tone: 'info',
+            badge: 'Tidak Cocok',
+            meta: scopeLabel + ' · Nominal ' + fmtNom(vals.nominal),
+            dateValue: '-',
+            ongkirValue: '-',
+            diffValue: '-',
+            note: nc.message || 'Tidak ada data NONCOD yang cocok untuk nominal ini.',
+          });
+        }
+      }
+
+      function resetCabangSummary() {
+        clearTimeout(cabangSummaryTimer);
+        lastSummaryKey = '';
+        lastSummaryRequestId = 0;
+        lastDupeContext = null;
+        document.getElementById('cabangSummaryCard').classList.remove('show');
+      }
+
+      function beginCabangSyncFlow() {
+        lastDupeContext = null;
+        lastSummaryKey = '';
+        document.getElementById('tglInput').value = '';
+        detailStageUnlocked = true;
+        renderCabangSummary(null);
+        updateCabangStepState();
+        refreshCabangSummary(true);
+      }
+
+      function scheduleCabangSummaryRefresh() {
+        clearTimeout(cabangSummaryTimer);
+        cabangSummaryTimer = setTimeout(() => {
+          refreshCabangSummary();
+        }, 350);
+      }
+
+      async function refreshCabangSummary(force = false) {
+        const vals = getFormValues();
+        const selectedCabang = getSelectedCabangRecord();
+
+        if (!selectedCabang) {
+          resetCabangSummary();
+          detailStageUnlocked = false;
+          updateCabangStepState();
+          return;
+        }
+
+        detailStageUnlocked = true;
+        updateCabangStepState();
+
+        if (vals.nominal <= 0) {
+          lastDupeContext = null;
+          lastSummaryKey = '';
+          document.getElementById('tglInput').value = '';
+          renderCabangSummary(null);
+          checkReady();
+          return;
+        }
+
+        const summaryKey = [vals.nama_cabang, vals.nominal].join('|');
+        if (!force && summaryKey === lastSummaryKey && lastDupeContext) {
+          renderCabangSummary(lastDupeContext);
+          checkReady();
+          return;
+        }
+
+        lastSummaryKey = summaryKey;
+        lastDupeContext = null;
+        document.getElementById('tglInput').value = '';
+        renderCabangSummary(null);
+        const requestId = ++lastSummaryRequestId;
+
+        try {
+          const res = await fetch('/api/check-dupe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nama_cabang: vals.nama_cabang,
+              nominal: vals.nominal,
+            }),
+          });
+          const json = await res.json();
+          if (requestId !== lastSummaryRequestId) return;
+          if (!res.ok) throw new Error(json.error || 'Gagal cek.');
+          lastDupeContext = json;
+
+          if (json.noncodMatch && json.noncodMatch.match) {
+            document.getElementById('tglInput').value = json.noncodMatch.match.tanggal_buat;
+            syncPeriodeFromTglInput();
+          } else {
+            document.getElementById('tglInput').value = '';
+          }
+
+          renderCabangSummary(lastDupeContext);
+          checkReady();
+        } catch {
+          if (requestId !== lastSummaryRequestId) return;
+          lastDupeContext = {
+            noncodMatch: { match: null, message: 'Gagal mencocokkan data NONCOD. Coba lagi.' },
+          };
+          document.getElementById('tglInput').value = '';
+          renderCabangSummary(lastDupeContext);
+          checkReady();
+        }
       }
 
       // Search dropdown behavior
@@ -450,7 +693,11 @@
         input.addEventListener('input', () => {
           dd.classList.add('open');
           hidden.value = ''; // clear selection when typing
+          detailStageUnlocked = false;
+          lastDupeContext = null;
+          lastSummaryKey = '';
           renderCabangList(input.value);
+          resetCabangSummary();
           checkReady();
         });
 
@@ -462,6 +709,7 @@
           hidden.value = val;
           dd.classList.remove('open');
           checkReady();
+          beginCabangSyncFlow();
         });
 
         // Close on click outside
@@ -483,7 +731,7 @@
             if (active) { active.classList.remove('active'); let prev = active.previousElementSibling; if (prev && !prev.classList.contains('dd-item')) prev = prev.previousElementSibling; prev?.classList.add('active'); prev?.scrollIntoView({ block: 'nearest' }); }
           } else if (e.key === 'Enter') {
             e.preventDefault();
-            if (active) { input.value = active.dataset.value; hidden.value = active.dataset.value; dd.classList.remove('open'); checkReady(); }
+            if (active) { input.value = active.dataset.value; hidden.value = active.dataset.value; dd.classList.remove('open'); checkReady(); beginCabangSyncFlow(); }
           } else if (e.key === 'Escape') {
             dd.classList.remove('open');
           }
@@ -523,6 +771,7 @@
         if (file.size > MAX_FILE_SIZE) {
           alert('File terlalu besar. Maksimal 5MB.');
           this.value = '';
+          checkReady();
           return;
         }
         const reader = new FileReader();
@@ -532,6 +781,7 @@
           img.src = e.target.result;
           img.style.display = 'block';
           placeholder.style.display = 'none';
+          showFields();
           // Auto-scan with OCR
           runOCR(e.target.result);
         };
@@ -555,7 +805,7 @@
 
       function showFields() {
         document.getElementById('formFields').classList.add('show');
-        document.getElementById('btnSubmit').style.display = '';
+        updateCabangStepState();
       }
 
       function setBadge(badgeId, show) {
@@ -583,13 +833,27 @@
         await ocrController.runOCR(base64DataUrl);
       }
 
+      function setInputStep(n) {
+        document.querySelectorAll('#inputSteps .is-step').forEach(s => {
+          const sn = parseInt(s.dataset.s);
+          s.classList.toggle('is-done', sn < n);
+          s.classList.toggle('is-active', sn === n);
+        });
+        ['isConn1', 'isConn2', 'isConn3'].forEach((id, i) => {
+          const el = document.getElementById(id);
+          if (el) el.classList.toggle('is-filled', i + 1 < n);
+        });
+      }
+
       function checkReady() {
+        updateCabangStepState();
         const ok = document.getElementById('namaBank').value.trim() &&
           parseNominal() > 0 &&
-          document.getElementById('tglPickup').value &&
+          document.getElementById('tglInput').value &&
           document.getElementById('namaCabang').value &&
           document.getElementById('fileBukti').files.length > 0;
         document.getElementById('btnSubmit').disabled = !ok;
+        if (ok) setInputStep(4);
       }
 
       ocrController = inputOcrModule.createInputOcrController({
@@ -612,7 +876,7 @@
       function getFormValues() {
         return {
           periode: document.getElementById('periodeInput').value,
-          tgl_inputan: document.getElementById('tglPickup').value,
+          tgl_inputan: document.getElementById('tglInput').value,
           nama_bank: normalizeBankNameInput(document.getElementById('namaBank').value),
           nama_cabang: document.getElementById('namaCabang').value,
           nominal: parseNominal(),
@@ -643,6 +907,56 @@
         return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Makassar' });
       }
 
+      function hasSelectedCabang() {
+        return !!document.getElementById('namaCabang').value;
+      }
+
+      function updateCabangStepState() {
+        const formVisible = document.getElementById('formFields').classList.contains('show');
+        const hasBukti = document.getElementById('fileBukti').files.length > 0;
+        const cabangSelected = hasSelectedCabang();
+        const cabangInput = document.getElementById('cabangSearch');
+        const cabangDropdown = document.getElementById('cabangDD');
+        const detailFields = document.getElementById('detailAfterCabang');
+        const cabangStageNote = document.getElementById('cabangStageNote');
+        const cabangStageNoteText = document.getElementById('cabangStageNoteText');
+        const submitBtn = document.getElementById('btnSubmit');
+
+        cabangInput.disabled = !hasBukti;
+        cabangInput.placeholder = hasBukti ? 'Cari cabang...' : 'Upload bukti dulu untuk pilih cabang';
+        if (!hasBukti) cabangDropdown.classList.remove('open');
+
+        detailFields.classList.toggle('show', formVisible && hasBukti && detailStageUnlocked);
+
+        if (!formVisible) {
+          cabangStageNote.style.display = 'none';
+        } else if (!hasBukti) {
+          cabangStageNote.style.display = 'flex';
+          cabangStageNoteText.textContent = 'Upload bukti bayar dulu. Setelah file dipilih, kolom cabang langsung aktif di bawah ini.';
+        } else if (!cabangSelected) {
+          cabangStageNote.style.display = 'flex';
+          cabangStageNoteText.textContent = 'Pilih cabang dulu. Sistem akan otomatis mencocokkan nominal transfer dengan data NONCOD.';
+        } else if (!detailStageUnlocked) {
+          cabangStageNote.style.display = 'flex';
+          cabangStageNoteText.textContent = 'Sedang mencocokkan dengan data NONCOD...';
+        } else {
+          cabangStageNote.style.display = 'none';
+        }
+
+        submitBtn.style.display = formVisible && hasBukti && detailStageUnlocked ? '' : 'none';
+
+        if (!hasBukti || !cabangSelected) {
+          detailStageUnlocked = false;
+          resetCabangSummary();
+        }
+
+        // Update step indicator
+        if (!hasBukti) setInputStep(1);
+        else if (!cabangSelected) setInputStep(2);
+        else if (!detailStageUnlocked) setInputStep(3);
+        // step 4 set by checkReady() when form fully valid
+      }
+
       function closeDupe() {
         document.getElementById('dupeOverlay').classList.remove('show');
         const btn = document.getElementById('btnSubmit');
@@ -658,39 +972,56 @@
       async function submitForm() {
         const btn = document.getElementById('btnSubmit');
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Mengecek...';
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Mengecek NONCOD...';
 
         const vals = getFormValues();
 
-        // Check duplicate
         try {
+          const selectedCabang = getSelectedCabangRecord();
           const chkRes = await fetch('/api/check-dupe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               nama_cabang: vals.nama_cabang,
-              tgl_inputan: vals.tgl_inputan,
               nominal: vals.nominal,
             }),
           });
           const chkJson = await chkRes.json();
 
+          lastDupeContext = chkJson;
+          renderCabangSummary(lastDupeContext);
+
+          const nc = chkJson.noncodMatch;
+          if (!nc || !nc.match) {
+            const msg = nc ? nc.message : 'Tidak ada NONCOD yang cocok untuk nominal ini.';
+            alert(msg);
+            btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Kirim Data';
+            btn.disabled = false;
+            return;
+          }
+
+          document.getElementById('tglInput').value = nc.match.tanggal_buat;
+          syncPeriodeFromTglInput();
+
           if (chkRes.ok && chkJson.dupes && chkJson.dupes.length > 0) {
-            // Show dupe warning
             const d = chkJson.dupes[0];
             const detail = document.getElementById('dupeDetail');
+            const scopeTitle = selectedCabang && selectedCabang.area ? 'Area ' + selectedCabang.area : vals.nama_cabang;
             detail.innerHTML =
-              `<div class="dupe-cabang">${esc(vals.nama_cabang)}</div>` +
-              `<span class="lbl">Tanggal</span> : ${fmtTglFromTs(d.timestamp)}<br>` +
-              `<span class="lbl">Input/Pickup</span> : ${fmtTgl(d.tgl_inputan)}<br>` +
+              `<div class="dupe-cabang">${esc(scopeTitle)}</div>` +
+              `<span class="lbl">Cabang Tersimpan</span> : ${esc(d.nama_cabang || vals.nama_cabang)}<br>` +
+              `<span class="lbl">Tgl NONCOD</span> : ${fmtTgl(d.tgl_inputan)}<br>` +
               `<span class="lbl">Jam</span> : ${fmtJam(d.timestamp)}<br>` +
-              `<span class="lbl">Bank</span> : ${esc(d.nama_bank || '-')}<br>` +
-              `<span class="lbl">Total</span> : ${fmtNom(d.nominal)}`;
+              `<span class="lbl">Bank Tersimpan</span> : ${esc(d.nama_bank || '-')}<br>` +
+              `<span class="lbl">Nominal</span> : ${fmtNom(d.nominal)}`;
             document.getElementById('dupeOverlay').classList.add('show');
-            return; // wait for user decision
+            return;
           }
         } catch {
-          // If dupe check fails, proceed anyway
+          alert('Gagal mencocokkan data NONCOD. Pastikan koneksi stabil.');
+          btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Kirim Data';
+          btn.disabled = false;
+          return;
         }
 
         doSubmit();
@@ -720,6 +1051,7 @@
             return;
           }
 
+          document.getElementById('successMessage').innerHTML = 'Transfer ' + esc(vals.nama_cabang) + ' senilai ' + fmtNom(vals.nominal) + ' sudah masuk.<br>Silakan lanjut input berikutnya bila ada.';
           document.getElementById('formWrap').style.display = 'none';
           document.getElementById('successScreen').style.display = 'flex';
         } catch (err) {
@@ -730,11 +1062,13 @@
       }
 
       function resetForm() {
+        detailStageUnlocked = false;
         document.getElementById('formWrap').style.display = 'flex';
         document.getElementById('successScreen').style.display = 'none';
+        document.getElementById('successMessage').innerHTML = 'Data transfer Anda sudah masuk.<br>Terima kasih!';
         document.getElementById('nominal').value = '';
         document.getElementById('namaBank').value = '';
-        buildDayPicker();
+        document.getElementById('tglInput').value = '';
         document.getElementById('namaCabang').value = '';
         document.getElementById('cabangSearch').value = '';
         document.getElementById('cabangDD').classList.remove('open');
@@ -743,14 +1077,17 @@
         document.getElementById('uploadPlaceholder').style.display = 'block';
         document.getElementById('btnSubmit').innerHTML = '<i class="bi bi-send-fill me-2"></i>Kirim Data';
         document.getElementById('ocrStatus').className = 'ocr-status';
-        document.getElementById('formFields').classList.remove('show');
+        document.getElementById('formFields').classList.add('show');
         document.getElementById('btnSubmit').style.display = 'none';
         setBadge('bankBadge', false);
         setBadge('nominalBadge', false);
         if (ocrController) ocrController.resetState();
         periodeEl.selectedIndex = 0;
+        resetCabangSummary();
         checkReady();
       }
+
+      checkReady();
     </script>
   </body>
 </html>

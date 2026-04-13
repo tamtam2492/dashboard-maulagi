@@ -1,0 +1,157 @@
+const { describe, it } = require('node:test');
+const assert = require('node:assert/strict');
+
+const {
+  NONCOD_MATCH_TOLERANCE,
+  aggregateOngkirByDate,
+  findMatchingDates,
+  getRecentPeriodes,
+  resolveMatch,
+} = require('../api/_noncod-match');
+
+describe('NONCOD_MATCH_TOLERANCE', () => {
+  it('should be 6500', () => {
+    assert.equal(NONCOD_MATCH_TOLERANCE, 6500);
+  });
+});
+
+describe('getRecentPeriodes', () => {
+  it('returns 3 periodes in YYYY-MM format', () => {
+    const periodes = getRecentPeriodes();
+    assert.equal(periodes.length, 3);
+    periodes.forEach(p => assert.match(p, /^\d{4}-\d{2}$/));
+  });
+
+  it('periodes are sorted oldest to newest', () => {
+    const periodes = getRecentPeriodes();
+    assert.ok(periodes[0] <= periodes[1]);
+    assert.ok(periodes[1] <= periodes[2]);
+  });
+});
+
+describe('aggregateOngkirByDate', () => {
+  it('sums ongkir by tanggal_buat for noncod only', () => {
+    const rows = [
+      { tanggal_buat: '2026-04-10', ongkir: 500000, metode_pembayaran: 'noncod', status_terakhir: 'DELIVERED' },
+      { tanggal_buat: '2026-04-10', ongkir: 1000000, metode_pembayaran: 'noncod', status_terakhir: 'DELIVERED' },
+      { tanggal_buat: '2026-04-10', ongkir: 200000, metode_pembayaran: 'dfod', status_terakhir: 'DELIVERED' },
+      { tanggal_buat: '2026-04-11', ongkir: 300000, metode_pembayaran: 'noncod', status_terakhir: 'IN_TRANSIT' },
+    ];
+    const result = aggregateOngkirByDate(rows);
+    assert.deepEqual(result, {
+      '2026-04-10': 1500000,
+      '2026-04-11': 300000,
+    });
+  });
+
+  it('excludes BATAL status', () => {
+    const rows = [
+      { tanggal_buat: '2026-04-10', ongkir: 500000, metode_pembayaran: 'noncod', status_terakhir: 'BATAL' },
+      { tanggal_buat: '2026-04-10', ongkir: 300000, metode_pembayaran: 'noncod', status_terakhir: 'DELIVERED' },
+    ];
+    const result = aggregateOngkirByDate(rows);
+    assert.deepEqual(result, { '2026-04-10': 300000 });
+  });
+
+  it('returns empty for empty input', () => {
+    assert.deepEqual(aggregateOngkirByDate([]), {});
+    assert.deepEqual(aggregateOngkirByDate(null), {});
+  });
+
+  it('ignores rows with invalid tanggal_buat', () => {
+    const rows = [
+      { tanggal_buat: '', ongkir: 100000, metode_pembayaran: 'noncod', status_terakhir: 'OK' },
+      { tanggal_buat: 'invalid', ongkir: 100000, metode_pembayaran: 'noncod', status_terakhir: 'OK' },
+      { tanggal_buat: '2026-04-10', ongkir: 100000, metode_pembayaran: 'noncod', status_terakhir: 'OK' },
+    ];
+    assert.deepEqual(aggregateOngkirByDate(rows), { '2026-04-10': 100000 });
+  });
+});
+
+describe('findMatchingDates', () => {
+  it('finds exact match', () => {
+    const byDate = { '2026-04-10': 1500000, '2026-04-11': 800000 };
+    const result = findMatchingDates(byDate, 1500000, 6500);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].tanggal_buat, '2026-04-10');
+    assert.equal(result[0].diff, 0);
+  });
+
+  it('finds match within tolerance', () => {
+    const byDate = { '2026-04-10': 1500000 };
+    const result = findMatchingDates(byDate, 1494000, 6500);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].diff, 6000);
+  });
+
+  it('rejects match beyond tolerance', () => {
+    const byDate = { '2026-04-10': 1500000 };
+    const result = findMatchingDates(byDate, 1490000, 6500);
+    assert.equal(result.length, 0);
+  });
+
+  it('sorts by diff asc then date asc (FIFO)', () => {
+    const byDate = {
+      '2026-04-12': 1500000,
+      '2026-04-10': 1502000,
+      '2026-04-11': 1500000,
+    };
+    const result = findMatchingDates(byDate, 1500000, 6500);
+    assert.equal(result.length, 3);
+    assert.equal(result[0].tanggal_buat, '2026-04-11'); // diff 0, older
+    assert.equal(result[1].tanggal_buat, '2026-04-12'); // diff 0, newer
+    assert.equal(result[2].tanggal_buat, '2026-04-10'); // diff 2000
+  });
+
+  it('includes periode from date', () => {
+    const byDate = { '2026-04-10': 1500000 };
+    const result = findMatchingDates(byDate, 1500000, 6500);
+    assert.equal(result[0].periode, '2026-04');
+  });
+});
+
+describe('resolveMatch', () => {
+  it('picks first candidate without existing transfer', () => {
+    const candidates = [
+      { tanggal_buat: '2026-04-10', totalOngkir: 1500000, diff: 0 },
+      { tanggal_buat: '2026-04-11', totalOngkir: 1500000, diff: 0 },
+    ];
+    const transfers = [
+      { tgl_inputan: '2026-04-10', nominal: 1500000 },
+    ];
+    const { match, allPaid } = resolveMatch(candidates, transfers);
+    assert.equal(match.tanggal_buat, '2026-04-11');
+    assert.equal(allPaid, false);
+  });
+
+  it('returns allPaid when all candidates have transfers', () => {
+    const candidates = [
+      { tanggal_buat: '2026-04-10', totalOngkir: 1500000, diff: 0 },
+    ];
+    const transfers = [
+      { tgl_inputan: '2026-04-10', nominal: 1500000 },
+    ];
+    const { match, allPaid } = resolveMatch(candidates, transfers);
+    assert.equal(match, null);
+    assert.equal(allPaid, true);
+  });
+
+  it('returns match=null, allPaid=false for empty candidates', () => {
+    const { match, allPaid } = resolveMatch([], []);
+    assert.equal(match, null);
+    assert.equal(allPaid, false);
+  });
+
+  it('marks existing transfers on each candidate', () => {
+    const candidates = [
+      { tanggal_buat: '2026-04-10', totalOngkir: 1500000, diff: 0 },
+    ];
+    const transfers = [
+      { tgl_inputan: '2026-04-10', nominal: 1500000, id: 42 },
+    ];
+    resolveMatch(candidates, transfers);
+    assert.equal(candidates[0].hasExistingTransfer, true);
+    assert.equal(candidates[0].existingTransfers.length, 1);
+    assert.equal(candidates[0].existingTransfers[0].id, 42);
+  });
+});

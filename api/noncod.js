@@ -2,8 +2,17 @@ const { requireAdmin } = require('./_auth');
 const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { loginMaukirim, downloadOrdersWorkbook } = require('./_maukirim');
+const {
+  applyStatusOverrides,
+  deleteStatusOverride,
+  listStatusOverrideRows,
+  readStatusOverridesByResi,
+  upsertStatusOverride,
+} = require('./_noncod-status-overrides');
 const { getSupabase } = require('./_supabase');
 const { excelSerialToDate, loadWorkbookFromBuffer, worksheetToObjects } = require('./_excel');
+
+const PERIODE_RE = /^\d{4}-\d{2}$/;
 
 function normalizeMethod(value) {
   const method = String(value || '').trim().toLowerCase();
@@ -16,6 +25,7 @@ function createMetric() {
 }
 
 const MAUKIRIM_SYNC_KEY_PREFIX = 'maukirim_sync_';
+const MAUKIRIM_AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 const syncPendingByPeriode = new Map();
 
 function canAutoSyncMaukirim() {
@@ -36,6 +46,19 @@ function getSyncSettingKey(periode) {
   return MAUKIRIM_SYNC_KEY_PREFIX + periode;
 }
 
+function formatPeriode(date) {
+  return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+}
+
+function getAutoSyncPeriods(referenceDate = new Date()) {
+  const periods = [];
+  const start = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - 2, 1);
+  for (let offset = 0; offset < 3; offset++) {
+    periods.push(formatPeriode(new Date(start.getFullYear(), start.getMonth() + offset, 1)));
+  }
+  return periods;
+}
+
 function buildSyncInfo(periode, meta) {
   return {
     enabled: canAutoSyncMaukirim(),
@@ -46,6 +69,13 @@ function buildSyncInfo(periode, meta) {
     inserted: meta && Number.isFinite(meta.inserted) ? meta.inserted : 0,
     stats: meta && meta.stats ? meta.stats : null,
   };
+}
+
+function isSyncMetaStale(meta, now = Date.now()) {
+  if (!meta || !meta.syncedAt) return true;
+  const syncedAtMs = Date.parse(meta.syncedAt);
+  if (!Number.isFinite(syncedAtMs)) return true;
+  return now - syncedAtMs >= MAUKIRIM_AUTO_SYNC_INTERVAL_MS;
 }
 
 function normalizeSheetDate(val) {
@@ -101,6 +131,7 @@ async function parseWorkbookRows(workbookBuffer) {
 }
 
 function sanitizeNoncodRows(periode, rows) {
+  const seen = new Set();
   return rows.map(r => {
     const method = normalizeMethod(r.metode_pembayaran);
     return {
@@ -122,7 +153,14 @@ function sanitizeNoncodRows(periode, rows) {
       nama_ekspedisi: (r.nama_ekspedisi || '').slice(0, 50),
       cabang: (r.cabang || '').slice(0, 100),
     };
-  }).filter(r => r.metode_pembayaran && (r.nomor_resi || r.ongkir > 0 || r.total_pengiriman > 0) && String(r.status_terakhir || '').trim().toUpperCase() !== 'BATAL');
+  }).filter(r => {
+    if (!r.metode_pembayaran) return false;
+    if (!r.nomor_resi && r.ongkir <= 0 && r.total_pengiriman <= 0) return false;
+    if (String(r.status_terakhir || '').trim().toUpperCase() === 'BATAL') return false;
+    if (r.nomor_resi && seen.has(r.nomor_resi)) return false;
+    if (r.nomor_resi) seen.add(r.nomor_resi);
+    return true;
+  });
 }
 
 function summarizeInsertedRows(rows) {
@@ -144,7 +182,44 @@ async function replacePeriodeRows(supabase, periode, rows) {
     if (insErr) throw insErr;
     inserted += batch.length;
   }
+
+  // Safety net: remove duplicates by nomor_resi (keeps lowest id)
+  await deduplicateNoncodPeriode(supabase, periode);
+
   return inserted;
+}
+
+async function deduplicateNoncodPeriode(supabase, periode) {
+  let allRows = [];
+  let from = 0;
+  while (true) {
+    const { data } = await supabase
+      .from('noncod')
+      .select('id, nomor_resi')
+      .eq('periode', periode)
+      .order('id', { ascending: true })
+      .range(from, from + 999);
+    if (!data || !data.length) break;
+    allRows.push(...data);
+    if (data.length < 1000) break;
+    from += 1000;
+  }
+
+  const seen = new Set();
+  const idsToDelete = [];
+  for (const row of allRows) {
+    const resi = row.nomor_resi || '';
+    if (!resi) continue;
+    if (seen.has(resi)) idsToDelete.push(row.id);
+    else seen.add(resi);
+  }
+
+  if (!idsToDelete.length) return;
+
+  for (let i = 0; i < idsToDelete.length; i += 200) {
+    const batch = idsToDelete.slice(i, i + 200);
+    await supabase.from('noncod').delete().in('id', batch);
+  }
 }
 
 async function readSyncMeta(supabase, periode) {
@@ -168,6 +243,34 @@ async function writeSyncMeta(supabase, periode, meta) {
   });
 }
 
+const SYNC_LOCK_TTL_MS = 90 * 1000;
+
+async function acquireSyncLock(supabase, periode) {
+  const lockKey = 'sync_lock_' + periode;
+  const now = new Date().toISOString();
+
+  // Atomic attempt: INSERT fails with 23505 if key already exists (unique idx_settings_key)
+  const { error: insertErr } = await supabase
+    .from('settings')
+    .insert({ key: lockKey, value: now });
+  if (!insertErr) return true;
+
+  // Key exists — only take over if stale (conditional UPDATE = atomic)
+  const staleThreshold = new Date(Date.now() - SYNC_LOCK_TTL_MS).toISOString();
+  const { data: updated } = await supabase
+    .from('settings')
+    .update({ value: now })
+    .eq('key', lockKey)
+    .lt('value', staleThreshold)
+    .select('key');
+  return !!(updated && updated.length > 0);
+}
+
+async function releaseSyncLock(supabase, periode) {
+  const lockKey = 'sync_lock_' + periode;
+  await supabase.from('settings').delete().eq('key', lockKey);
+}
+
 async function maybeSyncMaukirimPeriod(supabase, periode, options = {}) {
   const enabled = canAutoSyncMaukirim();
   const eligible = isAutoSyncablePeriode(periode);
@@ -185,6 +288,11 @@ async function maybeSyncMaukirimPeriod(supabase, periode, options = {}) {
     return syncPendingByPeriode.get(periode);
   }
 
+  const locked = await acquireSyncLock(supabase, periode);
+  if (!locked) {
+    return buildSyncInfo(periode, currentMeta);
+  }
+
   const pending = (async () => {
     const cookies = await loginMaukirim();
     const workbookBuffer = await downloadOrdersWorkbook(cookies, periode);
@@ -200,16 +308,45 @@ async function maybeSyncMaukirimPeriod(supabase, periode, options = {}) {
     };
     await writeSyncMeta(supabase, periode, meta);
     return { enabled: true, eligible: true, performed: true, ...meta };
-  })().finally(() => {
+  })().finally(async () => {
     syncPendingByPeriode.delete(periode);
+    await releaseSyncLock(supabase, periode).catch(() => {});
   });
 
   syncPendingByPeriode.set(periode, pending);
   return pending;
 }
 
-function getShipmentDateKey(row) {
-  return normalizeSheetDate(row && row.tanggal_pickup) || normalizeSheetDate(row && row.tanggal_buat);
+async function syncMaukirimPeriodes(supabase, periodes, options = {}) {
+  const uniquePeriods = [...new Set((periodes || [])
+    .map(periode => String(periode || '').trim())
+    .filter(periode => PERIODE_RE.test(periode)))];
+  const results = [];
+
+  for (const periode of uniquePeriods) {
+    const syncMeta = await readSyncMeta(supabase, periode);
+    const baseInfo = buildSyncInfo(periode, syncMeta);
+
+    if (!baseInfo.enabled || !baseInfo.eligible) {
+      results.push({ periode, ...baseInfo, skipped: true });
+      continue;
+    }
+
+    try {
+      const syncInfo = await maybeSyncMaukirimPeriod(supabase, periode, { force: options.force !== false });
+      results.push({ periode, ...syncInfo });
+    } catch (err) {
+      console.error('[noncod sync]', periode, err.message);
+      logError('noncod', err.message, { method: 'CRON', action: 'sync', periode });
+      results.push({ periode, ...baseInfo, error: err.message });
+    }
+  }
+
+  return results;
+}
+
+function getRekonDateKey(row) {
+  return normalizeSheetDate(row && row.tanggal_buat) || '';
 }
 
 async function fetchAllRowsByPeriode(supabase, periode) {
@@ -237,16 +374,76 @@ async function fetchAllRowsByPeriode(supabase, periode) {
   return allRows;
 }
 
-module.exports = async (req, res) => {
+async function handleManualStatusRoute(req, res, supabase) {
+  if (!(await requireAdmin(req, res))) return true;
+
+  if (req.method === 'GET') {
+    try {
+      const result = await listStatusOverrideRows(supabase, {
+        query: req.query.q || '',
+        limit: req.query.limit || 100,
+      });
+      res.json(result);
+      return true;
+    } catch (err) {
+      console.error(err);
+      logError('noncod-status', err.message, { method: 'GET' });
+      res.status(500).json({ error: 'Gagal memuat status manual resi.' });
+      return true;
+    }
+  }
+
+  if (req.method === 'PUT') {
+    try {
+      const override = await upsertStatusOverride(supabase, req.body || {});
+      res.json({ success: true, override });
+      return true;
+    } catch (err) {
+      console.error(err);
+      const statusCode = /wajib diisi|tidak valid/i.test(err.message) ? 400 : 500;
+      if (statusCode === 500) logError('noncod-status', err.message, { method: 'PUT' });
+      res.status(statusCode).json({ error: err.message || 'Gagal menyimpan status manual.' });
+      return true;
+    }
+  }
+
+  if (req.method === 'DELETE') {
+    try {
+      const nomorResi = String(req.query.nomor_resi || req.body?.nomor_resi || '').trim();
+      if (!nomorResi) {
+        res.status(400).json({ error: 'Nomor resi wajib diisi.' });
+        return true;
+      }
+      await deleteStatusOverride(supabase, nomorResi);
+      res.json({ success: true });
+      return true;
+    } catch (err) {
+      console.error(err);
+      const statusCode = /tidak valid/i.test(err.message) ? 400 : 500;
+      if (statusCode === 500) logError('noncod-status', err.message, { method: 'DELETE' });
+      res.status(statusCode).json({ error: err.message || 'Gagal menghapus status manual.' });
+      return true;
+    }
+  }
+
+  res.status(405).json({ error: 'Method not allowed.' });
+  return true;
+}
+
+async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
-  if (cors(req, res, { methods: 'GET, DELETE, OPTIONS', headers: 'Content-Type, X-Admin-Token' })) return;
+  if (cors(req, res, { methods: 'GET, PUT, DELETE, OPTIONS', headers: 'Content-Type, X-Admin-Token' })) return;
 
   // DELETE: admin only
-  if (req.method === 'DELETE') {
+  if (req.method === 'DELETE' && req.query.manual_status !== '1') {
     if (!(await requireAdmin(req, res))) return;
   }
 
   const supabase = getSupabase();
+
+  if (req.query.manual_status === '1') {
+    if (await handleManualStatusRoute(req, res, supabase)) return;
+  }
 
   // GET /api/noncod?periode=2026-04 — ambil summary per cabang
   if (req.method === 'GET') {
@@ -254,7 +451,7 @@ module.exports = async (req, res) => {
       const periode = (req.query.periode || '').trim();
       const mode = String(req.query.mode || 'noncod').trim().toLowerCase();
       const forceSync = req.query.sync === '1' || req.query.refresh === '1';
-      if (!periode || !/^\d{4}-\d{2}$/.test(periode)) {
+      if (!periode || !PERIODE_RE.test(periode)) {
         return res.status(400).json({ error: 'Parameter periode wajib (YYYY-MM).' });
       }
       if (!['noncod', 'dfod', 'all'].includes(mode)) {
@@ -266,7 +463,7 @@ module.exports = async (req, res) => {
       let syncInfo = buildSyncInfo(periode, syncMeta);
       let data = await fetchAllRowsByPeriode(supabase, periode);
 
-      const shouldSync = syncInfo.enabled && syncInfo.eligible && (forceSync || !data.length);
+      const shouldSync = syncInfo.enabled && syncInfo.eligible && (forceSync || !data.length || isSyncMetaStale(syncMeta));
       if (shouldSync) {
         try {
           syncInfo = await maybeSyncMaukirimPeriod(supabase, periode, { force: true });
@@ -280,6 +477,9 @@ module.exports = async (req, res) => {
           };
         }
       }
+
+      const overrideMap = await readStatusOverridesByResi(supabase, (data || []).map((row) => row.nomor_resi));
+      data = applyStatusOverrides(data, overrideMap);
 
       const summary = {
         noncod: createMetric(),
@@ -317,7 +517,7 @@ module.exports = async (req, res) => {
         if (!c || c === '-') continue;
         const ongkir = parseFloat(row.ongkir) || 0;
         const total = parseFloat(row.total_pengiriman) || 0;
-        const tgl = getShipmentDateKey(row);
+        const tgl = getRekonDateKey(row);
         const inActualMonth = !!(tgl && tgl.startsWith(periode + '-'));
 
         summary[method].grandOngkir += ongkir;
@@ -357,7 +557,7 @@ module.exports = async (req, res) => {
         grandTotal += total;
         totalResi++;
 
-        // Daily grouping follows pickup date first so it stays aligned with transfer.tgl_inputan.
+        // Workbook report merekonsiliasi NONCOD dari Tanggal Buat, lalu dibandingkan ke transfer.tgl_inputan.
         if (tgl) {
           if (!byDay[tgl]) byDay[tgl] = {};
           if (!byDay[tgl][c]) byDay[tgl][c] = { ongkir: 0, resi: 0, total: 0 };
@@ -404,7 +604,7 @@ module.exports = async (req, res) => {
   if (req.method === 'DELETE') {
     try {
       const periode = (req.query.periode || '').trim();
-      if (!periode || !/^\d{4}-\d{2}$/.test(periode)) {
+      if (!periode || !PERIODE_RE.test(periode)) {
         return res.status(400).json({ error: 'Parameter periode wajib (YYYY-MM).' });
       }
       const [, mmDel] = periode.split('-');
@@ -422,4 +622,15 @@ module.exports = async (req, res) => {
   }
 
   return res.status(405).json({ error: 'Method not allowed.' });
-};
+}
+
+module.exports = handler;
+module.exports.buildSyncInfo = buildSyncInfo;
+module.exports.canAutoSyncMaukirim = canAutoSyncMaukirim;
+module.exports.getAutoSyncPeriods = getAutoSyncPeriods;
+module.exports.getRekonDateKey = getRekonDateKey;
+module.exports.isAutoSyncablePeriode = isAutoSyncablePeriode;
+module.exports.isSyncMetaStale = isSyncMetaStale;
+module.exports.maybeSyncMaukirimPeriod = maybeSyncMaukirimPeriod;
+module.exports.readSyncMeta = readSyncMeta;
+module.exports.syncMaukirimPeriodes = syncMaukirimPeriodes;

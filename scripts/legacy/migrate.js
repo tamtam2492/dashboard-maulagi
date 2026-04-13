@@ -1,12 +1,12 @@
 /**
  * Migration script: Excel -> Supabase
- * Jalankan sekali: node migrate.js
+ * Jalankan sekali: node scripts/legacy/migrate.js
  */
 require('dotenv').config();
 const path = require('path');
-const { normalizeBankName } = require('./api/_bank');
-const { getSupabase } = require('./api/_supabase');
-const { excelSerialToDate, getWorksheetByName, loadWorkbookFromFile, worksheetToMatrix } = require('./api/_excel');
+const { normalizeBankName } = require('../../api/_bank');
+const { getSupabase } = require('../../api/_supabase');
+const { excelSerialToDate, getWorksheetByName, loadWorkbookFromFile, worksheetToMatrix } = require('../../api/_excel');
 
 const EXCEL_PATH = path.join(
   process.env.EXCEL_PATH || 'C:/Users/Tams/Downloads/FORM BUKTI TRANSFER (1).xlsx'

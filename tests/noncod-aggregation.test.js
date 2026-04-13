@@ -2,8 +2,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  ADMIN_TRANSFER_FEE_TOLERANCE,
   buildDateRange,
   filterRekonRows,
+  getRekonDifference,
   getAggregatedRekonBaseRows,
   getAggregatedShipmentRows,
   getPeriodeDateRange,
@@ -23,7 +25,7 @@ test('getScopedDates membatasi tanggal ke periode aktif', () => {
   );
 });
 
-test('getAggregatedRekonBaseRows menggabungkan noncod dan transfer per cabang', () => {
+test('getAggregatedRekonBaseRows menggabungkan noncod dan transfer per cabang+tanggal', () => {
   const rows = getAggregatedRekonBaseRows({
     dates: ['2026-04-09', '2026-04-10'],
     periode: '2026-04',
@@ -38,27 +40,24 @@ test('getAggregatedRekonBaseRows menggabungkan noncod dan transfer per cabang', 
     },
     trByCabang: {
       'CABANG KOLAKA': { list: [{ periode: '2026-04', tglRaw: '2026-04-09', nominal: 289000 }] },
-      'CABANG LASUSUA': { list: [{ periode: '2026-04', tglRaw: '2026-04-10', nominal: 264000 }] },
+      'CABANG LASUSUA': { list: [{ periode: '2026-04', tglRaw: '2026-04-10', nominal: 132000 }] },
     },
   });
 
   const kolaka = rows.find(row => row.cabang === 'CABANG KOLAKA');
   const lasusua = rows.find(row => row.cabang === 'CABANG LASUSUA');
 
-  assert.deepEqual(kolaka, {
-    cabang: 'CABANG KOLAKA',
-    resi: 20,
-    ongkir: 985000,
-    transfer: 289000,
-    belum: 696000,
-  });
-  assert.deepEqual(lasusua, {
-    cabang: 'CABANG LASUSUA',
-    resi: 2,
-    ongkir: 132000,
-    transfer: 264000,
-    belum: -132000,
-  });
+  // KOLAKA: ongkir 985000, transfer 289000 (hanya match tgl 09), belum 696000
+  assert.equal(kolaka.resi, 20);
+  assert.equal(kolaka.ongkir, 985000);
+  assert.equal(kolaka.transfer, 289000);
+  assert.equal(kolaka.belum, 696000);
+
+  // LASUSUA: ongkir 132000, transfer 132000 (match tgl 10), belum 0
+  assert.equal(lasusua.resi, 2);
+  assert.equal(lasusua.ongkir, 132000);
+  assert.equal(lasusua.transfer, 132000);
+  assert.equal(lasusua.belum, 0);
 });
 
 test('filterRekonRows menghormati query, status, dan filter area', () => {
@@ -76,6 +75,13 @@ test('filterRekonRows menghormati query, status, dan filter area', () => {
     filterRekonRows(rows, { status: 'sudah' }),
     [{ cabang: 'CABANG LASUSUA', belum: -5 }]
   );
+});
+
+test('getRekonDifference menganggap selisih lebih kecil sebagai biaya admin transfer', () => {
+  assert.equal(ADMIN_TRANSFER_FEE_TOLERANCE, 500);
+  assert.equal(getRekonDifference(25000, 25500), 0);
+  assert.equal(getRekonDifference(25000, 26000), -1000);
+  assert.equal(getRekonDifference(25000, 24000), 1000);
 });
 
 test('getAggregatedShipmentRows menggabungkan resi, ongkir, dan total', () => {

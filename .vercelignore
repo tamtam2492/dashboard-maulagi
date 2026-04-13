@@ -1,8 +1,6 @@
-migrate.js
-fix-periode.js
-seed-cabang.js
+scripts/local/
+scripts/legacy/
 sql-indexes.sql
-code.gs
 .env
 .env.local
 .env.example

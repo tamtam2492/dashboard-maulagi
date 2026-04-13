@@ -1,6 +1,6 @@
 /**
  * Seed master data cabang resmi ke Supabase
- * Jalankan: node seed-cabang.js
+ * Jalankan: node scripts/local/seed-cabang.js
  *
  * PENTING: Jalankan SQL ini dulu di Supabase SQL Editor:
  *   ALTER TABLE cabang ADD COLUMN IF NOT EXISTS area text;

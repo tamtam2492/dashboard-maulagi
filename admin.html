@@ -43,7 +43,7 @@
 
       .menu-card { background: var(--card); border-radius: var(--radius); padding: 18px 16px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer; display: flex; flex-direction: column; gap: 8px; transition: all 0.18s; text-align: left; width: 100%; position: relative; overflow: hidden; }
       .menu-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
-      .mc-blue .menu-card::before, .menu-card.mc-blue::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+      .mc-blue .menu-card::before, .menu-card.mc-blue::before { background: linear-gradient(90deg, #131b2e, #2d3d5a); }
       .mc-amber .menu-card::before, .menu-card.mc-amber::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
       .mc-green .menu-card::before, .menu-card.mc-green::before { background: linear-gradient(90deg, #10b981, #34d399); }
       .mc-slate .menu-card::before, .menu-card.mc-slate::before { background: linear-gradient(90deg, #64748b, #94a3b8); }
@@ -52,7 +52,7 @@
       .menu-card .mc-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
       .menu-card .mc-title { font-size: 0.9rem; font-weight: 800; color: var(--dark); margin: 0; letter-spacing: -0.01em; }
       .menu-card .mc-sub { font-size: 0.7rem; color: var(--gray2); font-weight: 500; }
-      .mc-blue .mc-icon { background: #dbeafe; color: #2563eb; }
+      .mc-blue .mc-icon { background: rgba(19,27,46,0.08); color: var(--dark); }
       .mc-amber .mc-icon { background: #fef3c7; color: #d97706; }
       .mc-green .mc-icon { background: #dcfce7; color: #16a34a; }
       .mc-slate .mc-icon { background: #f1f5f9; color: var(--gray); }
@@ -83,13 +83,13 @@
       .search-wrap { position: relative; }
       .search-wrap i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--gray2); font-size: 0.9rem; pointer-events: none; }
       .search-wrap input { width: 100%; border-radius: 10px; border: 1.5px solid var(--border); padding: 9px 12px 9px 34px; font-size: 0.82rem; background: #f8fafc; color: var(--dark2); font-family: 'Inter', sans-serif; }
-      .search-wrap input:focus { border-color: var(--blue); outline: none; background: var(--card); }
+      .search-wrap input:focus { border-color: rgba(19,27,46,0.5); outline: none; background: var(--card); box-shadow: 0 0 0 3px rgba(19,27,46,0.07); }
 
       .cabang-list { display: flex; flex-direction: column; gap: 5px; }
       .area-group { margin-bottom: 4px; }
       .area-header { font-size: 0.68rem; font-weight: 800; color: var(--gray); letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 2px 5px; border-bottom: 1px solid #f1f5f9; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
       .area-badge { background: #f1f5f9; border-radius: 6px; padding: 2px 8px; font-size: 0.66rem; color: var(--gray2); }
-      .area-header.sultra .area-badge { background: #dbeafe; color: #2563eb; }
+      .area-header.sultra .area-badge { background: #e8edf5; color: #131b2e; }
       .area-header.mks .area-badge { background: #fef9c3; color: #ca8a04; }
       .area-header.cust .area-badge { background: #fce7f3; color: #db2777; }
 
@@ -100,8 +100,8 @@
       .cabang-item .c-area-tag { font-size: 0.6rem; font-weight: 700; border-radius: 6px; padding: 1px 6px; display: inline-block; margin-top: 1px; background: #f1f5f9; color: var(--gray); }
       .cabang-item .c-actions { display: flex; gap: 4px; flex-shrink: 0; }
       .c-btn { width: 28px; height: 28px; border: none; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; cursor: pointer; transition: 0.15s; }
-      .c-btn-edit { background: #eff6ff; color: var(--blue); }
-      .c-btn-edit:hover { background: #dbeafe; }
+      .c-btn-edit { background: #f1f5f9; color: var(--dark); }
+      .c-btn-edit:hover { background: #e2e8f0; }
       .c-btn-del { background: #fff1f2; color: #f87171; }
       .c-btn-del:hover { background: #fee2e2; color: #dc2626; }
 
@@ -121,13 +121,40 @@
       .add-cabang-form { border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 4px; }
       .add-cabang-form .form-label { font-size: 0.72rem; font-weight: 700; color: var(--gray); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
       .add-cabang-form select, .add-cabang-form input[type=text] { width: 100%; border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.85rem; padding: 10px 12px; background: #f8fafc; color: var(--dark); font-family: 'Inter', sans-serif; margin-bottom: 8px; }
-      .add-cabang-form select:focus, .add-cabang-form input[type=text]:focus { border-color: var(--blue); outline: none; background: var(--card); }
-      .btn-add-cabang { width: auto; border-radius: 10px; background: var(--blue); color: white; border: none; padding: 11px 16px; font-size: 0.88rem; font-weight: 700; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
-      .btn-add-cabang:hover { background: #2563eb; }
-      .btn-add-cabang:disabled { background: var(--gray2); cursor: not-allowed; }
+      .add-cabang-form select:focus, .add-cabang-form input[type=text]:focus { border-color: rgba(19,27,46,0.5); outline: none; background: var(--card); box-shadow: 0 0 0 3px rgba(19,27,46,0.07); }
+      .btn-add-cabang { width: auto; border-radius: 10px; background: linear-gradient(135deg, #131b2e, #202b46); color: white; border: none; padding: 11px 16px; font-size: 0.88rem; font-weight: 700; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-shadow: 0 6px 16px rgba(19,27,46,0.22); }
+      .btn-add-cabang:hover { background: #1f2a44; box-shadow: 0 8px 20px rgba(19,27,46,0.28); }
+      .btn-add-cabang:disabled { background: var(--gray2); box-shadow: none; cursor: not-allowed; }
 
       .empty-state { text-align: center; padding: 28px 0; color: var(--gray2); font-size: 0.82rem; }
       .empty-state i { font-size: 2rem; display: block; margin-bottom: 8px; color: var(--gray3); }
+
+      .status-helper { display: flex; align-items: flex-start; gap: 10px; background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #fde68a; border-radius: 12px; padding: 11px 12px; }
+      .status-helper .sh-icon { width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,0.65); color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+      .status-helper .sh-title { font-size: 0.78rem; font-weight: 800; color: #92400e; letter-spacing: -0.01em; }
+      .status-helper .sh-sub { font-size: 0.7rem; line-height: 1.45; color: #a16207; margin-top: 2px; }
+      .status-list { display: flex; flex-direction: column; gap: 8px; }
+      .status-item { background: #ffffff; border-radius: 12px; border: 1px solid var(--border); padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+      .status-item.editing { background: #fffbeb; border-color: #fde68a; }
+      .status-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+      .status-resi { font-size: 0.82rem; font-weight: 800; color: var(--dark); letter-spacing: -0.01em; word-break: break-word; }
+      .status-badges { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+      .status-pill { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 999px; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+      .status-pill.manual { background: #fee2e2; color: #b91c1c; }
+      .status-pill.sync { background: #f1f5f9; color: var(--gray); }
+      .status-pill.live { background: #dcfce7; color: #166534; }
+      .status-pill.warn { background: #ffedd5; color: #c2410c; }
+      .status-meta { font-size: 0.68rem; color: var(--gray2); line-height: 1.5; margin-top: 6px; }
+      .status-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+      .status-action { border: 1px solid var(--border); border-radius: 9px; background: #f8fafc; color: var(--dark); padding: 7px 11px; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: 0.15s; }
+      .status-action:hover { background: #eef2f7; }
+      .status-action.warn { background: #fef3c7; border-color: #fde68a; color: #92400e; }
+      .status-action.warn:hover { background: #fde68a; }
+      .status-action.danger { background: #fee2e2; border-color: #fecaca; color: #dc2626; }
+      .status-action.danger:hover { background: #fecaca; }
+      .status-edit-row { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+      .status-edit-row input { flex: 1; min-width: 180px; border-radius: 10px; border: 1.5px solid #fde68a; font-size: 0.78rem; padding: 8px 10px; background: var(--card); color: var(--dark); font-family: 'Inter', sans-serif; }
+      .status-edit-row input:focus { border-color: var(--orange); outline: none; }
 
       /* ── Transfer Modal ── */
       .periode-bar { display: flex; align-items: center; gap: 8px; }
@@ -142,25 +169,25 @@
       .tr-sum-card { background: #f8fafc; border-radius: 10px; padding: 8px 10px; text-align: center; border: 1px solid #f1f5f9; }
       .today-summary .tr-sum-card:nth-child(1) { background: linear-gradient(135deg, #ffedd5, #fed7aa); border-color: #fdba74; }
       .today-summary .tr-sum-card:nth-child(2) { background: linear-gradient(135deg, #fee2e2, #fecaca); border-color: #fca5a5; }
-      .today-summary .tr-sum-card:nth-child(3) { background: linear-gradient(135deg, #dbeafe, #bfdbfe); border-color: #93c5fd; }
+      .today-summary .tr-sum-card:nth-child(3) { background: linear-gradient(135deg, #e8edf5, #dde3ee); border-color: #c8d0dc; }
       .tr-sum-card .tsv { font-size: 0.82rem; font-weight: 800; }
       .tr-sum-card .tsl { font-size: 0.6rem; font-weight: 600; color: var(--gray2); margin-top: 1px; }
       .tr-list { display: flex; flex-direction: column; gap: 6px; }
       .tr-item { background: #ffffff; border-radius: 10px; border: 1px solid var(--border); overflow: hidden; }
-      .tr-item:nth-child(even) { background: #f0f7ff; border-color: #bfdbfe; }
+      .tr-item:nth-child(even) { background: #f8fafc; border-color: #e2e8f0; }
       .tr-item-main { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
-      .tr-item-icon { width: 33px; height: 33px; border-radius: 9px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; }
+      .tr-item-icon { width: 33px; height: 33px; border-radius: 9px; background: #f1f5f9; color: var(--dark); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; }
       .tr-item-body { flex: 1; min-width: 0; }
       .tr-item-top { display: flex; align-items: center; gap: 5px; margin-bottom: 1px; }
       .tr-item-cabang { font-size: 0.8rem; font-weight: 700; color: var(--dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .tr-item-bank { font-size: 0.6rem; font-weight: 700; background: var(--blue); color: white; border-radius: 6px; padding: 1px 6px; flex-shrink: 0; letter-spacing: 0.3px; }
+      .tr-item-bank { font-size: 0.6rem; font-weight: 700; background: #131b2e; color: white; border-radius: 6px; padding: 1px 6px; flex-shrink: 0; letter-spacing: 0.3px; }
       .tr-item-meta { font-size: 0.67rem; color: var(--gray2); }
       .tr-item-meta .tm-label { color: #b45309; font-weight: 800; }
       .tr-item-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
-      .tr-item-nominal { font-size: 0.84rem; font-weight: 800; color: var(--blue); white-space: nowrap; }
+      .tr-item-nominal { font-size: 0.84rem; font-weight: 800; color: var(--dark); white-space: nowrap; }
       .tr-dup-flag { font-size: 0.58rem; font-weight: 800; background: #fee2e2; color: #dc2626; border-radius: 999px; padding: 2px 7px; letter-spacing: 0.04em; text-transform: uppercase; }
-      .btn-proof-tr { font-size: 0.63rem; font-weight: 700; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 2px 8px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px; transition: 0.15s; text-decoration: none; }
-      .btn-proof-tr:hover { background: #dbeafe; color: #1d4ed8; text-decoration: none; }
+      .btn-proof-tr { font-size: 0.63rem; font-weight: 700; color: var(--dark); background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; padding: 2px 8px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px; transition: 0.15s; text-decoration: none; }
+      .btn-proof-tr:hover { background: #e2e8f0; color: var(--dark); text-decoration: none; }
       .btn-split-item { font-size: 0.63rem; font-weight: 700; color: #d97706; background: #fef9c3; border: 1px solid #fde68a; border-radius: 6px; padding: 2px 9px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px; transition: 0.15s; }
       .btn-split-item:hover { background: #fef08a; }
       .btn-del-tr { font-size: 0.63rem; font-weight: 700; color: #dc2626; background: #fee2e2; border: 1px solid #fecaca; border-radius: 6px; padding: 2px 8px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px; transition: 0.15s; }
@@ -243,7 +270,7 @@
       .split-orig .so-body { flex: 1; min-width: 0; }
       .split-orig .so-cabang { font-size: 0.8rem; font-weight: 700; color: var(--dark); }
       .split-orig .so-sub { font-size: 0.68rem; color: var(--gray); }
-      .split-orig .so-nom { font-size: 0.85rem; font-weight: 800; color: var(--blue); white-space: nowrap; }
+      .split-orig .so-nom { font-size: 0.85rem; font-weight: 800; color: var(--dark); white-space: nowrap; }
       .split-rlabel { font-size: 0.72rem; font-weight: 700; color: var(--gray); margin-bottom: 7px; }
       .split-rhead { display: grid; grid-template-columns: 1fr 1fr 26px; gap: 6px; padding: 0 2px; margin-bottom: 5px; }
       .split-rhead .srh { font-size: 0.62rem; font-weight: 800; color: var(--gray2); text-transform: uppercase; letter-spacing: 0.05em; }
@@ -279,12 +306,12 @@
       .today-summary { padding: 0 16px 10px; grid-template-columns: 1fr 1fr 1fr; }
       .today-body { padding: 0 16px 14px; }
       .today-sec { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 8px 0 5px; display: flex; align-items: center; gap: 6px; border-bottom: 1.5px solid #f1f5f9; margin-bottom: 4px; }
-      .today-sec.blue { color: #2563eb; border-color: #93c5fd; }
+      .today-sec.blue { color: var(--dark); border-color: #e2e8f0; }
       .today-sec.green { color: #15803d; border-color: #bbf7d0; }
       .today-sec.amber { color: #c2410c; border-color: #fdba74; }
       .today-sec.red { color: #dc2626; border-color: #fecaca; }
       .today-sec .sec-badge { border-radius: 20px; padding: 1px 8px; font-size: 0.63rem; }
-      .today-sec.blue .sec-badge { background: #dbeafe; color: #2563eb; }
+      .today-sec.blue .sec-badge { background: #f1f5f9; color: var(--gray); }
       .today-sec.green .sec-badge { background: #dcfce7; color: #16a34a; }
       .today-sec.amber .sec-badge { background: #ffedd5; color: #ea580c; }
       .today-sec.red .sec-badge { background: #fee2e2; color: #dc2626; }
@@ -297,6 +324,12 @@
       .mon-info { min-width: 0; }
       .mon-name { font-size: 0.8rem; font-weight: 700; color: var(--dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .mon-meta { font-size: 0.64rem; color: var(--gray2); }
+      .split-table { margin-top: 6px; background: #fffbeb; border: 1px solid #fbbf24; border-radius: 6px; padding: 6px 8px; font-size: 0.68rem; }
+      .split-title { font-weight: 700; color: #92400e; margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+      .split-table table { width: 100%; border-collapse: collapse; }
+      .split-table th, .split-table td { padding: 2px 4px; border-bottom: 1px solid #fde68a; }
+      .split-table th { color: #92400e; font-weight: 600; }
+      .split-total td { border-top: 2px solid #f59e0b; background: #fef3c7; }
       .mon-nom { font-size: 0.8rem; font-weight: 800; color: var(--green); white-space: nowrap; flex-shrink: 0; }
       .mon-empty { font-size: 0.78rem; color: var(--gray2); padding: 8px 0 4px; }
       .mon-section-head { font-size: 0.72rem; font-weight: 800; padding: 5px 0 6px; letter-spacing: 0.04em; display: flex; align-items: center; gap: 5px; }
@@ -310,7 +343,7 @@
       .mon-item:last-child { border-bottom: none; }
       .mon-item-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
       .mon-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-      .mon-dot.blue { background: #3b82f6; }
+      .mon-dot.blue { background: #131b2e; }
       .mon-dot.green { background: #22c55e; }
       .mon-dot.amber { background: #f59e0b; }
       .mon-dot.red { background: #f87171; }
@@ -318,7 +351,7 @@
       .mon-name { font-size: 0.8rem; font-weight: 700; color: var(--dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .mon-meta { font-size: 0.65rem; color: var(--gray2); }
       .mon-nom { font-size: 0.8rem; font-weight: 800; color: var(--green); white-space: nowrap; flex-shrink: 0; }
-      .mon-nom.blue { color: #2563eb; }
+      .mon-nom.blue { color: var(--dark); }
       .mon-nom.amber { color: #d97706; }
       .mon-nom.red { color: #dc2626; }
       .mon-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
@@ -349,24 +382,35 @@
       .log-msg { color:var(--dark); word-break:break-word; }
       .log-meta { color:var(--gray2); font-size:0.68rem; margin-top:2px; word-break:break-word; }
     </style>
+    <link rel="stylesheet" href="/lib/maulagi-sovereign.css">
   </head>
-  <body>
+  <body class="app-admin">
 
     <div class="top-bar">
       <a href="/"><i class="bi bi-arrow-left"></i></a>
-      <h1><i class="bi bi-shield-lock-fill text-warning me-2"></i>Admin Panel</h1>
+      <div class="top-bar-info">
+        <div class="top-bar-kicker">Maulagi &middot; Internal</div>
+        <h1>Admin Panel</h1>
+      </div>
       <a href="#" onclick="event.preventDefault();openLogs()" title="Error Log"><i class="bi bi-journal-x"></i></a>
       <a href="#" onclick="event.preventDefault();openSettingsGate()" title="Pengaturan"><i class="bi bi-gear-fill"></i></a>
     </div>
 
     <div class="page-wrap">
-      <div class="welcome-text">Kelola cabang di sini. Transfer yang tidak cocok dipantau langsung di bawah.</div>
+      <div class="welcome-text">Kelola cabang, status resi, dan pantau transfer tidak cocok.</div>
       <div class="menu-grid">
-        <button class="menu-card mc-blue menu-wide" onclick="openModal('modalCabang'); loadCabangModal()">
+        <button class="menu-card mc-blue" onclick="openModal('modalCabang'); loadCabangModal()">
           <div class="mc-icon"><i class="bi bi-building"></i></div>
           <div>
             <div class="mc-title">Kelola Cabang</div>
             <div class="mc-sub">Tambah, edit & hapus</div>
+          </div>
+        </button>
+        <button class="menu-card mc-amber" onclick="openManualStatusModal()">
+          <div class="mc-icon"><i class="bi bi-exclamation-octagon"></i></div>
+          <div>
+            <div class="mc-title">Status Manual Resi</div>
+            <div class="mc-sub">Cari resi &amp; timpa status</div>
           </div>
         </button>
       </div>
@@ -386,7 +430,7 @@
         <div class="today-summary tr-summary" id="mismatchSummary" style="display:none">
           <div class="tr-sum-card"><div class="tsv" id="mismatchSuspect" style="color:#c2410c">-</div><div class="tsl">Salah Tgl?</div></div>
           <div class="tr-sum-card"><div class="tsv" id="mismatchOpen" style="color:#dc2626">-</div><div class="tsl">Belum Cocok</div></div>
-          <div class="tr-sum-card"><div class="tsv" id="mismatchPending" style="color:#2563eb">-</div><div class="tsl">Belum Transfer</div></div>
+          <div class="tr-sum-card"><div class="tsv" id="mismatchPending" style="color:var(--dark)">-</div><div class="tsl">Belum Transfer</div></div>
         </div>
         <div id="mismatchContent">
           <div class="empty-state" style="padding:20px 0"><span class="spinner-border spinner-border-sm"></span></div>
@@ -399,7 +443,7 @@
       <div class="modal-panel">
         <div class="modal-head">
           <div class="modal-head-left">
-            <div class="modal-head-icon" style="background:#dbeafe;color:#2563eb"><i class="bi bi-building"></i></div>
+            <div class="modal-head-icon" style="background:rgba(19,27,46,0.08);color:var(--dark)"><i class="bi bi-building"></i></div>
             <div>
               <h2>Kelola Cabang</h2>
               <div class="modal-sub" id="cabangCount">Memuat...</div>
@@ -434,6 +478,37 @@
       </div>
     </div>
 
+    <div class="modal-overlay" id="modalManualStatus" onclick="handleModalOverlay(event,'modalManualStatus')">
+      <div class="modal-panel">
+        <div class="modal-head">
+          <div class="modal-head-left">
+            <div class="modal-head-icon" style="background:#fef3c7;color:#d97706"><i class="bi bi-exclamation-octagon"></i></div>
+            <div>
+              <h2>Status Manual Resi</h2>
+              <div class="modal-sub" id="manualStatusCount">Memuat...</div>
+            </div>
+          </div>
+          <div class="modal-close" onclick="closeModal('modalManualStatus')"><i class="bi bi-x"></i></div>
+        </div>
+        <div class="modal-body">
+          <div class="status-helper">
+            <div class="sh-icon"><i class="bi bi-arrow-repeat"></i></div>
+            <div>
+              <div class="sh-title">Data tetap ikut sync, hanya status yang ditimpa</div>
+              <div class="sh-sub">Data MauKirim tetap sync. Override hanya mengubah <strong>status_terakhir</strong> saat dibaca di dashboard dan admin.</div>
+            </div>
+          </div>
+          <div class="search-wrap" style="margin-top:10px">
+            <i class="bi bi-search"></i>
+            <input type="text" id="searchManualStatus" placeholder="Cari nomor resi..." oninput="scheduleManualStatusSearch()" autocomplete="off">
+          </div>
+          <div id="manualStatusList">
+            <div class="empty-state"><span class="spinner-border spinner-border-sm"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ══ Modal: Kelola Transfer ══ -->
     <div class="modal-overlay" id="modalTransfer" onclick="handleModalOverlay(event,'modalTransfer')">
       <div class="modal-panel">
@@ -442,7 +517,7 @@
             <div class="modal-head-icon" style="background:#fef3c7;color:#d97706"><i class="bi bi-arrow-left-right"></i></div>
             <div>
               <h2>Kelola Transfer</h2>
-                <div class="modal-sub">Lihat, edit tanggal, dan sinkronkan transfer ke NONCOD</div>
+                <div class="modal-sub">Lihat transfer tersimpan dan rekonsiliasikan ke NONCOD</div>
             </div>
           </div>
           <div class="modal-close" onclick="closeModal('modalTransfer')"><i class="bi bi-x"></i></div>
@@ -455,8 +530,8 @@
           <div class="tr-helper">
             <div class="th-icon"><i class="bi bi-diagram-3-fill"></i></div>
             <div class="th-body">
-              <div class="th-title">Tujuan utamanya: samakan tanggal transfer dengan tanggal NONCOD</div>
-              <div class="th-sub">Gunakan <strong>Edit Tgl</strong> jika seluruh nominal hanya untuk satu tanggal NONCOD. Gunakan <strong>Split Tgl</strong> jika satu bukti transfer membayar beberapa tanggal NONCOD atau pickup.</div>
+              <div class="th-title">Upload transfer dan data NONCOD adalah dua data yang berbeda</div>
+              <div class="th-sub">Upload mencatat bukti pembayaran. <strong>Edit Tgl</strong> untuk 1 transfer ke 1 tanggal NONCOD. <strong>Split Tgl</strong> untuk 1 bukti membayar beberapa tanggal.</div>
             </div>
           </div>
           <div class="tr-filters" id="trFilters" style="display:none">
@@ -554,7 +629,7 @@
             <input type="password" class="form-control" id="dashPwBaru1" placeholder="Password baru..." oninput="checkDashPwBuat()">
             <input type="password" class="form-control" id="dashPwBaru2" placeholder="Ulangi password..." oninput="checkDashPwBuat()">
             <div id="dashPwBuatError" style="font-size:0.75rem;color:#ef4444;margin-bottom:8px;display:none"></div>
-            <button class="btn-pw" id="btnBuatDashPw" onclick="buatDashPassword()" disabled style="background:#2563eb">
+            <button class="btn-pw" id="btnBuatDashPw" onclick="buatDashPassword()" disabled style="background:#131b2e">
               <i class="bi bi-check-lg me-1"></i>Simpan Password
             </button>
           </div>
@@ -567,7 +642,7 @@
             <input type="password" class="form-control" id="dashPwBaru3" placeholder="Password baru..." oninput="checkDashPwGanti()">
             <input type="password" class="form-control" id="dashPwBaru4" placeholder="Ulangi password baru..." oninput="checkDashPwGanti()">
             <div id="dashPwGantiError" style="font-size:0.75rem;color:#ef4444;margin-bottom:8px;display:none"></div>
-            <button class="btn-pw" id="btnGantiDashPw" onclick="gantiDashPassword()" disabled style="background:#2563eb">
+            <button class="btn-pw" id="btnGantiDashPw" onclick="gantiDashPassword()" disabled style="background:#131b2e">
               <i class="bi bi-arrow-repeat me-1"></i>Ganti Password
             </button>
           </div>
@@ -582,16 +657,16 @@
         <div class="split-head">
           <div>
             <h3><i class="bi bi-scissors me-1 text-warning"></i>Split Tanggal Transfer</h3>
-            <div class="sh-sub">Pecah 1 transfer agar tiap baris mengikuti tanggal NONCOD atau pickup</div>
+            <div class="sh-sub">Pecah 1 transfer agar tiap baris dibebankan ke tanggal NONCOD yang benar</div>
           </div>
           <div class="split-close" onclick="closeSplit()"><i class="bi bi-x"></i></div>
         </div>
         <div class="split-body">
-          <div class="split-note"><i class="bi bi-info-circle-fill"></i><div>Bukti transfer, bank, dan cabang tetap sama. Yang dipecah hanya <strong>tanggal</strong> dan <strong>nominal rincian</strong> supaya rekap harian sesuai dengan data NONCOD.</div></div>
           <div class="split-orig" id="splitOrigInfo"></div>
+          <div id="splitSuggestionInfo"></div>
           <div class="split-rlabel">Rincian yang akan disimpan</div>
           <div class="split-rhead">
-            <div class="srh">Tanggal NONCOD</div>
+            <div class="srh">Tanggal Rekonsiliasi</div>
             <div class="srh">Nominal</div>
             <div class="srh">&nbsp;</div>
           </div>
@@ -609,7 +684,7 @@
     <div class="proof-overlay" id="proofOverlay" onclick="handleProofOverlay(event)">
       <div class="proof-panel">
         <div class="proof-stage" id="proofStage">
-          <img src="" id="proofImg" onload="handleProofLoad()" onerror="handleProofError()">
+          <img id="proofImg" onload="handleProofLoad()" onerror="handleProofError()">
           <div class="proof-error" id="proofErr"><i class="bi bi-image-fill" style="font-size:2rem;display:block;margin-bottom:8px"></i>Gambar bukti tidak dapat ditampilkan</div>
           <div class="proof-actions" id="proofActions">
             <button class="proof-btn" onclick="rotateProof()" title="Putar gambar" aria-label="Putar gambar"><i class="bi bi-arrow-clockwise"></i></button>
@@ -626,6 +701,9 @@
       if (EMBED_MODE) document.body.classList.add('embed');
 
       let cabangData = [];
+      let manualStatusRows = [];
+      let manualStatusEditingResi = '';
+      let manualStatusSearchTimer = null;
 
       function hasActiveSession(prefix) {
         const ts = parseInt(sessionStorage.getItem(prefix + 'AuthTs') || '0');
@@ -968,8 +1046,8 @@
         filtered.forEach(c => { const a = c.area || 'LAINNYA'; if (!groups[a]) groups[a] = []; groups[a].push(c); });
         const areaOrder = ['SULTRA', 'MKS OUTER', 'CUSTUMER', 'LAINNYA'];
         const areaClass = { 'SULTRA': 'sultra', 'MKS OUTER': 'mks', 'CUSTUMER': 'cust' };
-        const areaColor = { 'SULTRA': '#dbeafe', 'MKS OUTER': '#fef9c3', 'CUSTUMER': '#fce7f3', 'LAINNYA': '#f1f5f9' };
-        const areaTextColor = { 'SULTRA': '#2563eb', 'MKS OUTER': '#ca8a04', 'CUSTUMER': '#db2777', 'LAINNYA': '#64748b' };
+        const areaColor = { 'SULTRA': '#e8edf5', 'MKS OUTER': '#fef9c3', 'CUSTUMER': '#fce7f3', 'LAINNYA': '#f1f5f9' };
+        const areaTextColor = { 'SULTRA': '#131b2e', 'MKS OUTER': '#ca8a04', 'CUSTUMER': '#db2777', 'LAINNYA': '#64748b' };
 
         const sorted = Object.keys(groups).sort((a, b) => {
           const ia = areaOrder.indexOf(a); const ib = areaOrder.indexOf(b);
@@ -1001,8 +1079,220 @@
         el.innerHTML = html;
       }
 
+      function safeDomId(value) {
+        return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+      }
+
+      function openManualStatusModal() {
+        document.getElementById('searchManualStatus').value = '';
+        manualStatusEditingResi = '';
+        openModal('modalManualStatus');
+        loadManualStatusModal();
+        setTimeout(() => document.getElementById('searchManualStatus').focus(), 60);
+      }
+
+      function scheduleManualStatusSearch() {
+        clearTimeout(manualStatusSearchTimer);
+        manualStatusSearchTimer = setTimeout(() => {
+          loadManualStatusModal();
+        }, 260);
+      }
+
+      function getManualStatusQuery() {
+        return (document.getElementById('searchManualStatus').value || '').trim().toUpperCase();
+      }
+
+      function getManualStatusRow(nomorResi) {
+        return manualStatusRows.find(row => row.nomor_resi === nomorResi) || null;
+      }
+
+      async function loadManualStatusModal() {
+        const listEl = document.getElementById('manualStatusList');
+        const countEl = document.getElementById('manualStatusCount');
+        const query = getManualStatusQuery();
+        manualStatusEditingResi = '';
+        countEl.textContent = 'Memuat...';
+        listEl.innerHTML = '<div class="empty-state"><span class="spinner-border spinner-border-sm"></span></div>';
+
+        try {
+          const url = '/api/noncod-status' + (query ? ('?q=' + encodeURIComponent(query)) : '');
+          const { response: res, json } = await fetchJsonWithTimeout(url, {
+            headers: { 'X-Admin-Token': getOpsToken() }
+          });
+          if (!res.ok) {
+            listEl.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-circle"></i>' + escHtmlAdmin(json.error || 'Gagal memuat data') + '</div>';
+            countEl.textContent = 'Gagal memuat';
+            manualStatusRows = [];
+            return;
+          }
+
+          manualStatusRows = Array.isArray(json.rows) ? json.rows : [];
+          countEl.textContent = query
+            ? (manualStatusRows.length + ' hasil pencarian')
+            : (manualStatusRows.length ? (manualStatusRows.length + ' resi override manual') : 'Belum ada override manual');
+          renderManualStatusList();
+        } catch (err) {
+          manualStatusRows = [];
+          listEl.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-circle"></i>' + escHtmlAdmin(err.message || 'Gagal memuat data') + '</div>';
+          countEl.textContent = 'Gagal memuat';
+        }
+      }
+
+      function renderManualStatusList() {
+        const listEl = document.getElementById('manualStatusList');
+        const query = getManualStatusQuery();
+
+        if (!manualStatusRows.length) {
+          listEl.innerHTML = '<div class="empty-state"><i class="bi bi-inbox"></i>' + (query ? 'Resi tidak ditemukan' : 'Belum ada resi yang dioverride') + '</div>';
+          return;
+        }
+
+        listEl.innerHTML = '<div class="status-list">' + manualStatusRows.map((row) => {
+          const nomorResi = row.nomor_resi || '';
+          const encodedResi = encodeURIComponent(nomorResi);
+          const domId = safeDomId(nomorResi);
+          const isEditing = manualStatusEditingResi === nomorResi;
+          const metaParts = [row.cabang || '-', row.periode || '-'];
+          if (row.tanggal_buat) metaParts.push(fmtTanggalId(row.tanggal_buat));
+          if (row.metode_pembayaran) metaParts.push(String(row.metode_pembayaran).toUpperCase());
+          const sourceStatus = row.source_status_terakhir || '-';
+          const effectiveStatus = row.effective_status_terakhir || sourceStatus;
+          const badges = [
+            row.override_active
+              ? '<span class="status-pill manual"><i class="bi bi-pencil-square"></i>' + escHtmlAdmin(row.manual_status_terakhir || '-') + '</span>'
+              : '<span class="status-pill live"><i class="bi bi-arrow-repeat"></i>Sync</span>',
+            '<span class="status-pill sync">Sync: ' + escHtmlAdmin(sourceStatus) + '</span>',
+            row.found_in_sync
+              ? ''
+              : '<span class="status-pill warn"><i class="bi bi-exclamation-triangle"></i>Row sync tidak ditemukan</span>'
+          ].filter(Boolean).join('');
+
+          const editHtml = isEditing
+            ? '<div class="status-edit-row">' +
+                '<input type="text" id="manualStatusInput-' + domId + '" value="' + escHtmlAdmin(row.manual_status_terakhir || effectiveStatus || 'BATAL') + '" maxlength="50" placeholder="Contoh: BATAL">' +
+                '<button class="status-action warn" id="manualStatusSaveBtn-' + domId + '" onclick="saveManualStatus(\'' + encodedResi + '\')"><i class="bi bi-check-lg"></i>Simpan</button>' +
+                '<button class="status-action" onclick="cancelManualStatusEdit()"><i class="bi bi-x-lg"></i>Batal</button>' +
+              '</div>'
+            : '<div class="status-actions">' +
+                '<button class="status-action warn" onclick="startEditManualStatus(\'' + encodedResi + '\')"><i class="bi bi-pencil"></i>' + (row.override_active ? 'Edit Status' : 'Set Status') + '</button>' +
+                (row.override_active
+                  ? '<button class="status-action danger" onclick="clearManualStatus(\'' + encodedResi + '\')"><i class="bi bi-trash3"></i>Hapus Override</button>'
+                  : '') +
+              '</div>';
+
+          return '<div class="status-item' + (isEditing ? ' editing' : '') + '">' +
+            '<div class="status-top">' +
+              '<div class="status-resi">' + escHtmlAdmin(nomorResi) + '</div>' +
+              '<div class="status-badges">' + badges + '</div>' +
+            '</div>' +
+            '<div class="status-meta">' + escHtmlAdmin(metaParts.join(' · ')) + '</div>' +
+            '<div class="status-meta">Status aktif: <strong>' + escHtmlAdmin(effectiveStatus || '-') + '</strong>' + (row.updated_at ? ' · override terakhir ' + escHtmlAdmin(new Date(row.updated_at).toLocaleString('id-ID')) : '') + '</div>' +
+            (row.ongkir > 0 ? '<div class="status-meta">Ongkir Rp ' + Number(row.ongkir || 0).toLocaleString('id-ID') + (row.total_pengiriman > 0 ? ' · Total Rp ' + Number(row.total_pengiriman || 0).toLocaleString('id-ID') : '') + '</div>' : '') +
+            editHtml +
+          '</div>';
+        }).join('') + '</div>';
+
+        if (manualStatusEditingResi) {
+          const input = document.getElementById('manualStatusInput-' + safeDomId(manualStatusEditingResi));
+          if (input) input.focus();
+        }
+      }
+
+      function startEditManualStatus(encodedResi) {
+        manualStatusEditingResi = decodeURIComponent(encodedResi || '');
+        renderManualStatusList();
+      }
+
+      function cancelManualStatusEdit() {
+        manualStatusEditingResi = '';
+        renderManualStatusList();
+      }
+
+      async function saveManualStatus(encodedResi) {
+        const nomorResi = decodeURIComponent(encodedResi || '');
+        const row = getManualStatusRow(nomorResi);
+        const domId = safeDomId(nomorResi);
+        const input = document.getElementById('manualStatusInput-' + domId);
+        const saveBtn = document.getElementById('manualStatusSaveBtn-' + domId);
+        const statusTerakhir = String((input && input.value) || '').trim().toUpperCase();
+
+        if (!row) {
+          showToast('Data resi tidak ditemukan', 'error');
+          return;
+        }
+        if (!statusTerakhir) {
+          showToast('Status manual tidak boleh kosong', 'error');
+          return;
+        }
+
+        if (saveBtn) {
+          saveBtn.disabled = true;
+          saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        }
+
+        try {
+          const res = await fetch('/api/noncod-status', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Admin-Token': getOpsToken()
+            },
+            body: JSON.stringify({
+              nomor_resi: row.nomor_resi,
+              status_terakhir: statusTerakhir,
+              periode: row.periode,
+              cabang: row.cabang,
+              tanggal_buat: row.tanggal_buat,
+              metode_pembayaran: row.metode_pembayaran,
+            })
+          });
+          const json = await res.json();
+          if (!res.ok) {
+            showToast(json.error || 'Gagal menyimpan status manual', 'error');
+            return;
+          }
+          manualStatusEditingResi = '';
+          showToast('Status manual disimpan', 'success');
+          await loadManualStatusModal();
+          loadMismatchMonitor();
+        } catch {
+          showToast('Kesalahan jaringan', 'error');
+        } finally {
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="bi bi-check-lg"></i>Simpan';
+          }
+        }
+      }
+
+      async function clearManualStatus(encodedResi) {
+        const nomorResi = decodeURIComponent(encodedResi || '');
+        if (!nomorResi) return;
+        if (!confirm('Hapus override status manual untuk resi ini?')) return;
+
+        try {
+          const res = await fetch('/api/noncod-status?nomor_resi=' + encodeURIComponent(nomorResi), {
+            method: 'DELETE',
+            headers: { 'X-Admin-Token': getOpsToken() }
+          });
+          const json = await res.json();
+          if (!res.ok) {
+            showToast(json.error || 'Gagal menghapus override', 'error');
+            return;
+          }
+          manualStatusEditingResi = '';
+          showToast('Override dihapus', 'success');
+          await loadManualStatusModal();
+          loadMismatchMonitor();
+        } catch {
+          showToast('Kesalahan jaringan', 'error');
+        }
+      }
+
       // ── Kelola Transfer ──
       let splitTarget = null;
+      let splitSuggestionsByTransferId = {};
+      let transferLookupById = {};
       let allTransfers = []; // cache data dari API
       let duplicateTransferIds = new Set();
       const BULAN_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -1025,6 +1315,31 @@
         loadTransfers();
       }
 
+      async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 15000) {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const response = await fetch(url, { ...options, signal: controller.signal });
+          const rawText = await response.text();
+          let json = {};
+          if (rawText) {
+            try {
+              json = JSON.parse(rawText);
+            } catch {
+              json = { error: rawText };
+            }
+          }
+          return { response, json };
+        } catch (err) {
+          if (err && err.name === 'AbortError') {
+            throw new Error('Permintaan terlalu lama. Coba refresh lagi.');
+          }
+          throw err;
+        } finally {
+          window.clearTimeout(timer);
+        }
+      }
+
       async function loadTransfers() {
         const periode = document.getElementById('periodeSelect').value;
         const listEl = document.getElementById('trList');
@@ -1032,12 +1347,11 @@
         const filterBar = document.getElementById('trFilters');
         if (!periode) {
           listEl.innerHTML = '<div class="empty-state"><i class="bi bi-calendar3"></i>Pilih periode untuk melihat data</div>';
-          sumEl.style.display = 'none'; filterBar.style.display = 'none'; allTransfers = []; return;
+          sumEl.style.display = 'none'; filterBar.style.display = 'none'; allTransfers = []; transferLookupById = {}; return;
         }
         listEl.innerHTML = '<div class="empty-state"><span class="spinner-border spinner-border-sm me-2"></span>Memuat...</div>';
         try {
-          const res = await fetch('/api/transfer?periode=' + periode, { headers: { 'X-Admin-Token': getOpsToken() } });
-          const json = await res.json();
+          const { response: res, json } = await fetchJsonWithTimeout('/api/transfer?periode=' + periode, { headers: { 'X-Admin-Token': getOpsToken() } });
           if (!res.ok) { listEl.innerHTML = `<div class="empty-state"><i class="bi bi-exclamation-circle"></i>${json.error}</div>`; return; }
           sumEl.style.display = 'grid';
           const totalStr = json.total >= 1000000 ? 'Rp ' + (json.total/1000000).toLocaleString('id-ID',{maximumFractionDigits:1}) + ' jt' : 'Rp ' + json.total.toLocaleString('id-ID');
@@ -1049,6 +1363,10 @@
             const da = normTgl(a.tgl_inputan);
             const db = normTgl(b.tgl_inputan);
             return db.localeCompare(da);
+          });
+          transferLookupById = {};
+          allTransfers.forEach(item => {
+            if (item && item.id) transferLookupById[String(item.id)] = item;
           });
           duplicateTransferIds = buildDuplicateTransferSet(allTransfers);
           filterBar.style.display = allTransfers.length > 0 ? 'flex' : 'none';
@@ -1114,7 +1432,18 @@
       }
 
       function getTransferProofUrl(transfer) {
-        return String(transfer?.bukti || transfer?.bukti_url || '').trim();
+        const raw = String(transfer?.bukti || transfer?.bukti_url || '').trim();
+        if (!raw) return '';
+        // Already a proxy-image URL from API normalizeProofUrl
+        if (raw.startsWith('/api/proxy-image')) return raw;
+        // Full Supabase signed URL → extract filename and route through proxy
+        if (/^https?:\/\//.test(raw)) {
+          const m = raw.match(/\/bukti-transfer\/([^?]+)/);
+          if (m) return '/api/proxy-image?path=' + encodeURIComponent(m[1]);
+          return raw;
+        }
+        // Bare filename → route through proxy-image
+        return '/api/proxy-image?path=' + encodeURIComponent(raw);
       }
 
       function applyTrFilter() {
@@ -1142,7 +1471,7 @@
       }
 
       function getTransferById(id) {
-        return allTransfers.find(t => String(t.id) === String(id)) || null;
+        return transferLookupById[String(id)] || allTransfers.find(t => String(t.id) === String(id)) || null;
       }
 
       function startEditTrById(id) {
@@ -1276,7 +1605,13 @@
 
       async function openTransferReview(periode, cabangEncoded = '', tgl = '', transferId = '', action = '') {
         const cabang = cabangEncoded ? decodeURIComponent(cabangEncoded) : '';
-        openModal('modalTransfer');
+        const wantsSplit = !!transferId && action === 'split';
+        const cachedTransfer = wantsSplit ? getTransferById(transferId) : null;
+        if (wantsSplit && cachedTransfer) {
+          openSplit(cachedTransfer);
+          return;
+        }
+        if (!wantsSplit) openModal('modalTransfer');
 
         const sel = document.getElementById('periodeSelect');
         if (!Array.from(sel.options).some(opt => opt.value === periode)) {
@@ -1290,12 +1625,16 @@
         sel.value = periode;
         await loadTransfers();
 
+        if (wantsSplit) {
+          openSplitById(transferId);
+          return;
+        }
+
         document.getElementById('trSearchCabang').value = cabang;
         document.getElementById('trSearchTgl').value = tgl || '';
         if (cabang || tgl) applyTrFilter();
 
         if (transferId && action === 'edit') startEditTrById(transferId);
-        if (transferId && action === 'split') openSplitById(transferId);
 
         const rowEl = transferId ? document.getElementById('tri-' + transferId) : null;
         if (rowEl) rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1331,7 +1670,7 @@
                 <span class="tr-item-nominal">${nom}</span>
                 <div style="display:flex;gap:4px;justify-content:flex-end">
                   ${proofButton}
-                  <span class="btn-edit-tr" onclick="startEditTrById('${transferId}')" title="Samakan tanggal transfer jika hanya untuk satu tanggal NONCOD"><i class="bi bi-pencil"></i> Edit Tgl</span>
+                  <span class="btn-edit-tr" onclick="startEditTrById('${transferId}')" title="Bebankan transfer ini ke satu tanggal NONCOD"><i class="bi bi-pencil"></i> Edit Tgl</span>
                   <span class="btn-split-item" onclick="openSplitById('${transferId}')" title="Gunakan bila satu bukti transfer mencakup beberapa tanggal NONCOD"><i class="bi bi-scissors"></i> Split Tgl</span>
                   <span class="btn-del-tr" onclick="deleteTransferById('${transferId}')" title="Hapus row transfer yang duplikat atau salah input"><i class="bi bi-trash3"></i> Hapus</span>
                 </div>
@@ -1407,26 +1746,35 @@
       function openSplit(t) {
         if (!t || !t.id) return;
         splitTarget = t;
+        const suggestion = splitSuggestionsByTransferId[String(t.id)] || null;
         const tgl = normTgl(t.tgl_inputan);
         const tglDisplay = tgl ? new Date(tgl + 'T00:00:00').toLocaleDateString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric' }) : '-';
         const nom = parseFloat(t.nominal).toLocaleString('id-ID');
         document.getElementById('splitOrigInfo').innerHTML = `
-          <div style="width:30px;height:30px;border-radius:8px;background:#dbeafe;color:#2563eb;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="bi bi-geo-alt-fill"></i></div>
+          <div style="width:30px;height:30px;border-radius:8px;background:rgba(19,27,46,0.08);color:#131b2e;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="bi bi-geo-alt-fill"></i></div>
           <div class="so-body">
             <div class="so-cabang">${escHtmlAdmin(t.nama_cabang)}</div>
             <div class="so-sub">${escHtmlAdmin(t.nama_bank)} · Tgl input saat ini: ${tglDisplay}</div>
           </div>
           <div class="so-nom">Rp ${nom}</div>`;
+        const suggestionEl = document.getElementById('splitSuggestionInfo');
+        if (suggestionEl) suggestionEl.innerHTML = renderSplitSuggestionHtml(suggestion);
         const list = document.getElementById('rincianList');
         list.innerHTML = '';
-        addRincianRow(tgl, '');
-        addRincianRow('', '');
+        if (suggestion && suggestion.dates && suggestion.dates.length > 1) {
+          suggestion.dates.forEach(item => addRincianRow(item.date, item.ongkir));
+        } else {
+          addRincianRow(tgl, '');
+          addRincianRow('', '');
+        }
         updateSisa();
         document.getElementById('splitOverlay').classList.add('show');
       }
 
       function closeSplit() {
         document.getElementById('splitOverlay').classList.remove('show');
+        const suggestionEl = document.getElementById('splitSuggestionInfo');
+        if (suggestionEl) suggestionEl.innerHTML = '';
         splitTarget = null;
       }
 
@@ -1434,7 +1782,7 @@
         const div = document.createElement('div');
         div.className = 'rincian-row';
         div.innerHTML = `
-          <input type="date" value="${tgl}" title="Tanggal NONCOD atau pickup" aria-label="Tanggal NONCOD atau pickup" oninput="updateSisa()">
+          <input type="date" value="${tgl}" title="Tanggal NONCOD yang dibebankan" aria-label="Tanggal NONCOD yang dibebankan" oninput="updateSisa()">
           <input type="number" placeholder="Nominal rincian" value="${nominal}" title="Nominal untuk tanggal ini" aria-label="Nominal untuk tanggal ini" oninput="updateSisa()" min="1">
           <button class="btn-del-row" onclick="delRincianRow(this)" title="Hapus rincian tanggal"><i class="bi bi-trash3"></i></button>`;
         document.getElementById('rincianList').appendChild(div);
@@ -1498,6 +1846,21 @@
         return BULAN_ID[parseInt(month, 10) - 1] + ' ' + year;
       }
 
+      function renderSplitSuggestionHtml(suggestion) {
+        if (!suggestion || !Array.isArray(suggestion.dates) || suggestion.dates.length <= 1) return '';
+        const diffTotal = Math.abs(toNominal(suggestion.transferTotal) - toNominal(suggestion.total));
+        let html = '<div class="split-table"><div class="split-title"><i class="bi bi-lightbulb"></i> Kemungkinan gabungan ' + suggestion.dates.length + ' tanggal NONCOD</div><table><thead><tr><th>Tanggal</th><th style="text-align:right">NONCOD</th></tr></thead><tbody>';
+        suggestion.dates.forEach(item => {
+          html += '<tr><td>' + fmtTanggalId(item.date) + '</td><td style="text-align:right">Rp ' + toNominal(item.ongkir).toLocaleString('id-ID') + '</td></tr>';
+        });
+        html += '<tr class="split-total"><td><b>Total</b></td><td style="text-align:right"><b>Rp ' + toNominal(suggestion.total).toLocaleString('id-ID') + '</b></td></tr>';
+        if (diffTotal > 0) {
+          html += '<tr><td>Selisih</td><td style="text-align:right">Rp ' + diffTotal.toLocaleString('id-ID') + '</td></tr>';
+        }
+        html += '</tbody></table></div>';
+        return html;
+      }
+
       function fmtTanggalId(ymd) {
         if (!ymd) return '-';
         return new Date(ymd + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -1512,6 +1875,7 @@
       }
 
       function buildMismatchState(periode, ncData, trData) {
+        const ADMIN_TRANSFER_FEE_TOLERANCE = 500;
         const ncByDay = ncData.byDay || {};
         const transferRows = Array.isArray(trData.transfers) ? trData.transfers : [];
         const ncByCabangDate = {};
@@ -1559,7 +1923,11 @@
             const transfer = toNominal(trDates[date] || 0);
             const diff = noncod - transfer;
             if (diff > 0) shortages.push({ date, amount: diff, noncod, transfer });
-            if (diff < 0) extras.push({ date, amount: Math.abs(diff), noncod, transfer });
+            if (diff < 0) {
+              const extraAmount = Math.abs(diff);
+              if (noncod > 0 && extraAmount <= ADMIN_TRANSFER_FEE_TOLERANCE) return;
+              extras.push({ date, amount: extraAmount, noncod, transfer });
+            }
           });
 
           const usedShort = new Set();
@@ -1587,6 +1955,32 @@
 
           extras.forEach((extra, index) => {
             if (usedExtra.has(index)) return;
+            // Detect multi-date split: can the transfer amount cover this date + some unpaid shortages?
+            let splitSuggestion = null;
+            const dateRows = (trRowsByCabangDate[cabang] || {})[extra.date] || [];
+            const matchedTransferRows = dateRows.filter(row => toNominal(row.nominal) === toNominal(extra.transfer));
+            const splitRow = matchedTransferRows.length === 1
+              ? matchedTransferRows[0]
+              : (dateRows.length === 1 ? dateRows[0] : null);
+            const unusedShortages = shortages.filter((s, i) => !usedShort.has(i)).sort((a, b) => a.date.localeCompare(b.date));
+            if (unusedShortages.length > 0) {
+              // Try to find combination of NONCOD dates that sum to transfer amount (within tolerance)
+              const ncThisDate = toNominal(extra.noncod);
+              const transferTotal = toNominal(extra.transfer);
+              const splitDates = [];
+              if (ncThisDate > 0) splitDates.push({ date: extra.date, ongkir: ncThisDate });
+              let runningTotal = ncThisDate;
+              for (const s of unusedShortages) {
+                if (s.date === extra.date) continue;
+                splitDates.push({ date: s.date, ongkir: s.noncod });
+                runningTotal += s.noncod;
+                if (Math.abs(runningTotal - transferTotal) <= ADMIN_TRANSFER_FEE_TOLERANCE) {
+                  splitSuggestion = { dates: splitDates.slice(), total: runningTotal, transferTotal };
+                  break;
+                }
+                if (runningTotal > transferTotal + ADMIN_TRANSFER_FEE_TOLERANCE) break;
+              }
+            }
             mismatchCases.push({
               kind: 'transfer',
               cabang,
@@ -1595,9 +1989,13 @@
               noncod: extra.noncod,
               transfer: extra.transfer,
               filterDate: extra.date,
-              hint: extra.noncod > 0
-                ? 'Transfer lebih besar dari NONCOD di tanggal ini.'
-                : 'Ada transfer, tetapi NONCOD tanggal ini kosong.'
+              transferId: splitRow ? splitRow.id : '',
+              splitSuggestion,
+              hint: splitSuggestion
+                ? 'Kemungkinan pembayaran gabungan beberapa tanggal.'
+                : extra.noncod > 0
+                  ? 'Transfer lebih besar dari NONCOD di tanggal ini.'
+                  : 'Ada transfer, tetapi NONCOD tanggal ini kosong.'
             });
           });
 
@@ -1629,7 +2027,8 @@
 
       function renderMonitorAction(periode, cabang, filterDate, transferId, action, label, className) {
         const encodedCabang = encodeURIComponent(cabang || '');
-        return `<span class="${className}" onclick="openTransferReview('${periode}', '${encodedCabang}', '${filterDate || ''}', '${transferId || ''}', '${action || ''}')"><i class="bi bi-${action === 'edit' ? 'pencil' : 'search'}"></i> ${label}</span>`;
+        const icon = action === 'edit' ? 'pencil' : (action === 'split' ? 'scissors' : 'search');
+        return `<span class="${className}" onclick="openTransferReview('${periode}', '${encodedCabang}', '${filterDate || ''}', '${transferId || ''}', '${action || ''}')"><i class="bi bi-${icon}"></i> ${label}</span>`;
       }
 
       function renderSuspectItem(item, periode) {
@@ -1673,15 +2072,23 @@
       }
 
       function renderOpenCaseItem(item, periode) {
-        const label = item.kind === 'transfer' ? 'Cek Transfer' : 'Buka Transfer';
-        const actionHtml = renderMonitorAction(periode, item.cabang, item.filterDate, '', '', label, 'btn-edit-tr');
+        const canSplit = item.kind === 'transfer' && item.transferId && item.splitSuggestion && item.splitSuggestion.dates.length > 1;
+        const label = canSplit ? 'Split Tgl' : (item.kind === 'transfer' ? 'Cek Transfer' : 'Buka Transfer');
+        const actionHtml = canSplit
+          ? renderMonitorAction(periode, item.cabang, item.filterDate, item.transferId, 'split', label, 'btn-split-item')
+          : renderMonitorAction(periode, item.cabang, item.filterDate, '', '', label, 'btn-edit-tr');
         const meta = item.kind === 'transfer'
           ? `Transfer ${fmtTanggalId(item.date)} · NONCOD Rp ${item.noncod.toLocaleString('id-ID')} · Transfer Rp ${item.transfer.toLocaleString('id-ID')}`
           : `NONCOD ${fmtTanggalId(item.date)} · NONCOD Rp ${item.noncod.toLocaleString('id-ID')} · Transfer Rp ${item.transfer.toLocaleString('id-ID')}`;
 
+        const displayNominal = (item.splitSuggestion && item.splitSuggestion.dates.length > 1)
+          ? Math.abs(item.splitSuggestion.transferTotal - item.splitSuggestion.total)
+          : item.nominal;
+        const nomClass = displayNominal === 0 ? 'green' : 'red';
+
         return `<div class="mon-item">
           <div class="mon-item-left">
-            <div class="mon-dot red"></div>
+            <div class="mon-dot ${nomClass}"></div>
             <div class="mon-info">
               <div class="mon-name">${escHtmlAdmin(item.cabang)}</div>
               <div class="mon-meta">${meta}</div>
@@ -1689,7 +2096,7 @@
             </div>
           </div>
           <div class="mon-right">
-            <div class="mon-nom red">Rp ${item.nominal.toLocaleString('id-ID')}</div>
+            <div class="mon-nom ${nomClass}">${displayNominal === 0 ? '✓ Cocok' : 'Rp ' + displayNominal.toLocaleString('id-ID')}</div>
             <div class="mon-actions">${actionHtml}</div>
           </div>
         </div>`;
@@ -1705,15 +2112,24 @@
         sumEl.style.display = 'none';
         document.getElementById('mismatchDateLabel').textContent = getPeriodeLabel(periode) + ' · cek selisih NONCOD vs transfer';
         try {
-          const [ncRes, trRes] = await Promise.all([
-            fetch('/api/noncod?periode=' + encodeURIComponent(periode) + '&mode=noncod'),
-            fetch('/api/transfer?periode=' + encodeURIComponent(periode), { headers: { 'X-Admin-Token': getOpsToken() } })
+          const [{ response: ncRes, json: ncData }, { response: trRes, json: trData }] = await Promise.all([
+            fetchJsonWithTimeout('/api/noncod?periode=' + encodeURIComponent(periode) + '&mode=noncod'),
+            fetchJsonWithTimeout('/api/transfer?periode=' + encodeURIComponent(periode), { headers: { 'X-Admin-Token': getOpsToken() } })
           ]);
-          const [ncData, trData] = await Promise.all([ncRes.json(), trRes.json()]);
           if (!ncRes.ok) throw new Error(ncData.error || 'Gagal memuat NONCOD');
           if (!trRes.ok) throw new Error(trData.error || 'Gagal memuat transfer');
 
           const mismatchState = buildMismatchState(periode, ncData, trData);
+          splitSuggestionsByTransferId = {};
+          transferLookupById = {};
+          (trData.transfers || []).forEach(item => {
+            if (item && item.id) transferLookupById[String(item.id)] = item;
+          });
+          mismatchState.mismatchCases.forEach(item => {
+            if (item.transferId && item.splitSuggestion && item.splitSuggestion.dates && item.splitSuggestion.dates.length > 1) {
+              splitSuggestionsByTransferId[String(item.transferId)] = item.splitSuggestion;
+            }
+          });
           document.getElementById('mismatchSuspect').textContent = mismatchState.suspects.length;
           document.getElementById('mismatchPending').textContent = mismatchState.pendingCases.length;
           document.getElementById('mismatchOpen').textContent = mismatchState.mismatchCases.length;

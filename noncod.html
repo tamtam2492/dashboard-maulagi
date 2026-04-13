@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Noncod</title>
+    <title>NON-COD &middot; Maulagi</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,7 +34,7 @@
 
       #loadingScreen { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; gap: 16px; transition: opacity 0.4s; }
       #loadingScreen.hide { opacity: 0; pointer-events: none; }
-      .loading-spinner { width: 44px; height: 44px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; }
+      .loading-spinner { width: 44px; height: 44px; border: 3px solid var(--border); border-top-color: #131b2e; border-radius: 50%; animation: spin 0.7s linear infinite; }
       .loading-label { font-size: 0.82rem; font-weight: 600; color: var(--gray2); letter-spacing: -0.01em; }
       .page { display: none; flex-direction: column; min-height: 100vh; }
       .page.show { display: flex; }
@@ -57,8 +57,8 @@
       .hdr-action.upload-btn { color: #86efac; border-color: rgba(134,239,172,0.3); background: rgba(16,185,129,0.1); }
       .hdr-action.upload-btn:hover { background: rgba(16,185,129,0.2); }
       .hdr-action.upload-btn.active { background: var(--green); color: white; border-color: var(--green); }
-      .hdr-action.download-btn { color: #93c5fd; border-color: rgba(147,197,253,0.3); background: rgba(59,130,246,0.1); display: none; }
-      .hdr-action.download-btn:hover { background: rgba(59,130,246,0.2); }
+      .hdr-action.download-btn { color: rgba(255,255,255,0.75); border-color: rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); display: none; }
+      .hdr-action.download-btn:hover { background: rgba(255,255,255,0.16); color: white; }
       .hdr-action.download-btn.show { display: flex; }
       .hd-info { flex: 1; min-width: 0; }
       .hd-name { font-size: 1.05rem; font-weight: 800; color: white; letter-spacing: -0.02em; }
@@ -72,6 +72,7 @@
       .tab-btn { flex: 1; border: none; background: transparent; border-radius: 10px; padding: 9px 6px; font-size: 0.74rem; font-weight: 700; color: var(--gray); cursor: pointer; transition: all 0.2s; font-family: 'Inter', sans-serif; letter-spacing: -0.01em; }
       .tab-btn.active { background: var(--dark); color: white; box-shadow: 0 2px 8px rgba(15,23,42,0.2); }
       .tab-btn:not(.active):hover { background: #f1f5f9; }
+      .tab-btn:focus-visible { outline: 2px solid rgba(19,27,46,0.4); outline-offset: 2px; }
 
       .stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
       .stat-card {
@@ -79,11 +80,11 @@
         box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center;
         border: 1px solid transparent; position: relative; overflow: hidden;
       }
-      .stat-card:nth-child(1) { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-color: #93c5fd; }
+      .stat-card:nth-child(1) { background: linear-gradient(135deg, #e8edf5 0%, #dde3ee 100%); border-color: #c8d0dc; }
       .stat-card:nth-child(2) { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-color: #6ee7b7; }
       .stat-card:nth-child(3) { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border-color: #fca5a5; }
       .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
-      .stat-card:nth-child(1)::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+      .stat-card:nth-child(1)::before { background: linear-gradient(90deg, #131b2e, #2d3d5a); }
       .stat-card:nth-child(2)::before { background: linear-gradient(90deg, #10b981, #34d399); }
       .stat-card:nth-child(3)::before { background: linear-gradient(90deg, #ef4444, #f87171); }
       .stat-card .sc-lbl { font-size: 0.6rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
@@ -101,7 +102,7 @@
         background-repeat: no-repeat; background-position: right 10px center;
         padding-right: 28px;
       }
-      .filter-select:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+      .filter-select:focus { border-color: rgba(19,27,46,0.45); outline: none; box-shadow: 0 0 0 3px rgba(19,27,46,0.07); }
       .date-wrap {
         position: relative; display: flex; align-items: center; gap: 6px;
         border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.72rem;
@@ -110,9 +111,9 @@
         box-shadow: 0 1px 2px rgba(0,0,0,0.03); transition: 0.2s; cursor: pointer;
         user-select: none; white-space: nowrap; min-width: 0;
       }
-      .date-wrap:hover { border-color: var(--blue); }
-      .date-wrap.open { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
-      .date-wrap .dw-icon { color: var(--blue); font-size: 0.82rem; flex-shrink: 0; }
+      .date-wrap:hover { border-color: rgba(19,27,46,0.45); }
+      .date-wrap.open { border-color: rgba(19,27,46,0.45); box-shadow: 0 0 0 3px rgba(19,27,46,0.07); }
+      .date-wrap .dw-icon { color: var(--dark); font-size: 0.82rem; flex-shrink: 0; }
       .date-wrap .dw-label { letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; }
       .date-wrap .dw-arrow { color: var(--gray3); font-size: 0.6rem; flex-shrink: 0; margin-left: 2px; }
 
@@ -148,25 +149,25 @@
       .cal-days .cal-d:hover { background: #f1f5f9; }
       .cal-days .cal-d.other { color: var(--gray3); cursor: default; }
       .cal-days .cal-d.other:hover { background: transparent; }
-      .cal-days .cal-d.today { background: #eff6ff; color: var(--blue); font-weight: 800; }
-      .cal-days .cal-d.range-start { background: var(--blue); color: white; font-weight: 700; box-shadow: 0 2px 8px rgba(59,130,246,0.25); border-radius: 10px 4px 4px 10px; }
-      .cal-days .cal-d.range-end { background: var(--blue); color: white; font-weight: 700; box-shadow: 0 2px 8px rgba(59,130,246,0.25); border-radius: 4px 10px 10px 4px; }
+      .cal-days .cal-d.today { background: rgba(19,27,46,0.07); color: var(--dark); font-weight: 800; }
+      .cal-days .cal-d.range-start { background: #131b2e; color: white; font-weight: 700; box-shadow: 0 2px 8px rgba(19,27,46,0.28); border-radius: 10px 4px 4px 10px; }
+      .cal-days .cal-d.range-end { background: #131b2e; color: white; font-weight: 700; box-shadow: 0 2px 8px rgba(19,27,46,0.28); border-radius: 4px 10px 10px 4px; }
       .cal-days .cal-d.range-start.range-end { border-radius: 10px; }
-      .cal-days .cal-d.in-range { background: #dbeafe; color: var(--blue); font-weight: 700; border-radius: 4px; }
+      .cal-days .cal-d.in-range { background: rgba(19,27,46,0.09); color: var(--dark); font-weight: 700; border-radius: 4px; }
       .cal-days .cal-d.range-start.today, .cal-days .cal-d.range-end.today, .cal-days .cal-d.in-range.today { color: white; }
-      .cal-days .cal-d.in-range.today { background: #93c5fd; }
+      .cal-days .cal-d.in-range.today { background: #202b46; }
       .cal-btns { display: flex; gap: 6px; margin-top: 10px; }
       .cal-btn { flex: 1; padding: 7px; border: none; border-radius: 8px; font-size: 0.72rem; font-weight: 700; font-family: 'Inter', sans-serif; cursor: pointer; transition: 0.15s; }
       .cal-btn.secondary { background: #f1f5f9; color: var(--gray); }
       .cal-btn.secondary:hover { background: #e2e8f0; }
-      .cal-btn.primary { background: var(--blue); color: white; }
-      .cal-btn.primary:hover { background: #2563eb; }
+      .cal-btn.primary { background: #131b2e; color: white; }
+      .cal-btn.primary:hover { background: #202b46; }
       .filter-row { display: flex; gap: 8px; }
 
       .search-bar { position: relative; }
       .search-bar i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--gray2); font-size: 0.85rem; pointer-events: none; }
       .search-bar input { width: 100%; border-radius: 10px; border: 1.5px solid var(--border); padding: 9px 14px 9px 36px; font-size: 0.8rem; background: var(--card); color: var(--dark); font-family: 'Inter', sans-serif; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.03); transition: 0.2s; }
-      .search-bar input:focus { border-color: var(--blue); outline: none; background: white; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+      .search-bar input:focus { border-color: rgba(19,27,46,0.5); outline: none; background: white; box-shadow: 0 0 0 3px rgba(19,27,46,0.07); }
       .search-bar input::placeholder { color: var(--gray3); }
 
       .sum-table { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: var(--card); box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
@@ -180,10 +181,10 @@
       }
       .sum-table tbody td { padding: 8px 10px; border-bottom: 1px solid #e8eef5; color: #334155; }
       .sum-table tbody tr:last-child td { border-bottom: none; }
-      .sum-table tbody tr:hover { background: #eff6ff; }
+      .sum-table tbody tr:hover { background: #f1f5f9; }
       .sum-table tbody tr:nth-child(odd) { background: #ffffff; }
-      .sum-table tbody tr:nth-child(even) { background: #f0f7ff; }
-      .sum-table tbody tr:nth-child(even):hover { background: #dbeafe; }
+      .sum-table tbody tr:nth-child(even) { background: #f8fafc; }
+      .sum-table tbody tr:nth-child(even):hover { background: #e9eef5; }
       .td-cabang { font-weight: 700; color: var(--dark); max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .td-nom { text-align: right; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
       .td-status { text-align: center; }
@@ -221,7 +222,7 @@
       .toast-box.show { opacity: 1; }
       .toast-box.success { background: var(--green); }
       .toast-box.error { background: var(--red); }
-      .toast-box.copy { background: var(--blue); }
+      .toast-box.copy { background: #131b2e; }
 
       /* ── Table Loading Overlay ── */
       .sum-table { position: relative; }
@@ -241,7 +242,7 @@
       }
       .table-loading .tl-spinner {
         width: 18px; height: 18px; border: 2.5px solid var(--border);
-        border-top-color: var(--blue); border-radius: 50%;
+        border-top-color: #131b2e; border-radius: 50%;
         animation: spin 0.7s linear infinite; flex-shrink: 0;
       }
 
@@ -266,8 +267,9 @@
         .ctrl-row { gap: 12px; }
       }
     </style>
+    <link rel="stylesheet" href="/lib/maulagi-sovereign.css">
   </head>
-  <body>
+  <body class="app-noncod">
 
     <div id="loadingScreen">
       <div class="loading-spinner"></div>
@@ -278,7 +280,8 @@
       <div class="page-header">
         <a href="/" class="hdr-btn" onclick="clearWorkspaceSessions()"><i class="bi bi-arrow-left"></i></a>
         <div class="hd-info">
-          <div class="hd-name" id="hdName">Noncod</div>
+          <div class="hd-kicker">Maulagi &middot; Monitoring</div>
+          <div class="hd-name" id="hdName">NON-COD</div>
           <div class="hd-status" id="hdStatus">Memuat...</div>
         </div>
         <div class="hdr-action-group">
@@ -301,7 +304,7 @@
           <div class="stat-row" id="statsRow">
             <div class="stat-card">
               <div class="sc-lbl" id="stLbl1">Total Ongkir</div>
-              <div class="sc-val" id="stVal1" style="color:var(--blue)">-</div>
+              <div class="sc-val" id="stVal1" style="color:var(--dark)">-</div>
               <div class="sc-count" id="stCnt1"></div>
             </div>
             <div class="stat-card">
@@ -815,22 +818,31 @@
         let stamp = '';
         if (syncInfo.syncedAt) {
           try {
-            stamp = ' ' + new Date(syncInfo.syncedAt).toLocaleTimeString('id-ID', {
+            const syncDate = new Date(syncInfo.syncedAt);
+            const dateLabel = syncDate.toLocaleDateString('id-ID', {
+              timeZone: 'Asia/Makassar',
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric'
+            });
+            const timeLabel = syncDate.toLocaleTimeString('id-ID', {
               timeZone: 'Asia/Makassar',
               hour: '2-digit',
               minute: '2-digit'
             }) + ' WITA';
+            stamp = ' ' + dateLabel + ' · ' + timeLabel;
           } catch {}
         }
-        if (syncInfo.source === 'manual_upload') return ' · Data tersimpan sebelumnya' + stamp;
-        if (syncInfo.performed) return ' · Baru sinkron dari MauKirim' + stamp;
-        return ' · Data MauKirim tersimpan' + stamp;
+        if (syncInfo.source === 'manual_upload') return ' · Data tersimpan sebelumnya' + (stamp ? ' · terakhir sync' + stamp : '');
+        if (syncInfo.performed) return ' · Baru sinkron dari MauKirim' + (stamp ? ' · waktu sync' + stamp : '');
+        return ' · Data MauKirim tersimpan' + (stamp ? ' · terakhir sync' + stamp : '');
       }
 
       function refreshModeUi() {
         const modeSelect = document.getElementById('modeSelect');
         const statusSelect = document.getElementById('statusSelect');
         const showStatus = activeMode === 'noncod';
+        document.body.dataset.shipmentMode = activeMode;
         modeSelect.style.display = LOCKED_MODE ? 'none' : '';
         statusSelect.style.display = showStatus ? '' : 'none';
         if (!showStatus) {
@@ -969,6 +981,13 @@
         return noncodAggregation.getPeriodeDateRange(periode);
       }
 
+      function getRekonDifference(ongkir, transfer) {
+        if (noncodAggregation && typeof noncodAggregation.getRekonDifference === 'function') {
+          return noncodAggregation.getRekonDifference(ongkir, transfer);
+        }
+        return Number(ongkir || 0) - Number(transfer || 0);
+      }
+
       function getScopedDates(dates, periode) {
         return noncodAggregation.getScopedDates(dates, periode);
       }
@@ -1016,9 +1035,9 @@
 
         const totOngkir = allRows.reduce((s, r) => s + r.ongkir, 0);
         const totTransfer = allRows.reduce((s, r) => s + r.transfer, 0);
-        const totBelum = totOngkir - totTransfer;
+        const totBelum = allRows.reduce((s, r) => s + r.belum, 0);
         const totResi = allRows.reduce((s, r) => s + r.resi, 0);
-        setStats('Total Ongkir', 'Rp ' + fmtNom(totOngkir), 'var(--blue)',
+        setStats('Total Ongkir', 'Rp ' + fmtNom(totOngkir), 'var(--dark)',
                  'Sudah Transfer', 'Rp ' + fmtNom(totTransfer), 'var(--green)',
                  'Belum Transfer', totBelum > 0 ? 'Rp ' + fmtNom(totBelum) : 'Rp 0', 'var(--red)',
                  allRows.length + ' cabang · ' + totResi + ' resi',
@@ -1035,7 +1054,7 @@
         const fTotResi = rows.reduce((s, r) => s + r.resi, 0);
         const fTotOngkir = rows.reduce((s, r) => s + r.ongkir, 0);
         const fTotTransfer = rows.reduce((s, r) => s + r.transfer, 0);
-        const fTotBelum = fTotOngkir - fTotTransfer;
+        const fTotBelum = rows.reduce((s, r) => s + r.belum, 0);
         tbody.innerHTML = rows.map((r, i) => '<tr>' +
           '<td style="color:#94a3b8;font-size:0.65rem">' + (i+1) + '</td>' +
           '<td class="td-cabang" title="' + esc(r.cabang) + '">' + esc(r.cabang) + '</td>' +
@@ -1100,7 +1119,7 @@
           '<td class="td-cabang" title="' + esc(row.cabang) + '">' + esc(row.cabang) + '</td>' +
           '<td class="td-nom">' + fmtNom(row.resi) + '</td>' +
           '<td class="td-nom">' + (row.ongkir > 0 ? fmtNom(row.ongkir) : '-') + '</td>' +
-          '<td class="td-nom" style="color:var(--blue)">' + (row.total > 0 ? fmtNom(row.total) : '-') + '</td>' +
+          '<td class="td-nom" style="color:var(--dark)">' + (row.total > 0 ? fmtNom(row.total) : '-') + '</td>' +
           '</tr>').join('') +
           '<tr class="total-row">' +
           '<td colspan="2">TOTAL</td>' +
@@ -1145,16 +1164,16 @@
 
         // Build unfiltered stats for counts
         const allRows = getFilteredRekonRows(baseRows, { q, status: 'semua' });
-        const cntDone = allRows.filter(r => r.ongkir - r.transfer <= 0).length;
-        const cntBelum = allRows.filter(r => r.ongkir - r.transfer > 0).length;
+        const cntDone = allRows.filter(r => r.belum <= 0).length;
+        const cntBelum = allRows.filter(r => r.belum > 0).length;
         const allTotOngkir = allRows.reduce((s, r) => s + r.ongkir, 0);
         const allTotTransfer = allRows.reduce((s, r) => s + r.transfer, 0);
         const allTotResi = allRows.reduce((s, r) => s + r.resi, 0);
-        const allSelisih = allTotOngkir - allTotTransfer;
+        const allSelisih = allRows.reduce((s, r) => s + r.belum, 0);
         const allSelisihLabel = allSelisih > 0 ? 'Rp ' + fmtNom(allSelisih) : allSelisih === 0 ? 'Rp 0' : '-Rp ' + fmtNom(Math.abs(allSelisih));
         const allSelisihColor = allSelisih > 0 ? 'var(--red)' : allSelisih < 0 ? 'var(--green)' : 'var(--dark)';
 
-        setStats('Total Ongkir', 'Rp ' + fmtNom(allTotOngkir), 'var(--blue)',
+        setStats('Total Ongkir', 'Rp ' + fmtNom(allTotOngkir), 'var(--dark)',
                  'Total Transfer', 'Rp ' + fmtNom(allTotTransfer), 'var(--green)',
            'Selisih', allSelisihLabel, allSelisihColor,
                  allRows.length + ' cabang · ' + fmtNom(allTotResi) + ' resi',
@@ -1240,7 +1259,7 @@
           '<td class="td-nom">' + fmtNom(row.resi) + '</td>' +
           '<td style="font-size:0.65rem;color:#94a3b8">' + esc(row.area) + '</td>' +
           '<td class="td-nom">' + (row.ongkir > 0 ? fmtNom(row.ongkir) : '-') + '</td>' +
-          '<td class="td-nom" style="color:var(--blue)">' + (row.total > 0 ? fmtNom(row.total) : '-') + '</td>' +
+          '<td class="td-nom" style="color:var(--dark)">' + (row.total > 0 ? fmtNom(row.total) : '-') + '</td>' +
           '</tr>').join('') +
           '<tr class="total-row">' +
           '<td>TOTAL</td>' +
@@ -1306,7 +1325,8 @@
         const totResi = rows.reduce((s, r) => s + r.resi, 0);
         const totOngkir = rows.reduce((s, r) => s + r.ongkir, 0);
         const totTransfer = rows.reduce((s, r) => s + r.transfer, 0);
-        data.push({ 'No': '', 'Cabang': 'TOTAL', 'Resi': totResi, 'Ongkir': totOngkir, 'Transfer': totTransfer, 'Belum': totOngkir - totTransfer, 'Status': '' });
+        const totBelum = rows.reduce((s, r) => s + r.belum, 0);
+        data.push({ 'No': '', 'Cabang': 'TOTAL', 'Resi': totResi, 'Ongkir': totOngkir, 'Transfer': totTransfer, 'Belum': totBelum, 'Status': '' });
 
         const f = dateFrom, t = dateTo;
         const dF = new Date(f + 'T00:00:00'), dT = new Date(t + 'T00:00:00');
@@ -1369,7 +1389,8 @@
         const totResi = _monthlyRows.reduce((s, r) => s + r.resi, 0);
         const totOngkir = _monthlyRows.reduce((s, r) => s + r.ongkir, 0);
         const totTransfer = _monthlyRows.reduce((s, r) => s + r.transfer, 0);
-        data.push({ 'Cabang': 'TOTAL', 'Resi': totResi, 'Area': '', 'Ongkir': totOngkir, 'Transfer': totTransfer, 'Selisih': totOngkir - totTransfer, 'Status': '' });
+        const totSelisih = _monthlyRows.reduce((s, r) => s + getRekonDifference(r.ongkir, r.transfer), 0);
+        data.push({ 'Cabang': 'TOTAL', 'Resi': totResi, 'Area': '', 'Ongkir': totOngkir, 'Transfer': totTransfer, 'Selisih': totSelisih, 'Status': '' });
 
         const [pY, pM] = periode.split('-');
         const bulanNama = BULAN_ID[parseInt(pM) - 1].toLowerCase();

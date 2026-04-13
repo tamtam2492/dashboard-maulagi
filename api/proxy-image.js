@@ -10,7 +10,7 @@ module.exports = async (req, res) => {
 
   const { id, path } = req.query;
 
-  // --- Mode 1: Supabase storage path → generate fresh signed URL and redirect ---
+  // --- Mode 1: Supabase storage path → proxy image bytes ---
   if (path) {
     if (!/^[a-zA-Z0-9_\-.]{5,200}$/.test(path)) {
       return res.status(400).json({ error: 'Path tidak valid.' });
@@ -19,13 +19,20 @@ module.exports = async (req, res) => {
       const supabase = getSupabase();
       const { data, error } = await supabase.storage
         .from('bukti-transfer')
-        .createSignedUrl(path, 3600); // 1 hour
+        .createSignedUrl(path, 300);
       if (error || !data?.signedUrl) {
         return res.status(404).json({ error: 'Gambar tidak ditemukan.' });
       }
+      const imgRes = await fetch(data.signedUrl);
+      if (!imgRes.ok) {
+        return res.status(404).json({ error: 'Gambar tidak ditemukan.' });
+      }
+      const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+      res.setHeader('Content-Type', contentType);
       res.setHeader('Cache-Control', 'private, max-age=3600');
-      res.setHeader('Location', data.signedUrl);
-      return res.status(302).end();
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      const buffer = Buffer.from(await imgRes.arrayBuffer());
+      return res.send(buffer);
     } catch {
       return res.status(500).json({ error: 'Gagal memuat gambar.' });
     }

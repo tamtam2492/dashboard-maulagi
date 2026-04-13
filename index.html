@@ -27,22 +27,22 @@
       @media (min-width: 920px) { .menu-grid { max-width: 1180px; grid-template-columns: repeat(4, 1fr); } }
       .menu-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 28px 16px; background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.07); text-decoration: none; color: inherit; transition: all 0.2s ease; position: relative; overflow: hidden; }
       .menu-card.upload { background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-color: #86efac; }
-      .menu-card.rekap  { background: linear-gradient(135deg, #eff6ff, #dbeafe); border-color: #93c5fd; }
+      .menu-card.rekap  { background: linear-gradient(135deg, #f1f5f9, #e2e8f0); border-color: #cbd5e1; }
       .menu-card.dash   { background: linear-gradient(135deg, #fffbeb, #fef3c7); border-color: #fcd34d; }
       .menu-card.admin  { background: linear-gradient(135deg, #f8fafc, #f1f5f9); border-color: #cbd5e1; }
       .menu-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
       .menu-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
       .menu-card.upload::before { background: linear-gradient(90deg, #10b981, #34d399); }
-      .menu-card.rekap::before  { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+      .menu-card.rekap::before  { background: linear-gradient(90deg, #131b2e, #202b46); }
       .menu-card.dash::before   { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
       .menu-card.admin::before  { background: linear-gradient(90deg, #64748b, #94a3b8); }
       .menu-card.upload:hover { border-color: var(--green); }
-      .menu-card.rekap:hover  { border-color: var(--blue); }
+      .menu-card.rekap:hover  { border-color: var(--dark); }
       .menu-card.dash:hover   { border-color: var(--orange); }
       .menu-card.admin:hover  { border-color: var(--gray); }
       .menu-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
       .menu-card.upload .menu-icon { background: #dcfce7; color: #16a34a; }
-      .menu-card.rekap  .menu-icon { background: #dbeafe; color: #2563eb; }
+      .menu-card.rekap  .menu-icon { background: #e2e8f0; color: var(--dark); }
       .menu-card.dash   .menu-icon { background: #fef9c3; color: #ca8a04; }
       .menu-card.admin  .menu-icon { background: #f1f5f9; color: var(--gray); }
       .menu-title { font-size: 0.9rem; font-weight: 700; color: var(--dark); text-align: center; letter-spacing: -0.01em; }
@@ -60,7 +60,7 @@
       @media (min-width: 540px) { .pop-panel { border-radius: 20px; max-height: 78vh; } }
       @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
       .pop-head { padding: 14px 16px 12px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-      .pop-head-icon { width: 32px; height: 32px; border-radius: 9px; background: #dbeafe; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+      .pop-head-icon { width: 32px; height: 32px; border-radius: 9px; background: linear-gradient(135deg, #131b2e, #202b46); color: white; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
       .pop-head h3 { font-size: 0.9rem; font-weight: 800; color: var(--dark); margin: 0; flex: 1; letter-spacing: -0.01em; }
       .pop-close { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border); background: #f8fafc; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--gray); font-size: 0.85rem; flex-shrink: 0; transition: 0.15s; }
       .pop-close:hover { background: #f1f5f9; color: var(--dark); }
@@ -70,11 +70,11 @@
       .pop-search-wrap { position: relative; flex-shrink: 0; }
       .pop-search-wrap i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--gray2); font-size: 0.9rem; pointer-events: none; }
       .pop-search-wrap input { width: 100%; border-radius: 10px; border: 1.5px solid var(--border); padding: 9px 12px 9px 34px; font-size: 0.85rem; background: #f8fafc; color: var(--dark2); font-family: 'Inter', sans-serif; }
-      .pop-search-wrap input:focus { border-color: var(--blue); outline: none; background: var(--card); }
+      .pop-search-wrap input:focus { border-color: rgba(19,27,46,0.5); outline: none; background: var(--card); box-shadow: 0 0 0 3px rgba(19,27,46,0.07); }
       .cabang-list { display: flex; flex-direction: column; gap: 5px; }
       .cabang-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #f8fafc; border-radius: 10px; border: 1px solid #f1f5f9; cursor: pointer; transition: 0.15s; text-decoration: none; }
-      .cabang-item:hover { background: #eff6ff; border-color: #bfdbfe; }
-      .cabang-item .ci-icon { width: 32px; height: 32px; border-radius: 9px; background: #dbeafe; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0; }
+      .cabang-item:hover { background: #f1f5f9; border-color: #e2e8f0; }
+      .cabang-item .ci-icon { width: 32px; height: 32px; border-radius: 9px; background: rgba(19,27,46,0.08); color: var(--dark); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0; }
       .cabang-item .ci-name { font-size: 0.82rem; font-weight: 700; color: var(--dark); }
       .cabang-item .ci-area { font-size: 0.66rem; font-weight: 600; color: var(--gray2); margin-top: 1px; }
       .area-label { font-size: 0.68rem; font-weight: 800; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 4px 4px; }
@@ -97,8 +97,9 @@
       @keyframes spin { to { transform: rotate(360deg); } }
       .spin { display: inline-block; animation: spin 1s linear infinite; }
     </style>
+    <link rel="stylesheet" href="/lib/maulagi-sovereign.css">
   </head>
-  <body>
+  <body class="app-index">
     <!-- Popup: Pilih Cabang untuk Rekap -->
     <div class="pop-overlay" id="popCabang" onclick="if(event.target===this)closePop()">
       <div class="pop-panel">
@@ -131,46 +132,61 @@
       </div>
     </div>
 
-    <div class="visitor-corner">
-      <span><span class="vb-dot"></span><span id="visitorToday">...</span> hari ini</span>
-    </div>
-    <div class="brand">
-      <img src="/mobil.png" alt="Maulagi" class="brand-img">
-      <p>Pilih menu yang ingin diakses</p>
-    </div>
+    <header class="index-shell-header">
+      <div class="index-shell-badge">
+        <span class="index-shell-badge-dot"></span>
+        <span id="visitorToday">...</span>
+        <span>hari ini</span>
+      </div>
+    </header>
 
-    <div class="menu-grid">
-      <a href="/input.html" class="menu-card upload">
-        <div class="menu-icon"><i class="bi bi-cloud-upload-fill"></i></div>
-        <div>
-          <div class="menu-title">Upload</div>
-          <div class="menu-desc">Upload bukti transfer</div>
+    <main class="index-shell-main">
+      <div class="brand">
+        <img src="/mobil.png" alt="Maulagi" class="brand-img">
+        <div class="brand-copy">
+          <div class="brand-kicker">Internal Suite</div>
+          <h1>Maulagi Workspace</h1>
+          <p>Pilih modul untuk memulai.</p>
         </div>
-      </a>
-      <a class="menu-card rekap" onclick="openRekapPicker()" style="cursor:pointer">
-        <div class="menu-icon"><i class="bi bi-bar-chart-line-fill"></i></div>
-        <div>
-          <div class="menu-title">Rekap Transfer</div>
-          <div class="menu-desc">Dashboard rekap transfer</div>
-        </div>
-      </a>
-      <a class="menu-card dash" onclick="openDashboard('dashboard', 'dashboard')" style="cursor:pointer">
-        <div class="menu-icon"><i class="bi bi-speedometer2"></i></div>
-        <div>
-          <div class="menu-title"><i class="bi bi-eye-fill" style="font-size:0.7rem;color:#94a3b8;margin-right:3px"></i>Viewer Dashboard</div>
-          <div class="menu-desc">Lihat dashboard dan download data</div>
-        </div>
-      </a>
-      <a class="menu-card admin" onclick="openDashboard('dashboard', 'admin')" style="cursor:pointer">
-        <div class="menu-icon"><i class="bi bi-shield-lock-fill"></i></div>
-        <div>
-          <div class="menu-title">Admin Workspace</div>
-          <div class="menu-desc">Upload, edit data, dan pengaturan</div>
-        </div>
-      </a>
-    </div>
+      </div>
 
-    <div class="footer">&copy; 2026 created by tams</div>
+      <div class="menu-grid">
+        <a href="/input.html" class="menu-card upload">
+          <div class="menu-icon"><i class="bi bi-cloud-upload-fill"></i></div>
+          <div>
+            <div class="menu-title">Upload Transfer</div>
+            <div class="menu-desc">Foto bukti transfer, OCR otomatis.</div>
+          </div>
+        </a>
+        <a class="menu-card rekap" onclick="openRekapPicker()" style="cursor:pointer">
+          <div class="menu-icon"><i class="bi bi-bar-chart-line-fill"></i></div>
+          <div>
+            <div class="menu-title">Rekap Transfer</div>
+            <div class="menu-desc">Ringkasan cabang, riwayat, dan bukti transaksi.</div>
+          </div>
+        </a>
+        <a class="menu-card dash" onclick="openDashboard('dashboard', 'dashboard')" style="cursor:pointer">
+          <div class="menu-icon"><i class="bi bi-speedometer2"></i></div>
+          <div>
+            <div class="menu-title">Dashboard</div>
+            <div class="menu-desc">Performa operasional dan omset bulan ini.</div>
+          </div>
+        </a>
+        <a class="menu-card admin" onclick="openDashboard('dashboard', 'admin')" style="cursor:pointer">
+          <div class="menu-icon"><i class="bi bi-shield-lock-fill"></i></div>
+          <div>
+            <div class="menu-title">Admin</div>
+            <div class="menu-desc">Kelola cabang, validasi, dan pengaturan.</div>
+          </div>
+        </a>
+      </div>
+
+
+    </main>
+
+    <footer class="index-shell-footer">
+      <div class="index-shell-credit">&copy; 2026 Maulagi &middot; CREATED BY TAMS</div>
+    </footer>
 
     <script>
       let allCabang = null; // cache
