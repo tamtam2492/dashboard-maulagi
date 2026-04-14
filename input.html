@@ -569,9 +569,12 @@
           const badge = hasDupes ? 'Cocok Multi, Ada Serupa' : 'Cocok Multi Tgl';
           const firstDate = nc.splitMatch.startDate || nc.splitMatch.dates[0].tanggal_buat;
           const lastDate = nc.splitMatch.endDate || nc.splitMatch.dates[nc.splitMatch.dates.length - 1].tanggal_buat;
+          const remainderNote = !hasDupes && nc.splitMatch.leavesRemainderOnLastDate && nc.splitMatch.diff > 0
+            ? ' Sisa ' + fmtNom(nc.splitMatch.diff) + ' akan tetap muncul di tabel selisih tanggal ' + fmtTgl(lastDate) + '.'
+            : '';
           const note = hasDupes
             ? 'Cocok gabungan ' + nc.splitMatch.dates.length + ' tanggal NONCOD, tetapi ada transfer serupa pada salah satu tanggal target. Cek ulang.'
-            : 'Cocok gabungan ' + nc.splitMatch.dates.length + ' tanggal NONCOD. Sistem akan simpan otomatis per tanggal: ' + formatSplitDateList(nc.splitMatch.dates) + '.';
+            : 'Cocok gabungan ' + nc.splitMatch.dates.length + ' tanggal NONCOD. Sistem akan simpan otomatis per tanggal: ' + formatSplitDateList(nc.splitMatch.dates) + '.' + remainderNote;
           setCabangSummaryView({
             tone,
             badge,
@@ -672,6 +675,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               nama_cabang: vals.nama_cabang,
+              periode: vals.periode,
               nominal: vals.nominal,
             }),
           });
@@ -1023,6 +1027,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               nama_cabang: vals.nama_cabang,
+              periode: vals.periode,
               nominal: vals.nominal,
             }),
           });

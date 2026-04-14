@@ -180,7 +180,7 @@ async function handler(req, res) {
   }
 
   try {
-    const { nama_cabang, tgl_inputan, nominal } = req.body || {};
+    const { nama_cabang, tgl_inputan, nominal, periode } = req.body || {};
 
     if (!nama_cabang || !nominal) {
       return res.status(400).json({ error: 'Field tidak lengkap.' });
@@ -192,7 +192,7 @@ async function handler(req, res) {
     let planRows = [];
 
     if (!effectiveDate) {
-      noncodMatch = await findNoncodDateMatch(supabase, { namaCabang: nama_cabang, nominal });
+      noncodMatch = await findNoncodDateMatch(supabase, { namaCabang: nama_cabang, nominal, preferredPeriode: periode });
       if (noncodMatch.match) {
         effectiveDate = noncodMatch.match.tanggal_buat;
         planRows = [{ tgl_inputan: effectiveDate, nominal: Number(nominal || 0) }];

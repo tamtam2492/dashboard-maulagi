@@ -98,7 +98,7 @@ module.exports = async (req, res) => {
     });
 
     // Validasi fields
-    const { tgl_inputan, nama_bank, nama_cabang, nominal } = fields;
+    const { tgl_inputan, nama_bank, nama_cabang, nominal, periode } = fields;
     if (!nama_bank || !nama_cabang || !nominal) {
       return res.status(400).json({ error: 'Semua field wajib diisi.' });
     }
@@ -130,6 +130,7 @@ module.exports = async (req, res) => {
     const noncodMatch = await findNoncodDateMatch(supabase, {
       namaCabang: normalizedCabang,
       nominal: parseTransferNominal(nominal),
+      preferredPeriode: periode,
     });
     const plannedRows = buildPlannedRowsFromMatch(noncodMatch, nominal);
     if (!plannedRows.length) {

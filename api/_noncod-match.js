@@ -3,6 +3,7 @@ const { applyStatusOverrides, readStatusOverridesByResi } = require('./_noncod-s
 
 const NONCOD_MATCH_TOLERANCE = 10000;
 const NONCOD_SPLIT_TOLERANCE = 500;
+const PERIODE_RE = /^\d{4}-\d{2}$/;
 
 function buildDateCandidates(byDate) {
   return Object.entries(byDate || {}).map(([tgl, totalOngkir]) => ({
@@ -10,6 +11,16 @@ function buildDateCandidates(byDate) {
     totalOngkir: Number(totalOngkir || 0),
     periode: tgl.slice(0, 7),
   }));
+}
+
+function filterByPreferredPeriode(byDate, preferredPeriode) {
+  const normalizedPeriode = String(preferredPeriode || '').trim();
+  if (!PERIODE_RE.test(normalizedPeriode)) return {};
+  const filtered = {};
+  for (const [tgl, totalOngkir] of Object.entries(byDate || {})) {
+    if (String(tgl).startsWith(normalizedPeriode + '-')) filtered[tgl] = totalOngkir;
+  }
+  return filtered;
 }
 
 function groupTransfersByDate(existingTransfers) {
@@ -90,6 +101,7 @@ function findSplitMatchingDates(byDate, existingTransfers, nominal, tolerance = 
       const current = outstandingDates[currentIndex];
       selectedDates.push(current);
       runningTotal += Number(current.remainingNominal || 0);
+      const previousTotal = runningTotal - Number(current.remainingNominal || 0);
 
       if (selectedDates.length > 1 && Math.abs(runningTotal - normalizedNominal) <= tolerance) {
         return {
@@ -99,6 +111,19 @@ function findSplitMatchingDates(byDate, existingTransfers, nominal, tolerance = 
           diff: Math.abs(runningTotal - normalizedNominal),
           startDate: selectedDates[0].tanggal_buat,
           endDate: selectedDates[selectedDates.length - 1].tanggal_buat,
+          leavesRemainderOnLastDate: false,
+        };
+      }
+
+      if (selectedDates.length > 1 && previousTotal < normalizedNominal && runningTotal > normalizedNominal + tolerance) {
+        return {
+          dates: allocateSplitPlannedNominals(selectedDates, normalizedNominal),
+          total: runningTotal,
+          transferTotal: normalizedNominal,
+          diff: Math.abs(runningTotal - normalizedNominal),
+          startDate: selectedDates[0].tanggal_buat,
+          endDate: selectedDates[selectedDates.length - 1].tanggal_buat,
+          leavesRemainderOnLastDate: true,
         };
       }
 
@@ -165,7 +190,7 @@ async function ensureFreshNoncod(supabase, periodes) {
   }
 }
 
-async function findNoncodDateMatch(supabase, { namaCabang, nominal }) {
+async function findNoncodDateMatch(supabase, { namaCabang, nominal, preferredPeriode }) {
   const normalizedCabang = String(namaCabang || '').trim().toUpperCase();
   const normalizedNominal = Number(nominal || 0);
   if (!normalizedCabang || normalizedNominal <= 0) {
@@ -201,40 +226,53 @@ async function findNoncodDateMatch(supabase, { namaCabang, nominal }) {
     .in('tgl_inputan', allCandidateDates);
   if (trErr) throw trErr;
 
-  const outstandingCandidates = findOutstandingMatchingDates(
-    byDate,
-    existingTransfers,
-    normalizedNominal,
-    NONCOD_MATCH_TOLERANCE,
-  );
+  const preferredByDate = filterByPreferredPeriode(byDate, preferredPeriode);
+  const searchByDateList = [];
+  if (Object.keys(preferredByDate).length) searchByDateList.push(preferredByDate);
+  searchByDateList.push(byDate);
 
-  if (outstandingCandidates.length) {
-    return {
-      match: outstandingCandidates[0],
-      candidates: outstandingCandidates,
-      blocked: false,
-      message: null,
-    };
+  for (const searchByDate of searchByDateList) {
+    const outstandingCandidates = findOutstandingMatchingDates(
+      searchByDate,
+      existingTransfers,
+      normalizedNominal,
+      NONCOD_MATCH_TOLERANCE,
+    );
+
+    if (outstandingCandidates.length) {
+      return {
+        match: outstandingCandidates[0],
+        candidates: outstandingCandidates,
+        blocked: false,
+        message: null,
+      };
+    }
   }
 
-  const splitMatch = findSplitMatchingDates(
-    byDate,
-    existingTransfers,
-    normalizedNominal,
-    NONCOD_SPLIT_TOLERANCE,
-  );
+  for (const searchByDate of searchByDateList) {
+    const splitMatch = findSplitMatchingDates(
+      searchByDate,
+      existingTransfers,
+      normalizedNominal,
+      NONCOD_SPLIT_TOLERANCE,
+    );
 
-  if (splitMatch && Array.isArray(splitMatch.dates) && splitMatch.dates.length > 1) {
-    return {
-      match: null,
-      splitMatch,
-      candidates: [],
-      blocked: false,
-      message: null,
-    };
+    if (splitMatch && Array.isArray(splitMatch.dates) && splitMatch.dates.length > 1) {
+      return {
+        match: null,
+        splitMatch,
+        candidates: [],
+        blocked: false,
+        message: null,
+      };
+    }
   }
 
-  const candidates = findMatchingDates(byDate, normalizedNominal, NONCOD_MATCH_TOLERANCE);
+  let candidates = [];
+  for (const searchByDate of searchByDateList) {
+    candidates = findMatchingDates(searchByDate, normalizedNominal, NONCOD_MATCH_TOLERANCE);
+    if (candidates.length) break;
+  }
 
   if (!candidates.length) {
     return {
@@ -268,6 +306,7 @@ module.exports = {
   aggregateOngkirByDate,
   allocateSplitPlannedNominals,
   annotateCandidates,
+  filterByPreferredPeriode,
   findMatchingDates,
   findOutstandingMatchingDates,
   findSplitMatchingDates,

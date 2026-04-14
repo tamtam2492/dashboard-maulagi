@@ -6,6 +6,7 @@ const {
   NONCOD_SPLIT_TOLERANCE,
   allocateSplitPlannedNominals,
   aggregateOngkirByDate,
+  filterByPreferredPeriode,
   findOutstandingMatchingDates,
   findMatchingDates,
   findSplitMatchingDates,
@@ -69,6 +70,26 @@ describe('aggregateOngkirByDate', () => {
       { tanggal_buat: '2026-04-10', ongkir: 100000, metode_pembayaran: 'noncod', status_terakhir: 'OK' },
     ];
     assert.deepEqual(aggregateOngkirByDate(rows), { '2026-04-10': 100000 });
+  });
+});
+
+describe('filterByPreferredPeriode', () => {
+  it('keeps only dates from the requested periode', () => {
+    const result = filterByPreferredPeriode({
+      '2026-03-31': 50000,
+      '2026-04-04': 174000,
+      '2026-04-05': 176000,
+      '2026-05-01': 90000,
+    }, '2026-04');
+
+    assert.deepEqual(result, {
+      '2026-04-04': 174000,
+      '2026-04-05': 176000,
+    });
+  });
+
+  it('returns empty object for invalid periode hint', () => {
+    assert.deepEqual(filterByPreferredPeriode({ '2026-04-04': 174000 }, 'April 2026'), {});
   });
 });
 
@@ -224,6 +245,24 @@ describe('findSplitMatchingDates', () => {
     assert.equal(result.diff, 0);
   });
 
+  it('allows partial nominal on final date and leaves remainder there', () => {
+    const byDate = {
+      '2026-04-04': 174000,
+      '2026-04-05': 176000,
+      '2026-04-07': 916000,
+      '2026-04-08': 259000,
+      '2026-04-09': 147000,
+    };
+    const result = findSplitMatchingDates(byDate, [], 1624000, NONCOD_SPLIT_TOLERANCE);
+    assert.ok(result);
+    assert.equal(result.dates.length, 5);
+    assert.equal(result.dates[0].tanggal_buat, '2026-04-04');
+    assert.equal(result.dates[4].tanggal_buat, '2026-04-09');
+    assert.equal(result.dates[4].plannedNominal, 99000);
+    assert.equal(result.diff, 48000);
+    assert.equal(result.leavesRemainderOnLastDate, true);
+  });
+
   it('allocates small selisih ke tanggal terakhir seperti split admin', () => {
     const result = allocateSplitPlannedNominals([
       { tanggal_buat: '2026-04-04', periode: '2026-04', totalOngkir: 100000, paidNominal: 0, remainingNominal: 100000 },
@@ -237,12 +276,9 @@ describe('findSplitMatchingDates', () => {
   it('returns null when no sequential multi-date match exists', () => {
     const byDate = {
       '2026-04-04': 174000,
-      '2026-04-05': 176000,
       '2026-04-07': 916000,
-      '2026-04-08': 259000,
-      '2026-04-09': 147000,
     };
-    const result = findSplitMatchingDates(byDate, [], 1624000, NONCOD_SPLIT_TOLERANCE);
+    const result = findSplitMatchingDates(byDate, [], 100000, NONCOD_SPLIT_TOLERANCE);
     assert.equal(result, null);
   });
 });
