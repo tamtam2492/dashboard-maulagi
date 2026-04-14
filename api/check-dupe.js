@@ -15,6 +15,25 @@ function normalizeTransferRow(row) {
   };
 }
 
+function normalizePlanRows(planRows, fallbackDate, fallbackNominal) {
+  const rows = Array.isArray(planRows) ? planRows : [];
+  const normalized = rows.map((row) => ({
+    tgl_inputan: String(row.tgl_inputan || row.tanggal_buat || '').trim(),
+    nominal: Number(row.nominal || row.plannedNominal || row.remainingNominal || 0),
+  })).filter((row) => row.tgl_inputan && row.nominal > 0);
+
+  if (normalized.length > 0) return normalized;
+
+  const normalizedDate = String(fallbackDate || '').trim();
+  const normalizedNominalValue = Number(fallbackNominal || 0);
+  if (!normalizedDate || !(normalizedNominalValue > 0)) return [];
+  return [{ tgl_inputan: normalizedDate, nominal: normalizedNominalValue }];
+}
+
+function buildPlanExactKey(dateText, nominal) {
+  return String(dateText || '').trim() + '|' + Number(nominal || 0);
+}
+
 function getScopeLabel(areaName, fallback = 'Cabang ini') {
   const normalizedArea = String(areaName || '').trim().toUpperCase();
   return normalizedArea ? 'Area ' + normalizedArea : fallback;
@@ -107,37 +126,27 @@ function buildDupeSummary({ exactDupes, branchDayTransfers, nominal, areaName })
   };
 }
 
-async function getDuplicateContext(supabase, { nama_cabang, tgl_inputan, nominal }) {
+async function getDuplicateContext(supabase, { nama_cabang, tgl_inputan, nominal, planRows }) {
   const normalizedDate = String(tgl_inputan || '').trim();
   const normalizedNominal = Number(nominal || 0);
+  const normalizedPlanRows = normalizePlanRows(planRows, normalizedDate, normalizedNominal);
+  const targetDates = Array.from(new Set(normalizedPlanRows.map((row) => row.tgl_inputan)));
   const { areaName, cabangNames } = await getAreaScope(supabase, nama_cabang);
-
-  const exactQuery = supabase
-    .from('transfers')
-    .select('id, timestamp, tgl_inputan, nama_bank, nama_cabang, nominal, periode')
-    .in('nama_cabang', cabangNames)
-    .eq('tgl_inputan', normalizedDate)
-    .eq('nominal', normalizedNominal)
-    .order('timestamp', { ascending: false })
-    .limit(5);
 
   const branchDayQuery = supabase
     .from('transfers')
     .select('id, timestamp, tgl_inputan, nama_bank, nama_cabang, nominal, periode')
     .in('nama_cabang', cabangNames)
-    .eq('tgl_inputan', normalizedDate)
+    .in('tgl_inputan', targetDates)
     .order('timestamp', { ascending: false })
-    .limit(10);
+    .limit(50);
 
-  const [exactResult, branchDayResult] = await Promise.all([
-    exactQuery,
-    branchDayQuery,
-  ]);
-  if (exactResult.error) throw exactResult.error;
+  const branchDayResult = await branchDayQuery;
   if (branchDayResult.error) throw branchDayResult.error;
 
-  const dupes = (exactResult.data || []).map(normalizeTransferRow);
   const branchDayTransfers = (branchDayResult.data || []).map(normalizeTransferRow);
+  const exactKeys = new Set(normalizedPlanRows.map((row) => buildPlanExactKey(row.tgl_inputan, row.nominal)));
+  const dupes = branchDayTransfers.filter((row) => exactKeys.has(buildPlanExactKey(row.tgl_inputan, row.nominal)));
   const summary = buildDupeSummary({
     exactDupes: dupes,
     branchDayTransfers,
@@ -180,12 +189,24 @@ async function handler(req, res) {
     const supabase = getSupabase();
     let noncodMatch = null;
     let effectiveDate = tgl_inputan || null;
+    let planRows = [];
 
     if (!effectiveDate) {
       noncodMatch = await findNoncodDateMatch(supabase, { namaCabang: nama_cabang, nominal });
       if (noncodMatch.match) {
         effectiveDate = noncodMatch.match.tanggal_buat;
+        planRows = [{ tgl_inputan: effectiveDate, nominal: Number(nominal || 0) }];
+      } else if (noncodMatch.splitMatch && Array.isArray(noncodMatch.splitMatch.dates) && noncodMatch.splitMatch.dates.length > 1) {
+        effectiveDate = noncodMatch.splitMatch.dates[0].tanggal_buat;
+        planRows = noncodMatch.splitMatch.dates.map((row) => ({
+          tgl_inputan: row.tanggal_buat,
+          nominal: Number(row.plannedNominal || 0),
+        }));
       }
+    }
+
+    if (!planRows.length && effectiveDate) {
+      planRows = [{ tgl_inputan: effectiveDate, nominal: Number(nominal || 0) }];
     }
 
     if (!effectiveDate) {
@@ -208,6 +229,7 @@ async function handler(req, res) {
       nama_cabang,
       tgl_inputan: effectiveDate,
       nominal,
+      planRows,
     });
 
     return res.status(200).json({ ...result, noncodMatch, tgl_inputan: effectiveDate });

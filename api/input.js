@@ -3,6 +3,7 @@ const { rateLimit } = require('./_ratelimit');
 const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { normalizeBankName } = require('./_bank');
+const { findNoncodDateMatch } = require('./_noncod-match');
 const {
   buildProofSignaturePayload,
   formatProofDuplicateMessage,
@@ -21,6 +22,26 @@ const uploadLimiter = rateLimit({ windowMs: 60 * 1000, max: 5 }); // 5 uploads/m
 
 // Parse multipart/form-data tanpa dependency eksternal tambahan (pakai busboy)
 const Busboy = require('busboy');
+
+function buildPlannedRowsFromMatch(noncodMatch, nominal) {
+  const normalizedNominal = parseTransferNominal(nominal);
+  if (!(normalizedNominal > 0)) return [];
+
+  if (noncodMatch && noncodMatch.match && noncodMatch.match.tanggal_buat) {
+    return [{ tgl_inputan: noncodMatch.match.tanggal_buat, nominal: normalizedNominal }];
+  }
+
+  if (noncodMatch && noncodMatch.splitMatch && Array.isArray(noncodMatch.splitMatch.dates)) {
+    return noncodMatch.splitMatch.dates
+      .map((row) => ({
+        tgl_inputan: String(row.tanggal_buat || '').trim(),
+        nominal: Number(row.plannedNominal || 0),
+      }))
+      .filter((row) => row.tgl_inputan && row.nominal > 0);
+  }
+
+  return [];
+}
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
@@ -78,18 +99,14 @@ module.exports = async (req, res) => {
 
     // Validasi fields
     const { tgl_inputan, nama_bank, nama_cabang, nominal } = fields;
-    if (!tgl_inputan || !nama_bank || !nama_cabang || !nominal) {
+    if (!nama_bank || !nama_cabang || !nominal) {
       return res.status(400).json({ error: 'Semua field wajib diisi.' });
     }
     if (!isPositiveTransferNominal(nominal)) {
       return res.status(400).json({ error: 'Nominal harus lebih dari 0.' });
     }
-    if (!isValidTransferDate(tgl_inputan)) {
+    if (tgl_inputan && !isValidTransferDate(tgl_inputan)) {
       return res.status(400).json({ error: 'Format tanggal tidak valid (YYYY-MM-DD).' });
-    }
-    const periode = getPeriodeFromDate(tgl_inputan);
-    if (!periode) {
-      return res.status(400).json({ error: 'Periode tidak dapat diturunkan dari tanggal input.' });
     }
 
     if (!fileBuffer || !fileName) {
@@ -110,12 +127,30 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Cabang tidak terdaftar.' });
     }
 
+    const noncodMatch = await findNoncodDateMatch(supabase, {
+      namaCabang: normalizedCabang,
+      nominal: parseTransferNominal(nominal),
+    });
+    const plannedRows = buildPlannedRowsFromMatch(noncodMatch, nominal);
+    if (!plannedRows.length) {
+      return res.status(400).json({
+        error: noncodMatch && noncodMatch.message ? noncodMatch.message : 'Tidak ada NONCOD yang cocok untuk nominal ini.',
+      });
+    }
+
+    const invalidPlannedRow = plannedRows.find((row) => !isValidTransferDate(row.tgl_inputan) || !isPositiveTransferNominal(row.nominal));
+    if (invalidPlannedRow) {
+      throw new Error('Rencana sinkron NONCOD tidak valid.');
+    }
+
+    const primaryDate = plannedRows[0].tgl_inputan;
+
     const proofSignature = buildProofSignaturePayload({
       fileBuffer,
       fileName,
       mimeType: fileMime,
       namaCabang: normalizedCabang,
-      tglInputan: tgl_inputan,
+      tglInputan: primaryDate,
       namaBank: nama_bank,
       nominal,
     });
@@ -160,17 +195,24 @@ module.exports = async (req, res) => {
     // Simpan path saja (bukan signed URL yang akan expire)
     buktiUrl = safeName;
 
-    // Insert ke tabel transfers
-    const { data, error: insertErr } = await supabase.from('transfers').insert({
-      timestamp: new Date().toISOString(),
-      tgl_inputan,
-      periode,
+    const normalizedKet = normalizeTransferKet(fields.ket);
+    const timestamp = new Date().toISOString();
+    const insertRows = plannedRows.map((row) => ({
+      timestamp,
+      tgl_inputan: row.tgl_inputan,
+      periode: getPeriodeFromDate(row.tgl_inputan),
       nama_bank: normalizeBankName(nama_bank),
       nama_cabang: normalizedCabang,
-      nominal: parseTransferNominal(nominal),
-      ket: normalizeTransferKet(fields.ket),
+      nominal: parseTransferNominal(row.nominal),
+      ket: normalizedKet,
       bukti_url: buktiUrl,
-    }).select().single();
+    }));
+
+    // Insert ke tabel transfers
+    const { data, error: insertErr } = await supabase
+      .from('transfers')
+      .insert(insertRows)
+      .select('id, timestamp, tgl_inputan, nominal');
 
     if (insertErr) {
       if (buktiUrl) {
@@ -179,16 +221,21 @@ module.exports = async (req, res) => {
       throw insertErr;
     }
 
+    const insertedRows = Array.isArray(data) ? data : [];
+
     const proofRegistryValue = JSON.stringify({
       signature: proofSignature.signature,
-      transferId: data.id,
-      createdAt: data.timestamp || new Date().toISOString(),
+      transferId: insertedRows[0] ? insertedRows[0].id : null,
+      transferIds: insertedRows.map((row) => row.id),
+      createdAt: insertedRows[0] ? insertedRows[0].timestamp : new Date().toISOString(),
       namaCabang: normalizedCabang,
-      tglInputan: tgl_inputan,
+      tglInputan: primaryDate,
+      tglInputanList: plannedRows.map((row) => row.tgl_inputan),
       namaBank: normalizeBankName(nama_bank),
       nominal: parseTransferNominal(nominal),
       fileName,
       mimeType: fileMime || '',
+      splitRows: plannedRows,
     });
 
     const { error: proofRegistryError } = await supabase.from('settings').upsert({
@@ -197,14 +244,23 @@ module.exports = async (req, res) => {
     });
 
     if (proofRegistryError) {
-      await supabase.from('transfers').delete().eq('id', data.id).catch(() => {});
+      if (insertedRows.length > 0) {
+        await supabase.from('transfers').delete().in('id', insertedRows.map((row) => row.id)).catch(() => {});
+      }
       if (buktiUrl) {
         await supabase.storage.from('bukti-transfer').remove([buktiUrl]).catch(() => {});
       }
       throw proofRegistryError;
     }
 
-    return res.status(201).json({ success: true, id: data.id });
+    return res.status(201).json({
+      success: true,
+      id: insertedRows[0] ? insertedRows[0].id : null,
+      ids: insertedRows.map((row) => row.id),
+      inserted: insertRows.length,
+      split: insertRows.length > 1,
+      rows: plannedRows,
+    });
 
   } catch (err) {
     console.error(err);

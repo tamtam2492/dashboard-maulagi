@@ -3,9 +3,12 @@ const assert = require('node:assert/strict');
 
 const {
   NONCOD_MATCH_TOLERANCE,
+  NONCOD_SPLIT_TOLERANCE,
+  allocateSplitPlannedNominals,
   aggregateOngkirByDate,
   findOutstandingMatchingDates,
   findMatchingDates,
+  findSplitMatchingDates,
   getRecentPeriodes,
   resolveMatch,
 } = require('../api/_noncod-match');
@@ -199,5 +202,47 @@ describe('findOutstandingMatchingDates', () => {
     assert.equal(result[0].tanggal_buat, '2026-04-14');
     assert.equal(result[0].remainingNominal, 19000);
     assert.equal(result[0].diff, 0);
+  });
+});
+
+describe('findSplitMatchingDates', () => {
+  it('finds FIFO multi-date match using outstanding nominal per tanggal', () => {
+    const byDate = {
+      '2026-04-13': 162000,
+      '2026-04-14': 101000,
+    };
+    const transfers = [
+      { tgl_inputan: '2026-04-14', nominal: 8000, id: 7 },
+    ];
+    const result = findSplitMatchingDates(byDate, transfers, 255000, NONCOD_SPLIT_TOLERANCE);
+    assert.ok(result);
+    assert.equal(result.dates.length, 2);
+    assert.equal(result.dates[0].tanggal_buat, '2026-04-13');
+    assert.equal(result.dates[0].plannedNominal, 162000);
+    assert.equal(result.dates[1].tanggal_buat, '2026-04-14');
+    assert.equal(result.dates[1].plannedNominal, 93000);
+    assert.equal(result.diff, 0);
+  });
+
+  it('allocates small selisih ke tanggal terakhir seperti split admin', () => {
+    const result = allocateSplitPlannedNominals([
+      { tanggal_buat: '2026-04-04', periode: '2026-04', totalOngkir: 100000, paidNominal: 0, remainingNominal: 100000 },
+      { tanggal_buat: '2026-04-05', periode: '2026-04', totalOngkir: 50000, paidNominal: 0, remainingNominal: 50000 },
+    ], 149700);
+    assert.equal(result.length, 2);
+    assert.equal(result[0].plannedNominal, 100000);
+    assert.equal(result[1].plannedNominal, 49700);
+  });
+
+  it('returns null when no sequential multi-date match exists', () => {
+    const byDate = {
+      '2026-04-04': 174000,
+      '2026-04-05': 176000,
+      '2026-04-07': 916000,
+      '2026-04-08': 259000,
+      '2026-04-09': 147000,
+    };
+    const result = findSplitMatchingDates(byDate, [], 1624000, NONCOD_SPLIT_TOLERANCE);
+    assert.equal(result, null);
   });
 });

@@ -563,6 +563,24 @@
             diffValue: nc.match.diff === 0 ? 'Rp 0 (persis)' : fmtNom(nc.match.diff),
             note,
           });
+        } else if (nc.splitMatch && Array.isArray(nc.splitMatch.dates) && nc.splitMatch.dates.length > 1) {
+          const hasDupes = context.dupes && context.dupes.length > 0;
+          const tone = hasDupes ? 'warn' : 'ok';
+          const badge = hasDupes ? 'Cocok Multi, Ada Serupa' : 'Cocok Multi Tgl';
+          const firstDate = nc.splitMatch.startDate || nc.splitMatch.dates[0].tanggal_buat;
+          const lastDate = nc.splitMatch.endDate || nc.splitMatch.dates[nc.splitMatch.dates.length - 1].tanggal_buat;
+          const note = hasDupes
+            ? 'Cocok gabungan ' + nc.splitMatch.dates.length + ' tanggal NONCOD, tetapi ada transfer serupa pada salah satu tanggal target. Cek ulang.'
+            : 'Cocok gabungan ' + nc.splitMatch.dates.length + ' tanggal NONCOD. Sistem akan simpan otomatis per tanggal: ' + formatSplitDateList(nc.splitMatch.dates) + '.';
+          setCabangSummaryView({
+            tone,
+            badge,
+            meta: scopeLabel + ' · Nominal ' + fmtNom(vals.nominal),
+            dateValue: fmtTgl(firstDate) + ' - ' + fmtTgl(lastDate),
+            ongkirValue: fmtNom(nc.splitMatch.total),
+            diffValue: nc.splitMatch.diff === 0 ? 'Rp 0 (persis)' : fmtNom(nc.splitMatch.diff),
+            note,
+          });
         } else if (nc.blocked) {
           const firstCand = nc.candidates && nc.candidates[0];
           setCabangSummaryView({
@@ -662,8 +680,9 @@
           if (!res.ok) throw new Error(json.error || 'Gagal cek.');
           lastDupeContext = json;
 
-          if (json.noncodMatch && json.noncodMatch.match) {
-            document.getElementById('tglInput').value = json.noncodMatch.match.tanggal_buat;
+          const primaryDate = getPrimaryNoncodDate(json.noncodMatch);
+          if (primaryDate) {
+            document.getElementById('tglInput').value = primaryDate;
             syncPeriodeFromTglInput();
           } else {
             document.getElementById('tglInput').value = '';
@@ -896,6 +915,27 @@
       function fmtNom(v) {
         return 'Rp ' + Number(v).toLocaleString('id-ID');
       }
+      function getPrimaryNoncodDate(nc) {
+        if (nc && nc.match && nc.match.tanggal_buat) return nc.match.tanggal_buat;
+        if (nc && nc.splitMatch && Array.isArray(nc.splitMatch.dates) && nc.splitMatch.dates.length > 0) {
+          return nc.splitMatch.dates[0].tanggal_buat;
+        }
+        return '';
+      }
+      function formatSplitDateList(dates, limit = 4) {
+        const safeDates = Array.isArray(dates) ? dates : [];
+        if (!safeDates.length) return '-';
+        const labels = safeDates.slice(0, limit).map(item => fmtTgl(item.tanggal_buat || item.date || ''));
+        const moreCount = safeDates.length - labels.length;
+        return moreCount > 0 ? labels.join(', ') + ' +' + moreCount + ' tgl' : labels.join(', ');
+      }
+      function formatSavedDateSummary(rows, limit = 4) {
+        const safeRows = Array.isArray(rows) ? rows : [];
+        if (!safeRows.length) return '-';
+        const labels = safeRows.slice(0, limit).map(item => fmtTgl(item.tgl_inputan || item.tanggal_buat || ''));
+        const moreCount = safeRows.length - labels.length;
+        return moreCount > 0 ? labels.join(', ') + ' +' + moreCount + ' tgl' : labels.join(', ');
+      }
       function fmtJam(ts) {
         if (!ts) return '-';
         const d = new Date(ts);
@@ -992,7 +1032,7 @@
           renderCabangSummary(lastDupeContext);
 
           const nc = chkJson.noncodMatch;
-          if (!nc || !nc.match) {
+          if (!nc || (!nc.match && !nc.splitMatch)) {
             const msg = nc ? nc.message : 'Tidak ada NONCOD yang cocok untuk nominal ini.';
             alert(msg);
             btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Kirim Data';
@@ -1000,8 +1040,11 @@
             return;
           }
 
-          document.getElementById('tglInput').value = nc.match.tanggal_buat;
-          syncPeriodeFromTglInput();
+          const primaryDate = getPrimaryNoncodDate(nc);
+          if (primaryDate) {
+            document.getElementById('tglInput').value = primaryDate;
+            syncPeriodeFromTglInput();
+          }
 
           if (chkRes.ok && chkJson.dupes && chkJson.dupes.length > 0) {
             const d = chkJson.dupes[0];
@@ -1051,7 +1094,10 @@
             return;
           }
 
-          document.getElementById('successMessage').innerHTML = 'Transfer ' + esc(vals.nama_cabang) + ' senilai ' + fmtNom(vals.nominal) + ' sudah masuk.<br>Silakan lanjut input berikutnya bila ada.';
+          const successText = json.inserted > 1
+            ? 'Transfer ' + esc(vals.nama_cabang) + ' senilai ' + fmtNom(vals.nominal) + ' sudah masuk ke ' + json.inserted + ' tanggal NONCOD (' + esc(formatSavedDateSummary(json.rows)) + ').<br>Silakan lanjut input berikutnya bila ada.'
+            : 'Transfer ' + esc(vals.nama_cabang) + ' senilai ' + fmtNom(vals.nominal) + ' sudah masuk.<br>Silakan lanjut input berikutnya bila ada.';
+          document.getElementById('successMessage').innerHTML = successText;
           document.getElementById('formWrap').style.display = 'none';
           document.getElementById('successScreen').style.display = 'flex';
         } catch (err) {
