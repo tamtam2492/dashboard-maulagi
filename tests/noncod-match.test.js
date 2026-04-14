@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
   NONCOD_MATCH_TOLERANCE,
   aggregateOngkirByDate,
+  findOutstandingMatchingDates,
   findMatchingDates,
   getRecentPeriodes,
   resolveMatch,
@@ -153,5 +154,50 @@ describe('resolveMatch', () => {
     assert.equal(candidates[0].hasExistingTransfer, true);
     assert.equal(candidates[0].existingTransfers.length, 1);
     assert.equal(candidates[0].existingTransfers[0].id, 42);
+  });
+
+  it('keeps partially paid dates available via remaining nominal', () => {
+    const candidates = [
+      { tanggal_buat: '2026-04-14', totalOngkir: 101000, diff: 8000 },
+    ];
+    const transfers = [
+      { tgl_inputan: '2026-04-14', nominal: 8000, id: 7 },
+    ];
+    const { match, allPaid } = resolveMatch(candidates, transfers);
+    assert.equal(match.tanggal_buat, '2026-04-14');
+    assert.equal(match.remainingNominal, 93000);
+    assert.equal(allPaid, false);
+  });
+});
+
+describe('findOutstandingMatchingDates', () => {
+  it('matches remaining nominal on partially paid date', () => {
+    const byDate = { '2026-04-14': 101000 };
+    const transfers = [
+      { tgl_inputan: '2026-04-14', nominal: 8000, id: 7 },
+    ];
+    const result = findOutstandingMatchingDates(byDate, transfers, 93000, NONCOD_MATCH_TOLERANCE);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].tanggal_buat, '2026-04-14');
+    assert.equal(result[0].remainingNominal, 93000);
+    assert.equal(result[0].diff, 0);
+  });
+
+  it('finds exact remaining nominal even when full total is far above input', () => {
+    const byDate = {
+      '2026-04-04': 19000,
+      '2026-04-07': 24000,
+      '2026-04-14': 437000,
+    };
+    const transfers = [
+      { tgl_inputan: '2026-04-04', nominal: 19000, id: 1 },
+      { tgl_inputan: '2026-04-07', nominal: 24000, id: 2 },
+      { tgl_inputan: '2026-04-14', nominal: 418000, id: 3 },
+    ];
+    const result = findOutstandingMatchingDates(byDate, transfers, 19000, NONCOD_MATCH_TOLERANCE);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].tanggal_buat, '2026-04-14');
+    assert.equal(result[0].remainingNominal, 19000);
+    assert.equal(result[0].diff, 0);
   });
 });

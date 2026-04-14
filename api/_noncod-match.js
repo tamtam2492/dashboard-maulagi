@@ -3,6 +3,50 @@ const { applyStatusOverrides, readStatusOverridesByResi } = require('./_noncod-s
 
 const NONCOD_MATCH_TOLERANCE = 10000;
 
+function groupTransfersByDate(existingTransfers) {
+  const transfersByDate = {};
+  const paidNominalByDate = {};
+  for (const tr of (existingTransfers || [])) {
+    const tgl = String(tr.tgl_inputan || '').trim();
+    if (!tgl) continue;
+    if (!transfersByDate[tgl]) transfersByDate[tgl] = [];
+    transfersByDate[tgl].push(tr);
+    paidNominalByDate[tgl] = (paidNominalByDate[tgl] || 0) + Number(tr.nominal || 0);
+  }
+  return { transfersByDate, paidNominalByDate };
+}
+
+function annotateCandidates(candidates, existingTransfers) {
+  const { transfersByDate, paidNominalByDate } = groupTransfersByDate(existingTransfers);
+  for (const c of (candidates || [])) {
+    c.existingTransfers = transfersByDate[c.tanggal_buat] || [];
+    c.hasExistingTransfer = c.existingTransfers.length > 0;
+    c.paidNominal = paidNominalByDate[c.tanggal_buat] || 0;
+    c.remainingNominal = Math.max(Number(c.totalOngkir || 0) - c.paidNominal, 0);
+    c.isFullyPaid = c.remainingNominal <= 0;
+  }
+  return candidates || [];
+}
+
+function findOutstandingMatchingDates(byDate, existingTransfers, nominal, tolerance) {
+  const normalizedNominal = Number(nominal || 0);
+  const candidates = annotateCandidates(Object.entries(byDate || {}).map(([tgl, totalOngkir]) => ({
+    tanggal_buat: tgl,
+    totalOngkir: Number(totalOngkir || 0),
+    periode: tgl.slice(0, 7),
+  })), existingTransfers);
+
+  return candidates
+    .filter(c => c.remainingNominal > 0)
+    .map(c => ({
+      ...c,
+      diff: Math.abs(c.remainingNominal - normalizedNominal),
+      matchNominal: c.remainingNominal,
+    }))
+    .filter(c => c.diff <= tolerance)
+    .sort((a, b) => a.diff - b.diff || a.tanggal_buat.localeCompare(b.tanggal_buat));
+}
+
 function getRecentPeriodes() {
   const now = new Date();
   const periodes = [];
@@ -42,18 +86,9 @@ function findMatchingDates(byDate, nominal, tolerance) {
 }
 
 function resolveMatch(candidates, existingTransfers) {
-  const transfersByDate = {};
-  for (const tr of (existingTransfers || [])) {
-    const tgl = String(tr.tgl_inputan || '');
-    if (!transfersByDate[tgl]) transfersByDate[tgl] = [];
-    transfersByDate[tgl].push(tr);
-  }
-  for (const c of candidates) {
-    c.existingTransfers = transfersByDate[c.tanggal_buat] || [];
-    c.hasExistingTransfer = c.existingTransfers.length > 0;
-  }
-  const match = candidates.find(c => !c.hasExistingTransfer) || null;
-  const allPaid = candidates.length > 0 && candidates.every(c => c.hasExistingTransfer);
+  annotateCandidates(candidates, existingTransfers);
+  const match = (candidates || []).find(c => c.remainingNominal > 0) || null;
+  const allPaid = (candidates || []).length > 0 && candidates.every(c => c.remainingNominal <= 0);
   return { match, allPaid };
 }
 
@@ -96,6 +131,30 @@ async function findNoncodDateMatch(supabase, { namaCabang, nominal }) {
     };
   }
 
+  const allCandidateDates = Object.keys(byDate);
+  const { data: existingTransfers, error: trErr } = await supabase
+    .from('transfers')
+    .select('id, tgl_inputan, nominal, nama_bank, nama_cabang, timestamp')
+    .eq('nama_cabang', normalizedCabang)
+    .in('tgl_inputan', allCandidateDates);
+  if (trErr) throw trErr;
+
+  const outstandingCandidates = findOutstandingMatchingDates(
+    byDate,
+    existingTransfers,
+    normalizedNominal,
+    NONCOD_MATCH_TOLERANCE,
+  );
+
+  if (outstandingCandidates.length) {
+    return {
+      match: outstandingCandidates[0],
+      candidates: outstandingCandidates,
+      blocked: false,
+      message: null,
+    };
+  }
+
   const candidates = findMatchingDates(byDate, normalizedNominal, NONCOD_MATCH_TOLERANCE);
 
   if (!candidates.length) {
@@ -108,15 +167,7 @@ async function findNoncodDateMatch(supabase, { namaCabang, nominal }) {
     };
   }
 
-  const candidateDates = candidates.map(c => c.tanggal_buat);
-  const { data: existingTransfers, error: trErr } = await supabase
-    .from('transfers')
-    .select('id, tgl_inputan, nominal, nama_bank, nama_cabang, timestamp')
-    .eq('nama_cabang', normalizedCabang)
-    .in('tgl_inputan', candidateDates);
-  if (trErr) throw trErr;
-
-  const { match, allPaid } = resolveMatch(candidates, existingTransfers);
+  const { allPaid } = resolveMatch(candidates, existingTransfers);
 
   if (allPaid) {
     const first = candidates[0];
@@ -135,8 +186,11 @@ async function findNoncodDateMatch(supabase, { namaCabang, nominal }) {
 module.exports = {
   NONCOD_MATCH_TOLERANCE,
   aggregateOngkirByDate,
+  annotateCandidates,
   findMatchingDates,
+  findOutstandingMatchingDates,
   findNoncodDateMatch,
   getRecentPeriodes,
+  groupTransfersByDate,
   resolveMatch,
 };
