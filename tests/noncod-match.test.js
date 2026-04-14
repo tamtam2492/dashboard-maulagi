@@ -10,8 +10,8 @@ const {
 } = require('../api/_noncod-match');
 
 describe('NONCOD_MATCH_TOLERANCE', () => {
-  it('should be 6500', () => {
-    assert.equal(NONCOD_MATCH_TOLERANCE, 6500);
+  it('should be 10000', () => {
+    assert.equal(NONCOD_MATCH_TOLERANCE, 10000);
   });
 });
 

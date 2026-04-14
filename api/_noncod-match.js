@@ -1,7 +1,7 @@
 const { isSyncMetaStale, maybeSyncMaukirimPeriod, readSyncMeta } = require('./noncod');
 const { applyStatusOverrides, readStatusOverridesByResi } = require('./_noncod-status-overrides');
 
-const NONCOD_MATCH_TOLERANCE = 6500;
+const NONCOD_MATCH_TOLERANCE = 10000;
 
 function getRecentPeriodes() {
   const now = new Date();
