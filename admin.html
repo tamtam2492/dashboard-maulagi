@@ -57,6 +57,9 @@
       .mc-green .mc-icon { background: #dcfce7; color: #16a34a; }
       .mc-slate .mc-icon { background: #f1f5f9; color: var(--gray); }
 
+      .menu-chip { display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; border-radius: 999px; padding: 4px 9px; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+      .menu-chip.green { background: #dcfce7; color: #166534; }
+
       /* ── Base Modal Overlay ── */
       .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.52); backdrop-filter: blur(4px); z-index: 100; align-items: flex-end; justify-content: center; padding: 0; }
       .modal-overlay.show { display: flex; }
@@ -304,6 +307,7 @@
       .today-refresh.spinning i { animation: spin 0.7s linear infinite; }
       @keyframes spin { to { transform: rotate(360deg); } }
       .today-summary { padding: 0 16px 10px; grid-template-columns: 1fr 1fr 1fr; }
+      .today-summary.two-cols { grid-template-columns: 1fr 1fr; }
       .today-body { padding: 0 16px 14px; }
       .today-sec { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 8px 0 5px; display: flex; align-items: center; gap: 6px; border-bottom: 1.5px solid #f1f5f9; margin-bottom: 4px; }
       .today-sec.blue { color: var(--dark); border-color: #e2e8f0; }
@@ -357,6 +361,47 @@
       .mon-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
       .mon-actions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
 
+      .audit-panel { max-width: 980px; }
+      .audit-head-actions { display: flex; align-items: center; gap: 8px; }
+      .audit-period-pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; background: #f1f5f9; color: var(--gray); padding: 6px 10px; font-size: 0.7rem; font-weight: 700; }
+      .audit-shell { display: grid; grid-template-columns: 1fr; gap: 12px; min-height: 420px; }
+      @media (min-width: 900px) { .audit-shell { grid-template-columns: 280px minmax(0, 1fr); align-items: start; } }
+      .audit-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+      .audit-list { display: flex; flex-direction: column; gap: 8px; }
+      .audit-cabang-btn { width: 100%; text-align: left; border: 1px solid var(--border); background: #f8fafc; border-radius: 12px; padding: 11px 12px; display: flex; flex-direction: column; gap: 4px; transition: 0.15s; cursor: pointer; }
+      .audit-cabang-btn:hover { background: #eef2f7; border-color: #cbd5e1; }
+      .audit-cabang-btn.active { background: #eff6ff; border-color: #93c5fd; box-shadow: inset 0 0 0 1px #bfdbfe; }
+      .audit-cabang-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .audit-cabang-name { font-size: 0.82rem; font-weight: 800; color: var(--dark); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .audit-cabang-area { font-size: 0.58rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; border-radius: 999px; padding: 3px 7px; background: #e8edf5; color: #131b2e; flex-shrink: 0; }
+      .audit-cabang-meta { font-size: 0.67rem; color: var(--gray2); line-height: 1.45; }
+      .audit-cabang-alert { color: #b91c1c; font-weight: 700; }
+      .audit-detail { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+      .audit-detail-card { background: #ffffff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+      .audit-detail-head { padding: 14px 16px 10px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+      .audit-detail-title { font-size: 0.95rem; font-weight: 800; color: var(--dark); }
+      .audit-detail-sub { font-size: 0.7rem; color: var(--gray2); margin-top: 2px; }
+      .audit-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 0 16px 12px; }
+      .audit-stat { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 10px; padding: 8px 10px; text-align: center; }
+      .audit-stat-val { font-size: 0.82rem; font-weight: 800; }
+      .audit-stat-label { font-size: 0.6rem; font-weight: 700; color: var(--gray2); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+      .audit-stat.safe .audit-stat-val { color: #15803d; }
+      .audit-stat.warn .audit-stat-val { color: #c2410c; }
+      .audit-stat.pending .audit-stat-val { color: #dc2626; }
+      .audit-rows { display: flex; flex-direction: column; }
+      .audit-row { padding: 12px 16px; border-top: 1px solid #f8fafc; display: flex; flex-direction: column; gap: 8px; }
+      .audit-row:first-child { border-top: none; }
+      .audit-row.safe { background: linear-gradient(180deg, rgba(220,252,231,0.22), transparent); }
+      .audit-row.pending { background: linear-gradient(180deg, rgba(254,226,226,0.22), transparent); }
+      .audit-row.warn { background: linear-gradient(180deg, rgba(255,237,213,0.26), transparent); }
+      .audit-line { font-size: 0.78rem; font-weight: 700; color: var(--dark); line-height: 1.55; }
+      .audit-line.safe { color: #166534; }
+      .audit-line.pending { color: #b91c1c; }
+      .audit-line.warn { color: #9a3412; }
+      .audit-row-meta { font-size: 0.66rem; color: var(--gray2); line-height: 1.5; }
+      .audit-proof-list { display: flex; flex-wrap: wrap; gap: 6px; }
+      .audit-proof-list .btn-proof-tr { padding: 4px 9px; font-size: 0.64rem; }
+
       /* ── Toast ── */
       .toast-box { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--dark2); color: white; padding: 10px 20px; border-radius: 12px; font-size: 0.82rem; font-weight: 600; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
       .toast-box.show { opacity: 1; }
@@ -406,6 +451,14 @@
             <div class="mc-sub">Tambah, edit & hapus</div>
           </div>
         </button>
+        <button class="menu-card mc-green" onclick="openAuditCabangModal()">
+          <div class="mc-icon"><i class="bi bi-clipboard-data"></i></div>
+          <div>
+            <div class="mc-title">Audit Cabang</div>
+            <div class="mc-sub">Cari cabang & lihat NONCOD vs transfer per hari</div>
+          </div>
+          <div class="menu-chip green"><i class="bi bi-search"></i> Detail Harian</div>
+        </button>
         <button class="menu-card mc-amber" onclick="openManualStatusModal()">
           <div class="mc-icon"><i class="bi bi-exclamation-octagon"></i></div>
           <div>
@@ -427,10 +480,9 @@
           </div>
           <button class="today-refresh" id="mismatchRefreshBtn" onclick="loadMismatchMonitor()" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
         </div>
-        <div class="today-summary tr-summary" id="mismatchSummary" style="display:none">
+        <div class="today-summary tr-summary two-cols" id="mismatchSummary" style="display:none">
           <div class="tr-sum-card"><div class="tsv" id="mismatchSuspect" style="color:#c2410c">-</div><div class="tsl">Salah Tgl?</div></div>
           <div class="tr-sum-card"><div class="tsv" id="mismatchOpen" style="color:#dc2626">-</div><div class="tsl">Belum Cocok</div></div>
-          <div class="tr-sum-card"><div class="tsv" id="mismatchPending" style="color:var(--dark)">-</div><div class="tsl">Belum Transfer</div></div>
         </div>
         <div id="mismatchContent">
           <div class="empty-state" style="padding:20px 0"><span class="spinner-border spinner-border-sm"></span></div>
@@ -504,6 +556,48 @@
           </div>
           <div id="manualStatusList">
             <div class="empty-state"><span class="spinner-border spinner-border-sm"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="modalAuditCabang" onclick="handleModalOverlay(event,'modalAuditCabang')">
+      <div class="modal-panel audit-panel">
+        <div class="modal-head">
+          <div class="modal-head-left">
+            <div class="modal-head-icon" style="background:#dcfce7;color:#15803d"><i class="bi bi-clipboard-data"></i></div>
+            <div>
+              <h2>Audit Cabang</h2>
+              <div class="modal-sub" id="auditCabangCount">Memuat...</div>
+            </div>
+          </div>
+          <div class="audit-head-actions">
+            <div class="audit-period-pill" id="auditPeriodeBadge"><i class="bi bi-calendar-month"></i>-</div>
+            <button class="today-refresh" id="auditRefreshBtn" onclick="loadAuditCabangModal(true)" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
+            <div class="modal-close" onclick="closeModal('modalAuditCabang')"><i class="bi bi-x"></i></div>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div class="status-helper">
+            <div class="sh-icon"><i class="bi bi-binoculars"></i></div>
+            <div>
+              <div class="sh-title">Klik cabang untuk audit harian</div>
+              <div class="sh-sub">Tiap tanggal menampilkan ringkasan NONCOD, total transfer, selisih, dan semua bukti transfer yang masuk di cabang itu.</div>
+            </div>
+          </div>
+          <div class="audit-shell">
+            <div class="audit-side">
+              <div class="search-wrap">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchAuditCabang" placeholder="Cari nama cabang..." oninput="renderAuditCabangList()" autocomplete="off">
+              </div>
+              <div id="auditCabangList">
+                <div class="empty-state"><span class="spinner-border spinner-border-sm"></span></div>
+              </div>
+            </div>
+            <div id="auditCabangDetail" class="audit-detail">
+              <div class="empty-state"><i class="bi bi-building"></i>Pilih cabang untuk melihat audit harian</div>
+            </div>
           </div>
         </div>
       </div>
@@ -704,6 +798,9 @@
       let manualStatusRows = [];
       let manualStatusEditingResi = '';
       let manualStatusSearchTimer = null;
+      let monitorDataCache = null;
+      let auditCabangState = null;
+      let auditSelectedCabang = '';
 
       function hasActiveSession(prefix) {
         const ts = parseInt(sessionStorage.getItem(prefix + 'AuthTs') || '0');
@@ -728,6 +825,11 @@
       function clearAllSessions() {
         clearSession('dash');
         clearSession('admin');
+      }
+
+      function refreshAuditCabangIfOpen() {
+        const modal = document.getElementById('modalAuditCabang');
+        if (modal && modal.classList.contains('show')) loadAuditCabangModal(true);
       }
 
       function exitWorkspace() {
@@ -1077,6 +1179,292 @@
         });
 
         el.innerHTML = html;
+      }
+
+      function getAuditDatesForPeriode(periode) {
+        if (!periode || !/^\d{4}-\d{2}$/.test(periode)) return [];
+        const [year, month] = periode.split('-').map(Number);
+        const today = getTodayYmdWita();
+        const maxDay = periode === getMonitorPeriode()
+          ? Number(today.slice(8, 10))
+          : new Date(year, month, 0).getDate();
+        return Array.from({ length: maxDay }, (_, index) => {
+          return periode + '-' + String(index + 1).padStart(2, '0');
+        });
+      }
+
+      function formatAuditNominal(value) {
+        return toNominal(value).toLocaleString('id-ID');
+      }
+
+      function formatAuditDateShort(ymd) {
+        if (!ymd) return '-';
+        const parts = String(ymd).split('-');
+        if (parts.length < 3) return ymd;
+        return parts[2] + '/' + parts[1];
+      }
+
+      function buildAuditTransferBreakdown(transfers) {
+        if (!Array.isArray(transfers) || !transfers.length) return 'tidak ada transfer';
+        return transfers.map(item => formatAuditNominal(item.nominal)).join(' + ');
+      }
+
+      function buildAuditCabangState(periode, ncData, trData, cabangRows) {
+        const ncByDay = ncData && ncData.byDay ? ncData.byDay : {};
+        const transferRows = Array.isArray(trData && trData.transfers) ? trData.transfers : [];
+        const cabangMap = new Map();
+        const auditDates = getAuditDatesForPeriode(periode);
+
+        function ensureCabangEntry(rawName, rawArea) {
+          const name = String(rawName || '').trim();
+          if (!name) return null;
+          const area = String(rawArea || 'LAINNYA').trim() || 'LAINNYA';
+          if (!cabangMap.has(name)) {
+            cabangMap.set(name, { cabang: name, area, ncByDate: {}, trByDate: {} });
+          } else if (area && cabangMap.get(name).area === 'LAINNYA') {
+            cabangMap.get(name).area = area;
+          }
+          return cabangMap.get(name);
+        }
+
+        (Array.isArray(cabangRows) ? cabangRows : []).forEach(row => {
+          ensureCabangEntry(row.nama, row.area);
+        });
+
+        Object.keys(ncByDay).forEach(date => {
+          if (!String(date).startsWith(periode + '-')) return;
+          const byCabang = ncByDay[date] || {};
+          Object.keys(byCabang).forEach(cabang => {
+            const nominal = toNominal(byCabang[cabang] && byCabang[cabang].ongkir);
+            const entry = ensureCabangEntry(cabang, 'LAINNYA');
+            if (!entry) return;
+            entry.ncByDate[date] = nominal;
+          });
+        });
+
+        transferRows.forEach(row => {
+          const cabang = String(row.nama_cabang || '').trim();
+          const date = normTgl(row.tgl_inputan);
+          if (!cabang || !date || !String(date).startsWith(periode + '-')) return;
+          const entry = ensureCabangEntry(cabang, 'LAINNYA');
+          if (!entry) return;
+          if (!entry.trByDate[date]) entry.trByDate[date] = [];
+          entry.trByDate[date].push({
+            id: row.id,
+            nominal: toNominal(row.nominal),
+            nama_bank: row.nama_bank || '',
+            ket: row.ket || '',
+            timestamp: row.timestamp || '',
+            proofUrl: getTransferProofUrl(row),
+          });
+        });
+
+        const items = Array.from(cabangMap.values()).map(entry => {
+          const orderedDates = [...new Set([...auditDates, ...Object.keys(entry.ncByDate), ...Object.keys(entry.trByDate)])].sort();
+          const rows = orderedDates.map(date => {
+            const noncod = toNominal(entry.ncByDate[date] || 0);
+            const transfers = (entry.trByDate[date] || []).slice().sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
+            const transfer = transfers.reduce((sum, item) => sum + toNominal(item.nominal), 0);
+            const diff = noncod - transfer;
+            const transferText = buildAuditTransferBreakdown(transfers);
+            const isSafe = noncod > 0 && transfer > 0 && (diff === 0 || (diff < 0 && Math.abs(diff) <= 500));
+            let tone = 'safe';
+            let line = '';
+
+            if (noncod <= 0 && transfer <= 0) {
+              line = formatAuditDateShort(date) + ': tidak ada NONCOD, tidak ada transfer';
+              tone = 'safe';
+            } else if (noncod > 0 && transfer <= 0) {
+              line = formatAuditDateShort(date) + ': NONCOD ' + formatAuditNominal(noncod) + ', tidak ada transfer';
+              tone = 'pending';
+            } else if (noncod <= 0 && transfer > 0) {
+              line = formatAuditDateShort(date) + ': tidak ada NONCOD, transfer ' + transferText + ', cek';
+              tone = 'warn';
+            } else if (isSafe) {
+              line = formatAuditDateShort(date) + ': NONCOD ' + formatAuditNominal(noncod) + ', transfer ' + transferText + ', aman';
+              tone = 'safe';
+            } else if (diff > 0) {
+              line = formatAuditDateShort(date) + ': NONCOD ' + formatAuditNominal(noncod) + ', transfer ' + transferText + ', kurang ' + formatAuditNominal(diff);
+              tone = 'pending';
+            } else {
+              line = formatAuditDateShort(date) + ': NONCOD ' + formatAuditNominal(noncod) + ', transfer ' + transferText + ', lebih ' + formatAuditNominal(Math.abs(diff));
+              tone = 'warn';
+            }
+
+            const proofCount = transfers.filter(item => item.proofUrl).length;
+            const transferMeta = transfers.map(item => {
+              const bank = String(item.nama_bank || '').trim();
+              const time = item.timestamp ? new Date(item.timestamp).toLocaleTimeString('id-ID', { timeZone: 'Asia/Makassar', hour: '2-digit', minute: '2-digit' }) : '';
+              const ket = String(item.ket || '').trim();
+              return [bank, time, ket].filter(Boolean).join(' · ');
+            }).filter(Boolean);
+
+            return { date, noncod, transfer, diff, tone, line, transfers, proofCount, transferMeta };
+          });
+
+          const summary = rows.reduce((acc, row) => {
+            if (row.noncod > 0 || row.transfer > 0) acc.activeDays += 1;
+            if (row.tone === 'safe' && row.noncod > 0) acc.safe += 1;
+            if (row.tone === 'pending') acc.pending += 1;
+            if (row.tone === 'warn') acc.warn += 1;
+            return acc;
+          }, { safe: 0, pending: 0, warn: 0, activeDays: 0 });
+
+          return { cabang: entry.cabang, area: entry.area, rows, summary };
+        }).sort((a, b) => a.cabang.localeCompare(b.cabang));
+
+        return { periode, items };
+      }
+
+      async function openAuditCabangModal() {
+        document.getElementById('searchAuditCabang').value = '';
+        openModal('modalAuditCabang');
+        await loadAuditCabangModal();
+        setTimeout(() => document.getElementById('searchAuditCabang').focus(), 60);
+      }
+
+      async function loadAuditCabangModal(forceRefresh = false) {
+        const periode = getMonitorPeriode();
+        const listEl = document.getElementById('auditCabangList');
+        const detailEl = document.getElementById('auditCabangDetail');
+        const countEl = document.getElementById('auditCabangCount');
+        const badgeEl = document.getElementById('auditPeriodeBadge');
+        const refreshBtn = document.getElementById('auditRefreshBtn');
+
+        badgeEl.innerHTML = '<i class="bi bi-calendar-month"></i>' + escHtmlAdmin(getPeriodeLabel(periode));
+        countEl.textContent = 'Memuat audit periode aktif...';
+        listEl.innerHTML = '<div class="empty-state"><span class="spinner-border spinner-border-sm"></span></div>';
+        detailEl.innerHTML = '<div class="empty-state"><span class="spinner-border spinner-border-sm"></span></div>';
+        refreshBtn.classList.add('spinning');
+
+        try {
+          const useCachedMonitor = !forceRefresh && monitorDataCache && monitorDataCache.periode === periode;
+          const monitorPromise = useCachedMonitor
+            ? Promise.resolve(monitorDataCache)
+            : Promise.all([
+                fetchJsonWithTimeout('/api/noncod?periode=' + encodeURIComponent(periode) + '&mode=noncod'),
+                fetchJsonWithTimeout('/api/transfer?periode=' + encodeURIComponent(periode), { headers: { 'X-Admin-Token': getOpsToken() } })
+              ]).then(([ncResult, trResult]) => {
+                if (!ncResult.response.ok) throw new Error(ncResult.json.error || 'Gagal memuat NONCOD');
+                if (!trResult.response.ok) throw new Error(trResult.json.error || 'Gagal memuat transfer');
+                monitorDataCache = { periode, ncData: ncResult.json, trData: trResult.json };
+                return monitorDataCache;
+              });
+
+          const cabangPromise = cabangData.length
+            ? Promise.resolve({ cabang: cabangData })
+            : fetchJsonWithTimeout('/api/cabang').then(({ response, json }) => {
+                if (!response.ok) throw new Error(json.error || 'Gagal memuat daftar cabang');
+                cabangData = Array.isArray(json.cabang) ? json.cabang : [];
+                return json;
+              });
+
+          const [monitor, cabangJson] = await Promise.all([monitorPromise, cabangPromise]);
+          auditCabangState = buildAuditCabangState(periode, monitor.ncData, monitor.trData, cabangJson.cabang || []);
+          const items = auditCabangState.items || [];
+          if (!items.length) {
+            countEl.textContent = 'Belum ada cabang untuk diaudit';
+            listEl.innerHTML = '<div class="empty-state"><i class="bi bi-inbox"></i>Belum ada data cabang</div>';
+            detailEl.innerHTML = '<div class="empty-state"><i class="bi bi-clipboard-data"></i>Belum ada data audit periode ini</div>';
+            return;
+          }
+
+          if (!items.some(item => item.cabang === auditSelectedCabang)) {
+            auditSelectedCabang = items[0].cabang;
+          }
+
+          countEl.textContent = items.length + ' cabang · periode aktif ' + getPeriodeLabel(periode);
+          renderAuditCabangList();
+          renderAuditCabangDetail();
+        } catch (err) {
+          auditCabangState = null;
+          countEl.textContent = 'Gagal memuat audit';
+          listEl.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-circle"></i>' + escHtmlAdmin(err.message || 'Gagal memuat data') + '</div>';
+          detailEl.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-circle"></i>Audit cabang belum bisa ditampilkan</div>';
+        } finally {
+          refreshBtn.classList.remove('spinning');
+        }
+      }
+
+      function renderAuditCabangList() {
+        const listEl = document.getElementById('auditCabangList');
+        const query = String(document.getElementById('searchAuditCabang').value || '').trim().toLowerCase();
+        const items = auditCabangState && Array.isArray(auditCabangState.items) ? auditCabangState.items : [];
+        const filtered = items.filter(item => item.cabang.toLowerCase().includes(query));
+
+        if (!filtered.length) {
+          listEl.innerHTML = '<div class="empty-state"><i class="bi bi-search"></i>' + (query ? 'Cabang tidak ditemukan' : 'Belum ada cabang') + '</div>';
+          return;
+        }
+
+        listEl.innerHTML = '<div class="audit-list">' + filtered.map(item => {
+          const encodedCabang = encodeURIComponent(item.cabang);
+          const issueText = item.summary.pending > 0 || item.summary.warn > 0
+            ? '<span class="audit-cabang-alert">' + (item.summary.pending + item.summary.warn) + ' perlu dicek</span>'
+            : 'Semua tanggal aktif aman';
+          return '<button class="audit-cabang-btn' + (item.cabang === auditSelectedCabang ? ' active' : '') + '" onclick="selectAuditCabang(\'' + encodedCabang + '\')">' +
+            '<div class="audit-cabang-top">' +
+              '<div class="audit-cabang-name">' + escHtmlAdmin(item.cabang) + '</div>' +
+              '<div class="audit-cabang-area">' + escHtmlAdmin(item.area || 'LAINNYA') + '</div>' +
+            '</div>' +
+            '<div class="audit-cabang-meta">Aktif ' + item.summary.activeDays + ' hari · Aman ' + item.summary.safe + ' · Kurang ' + item.summary.pending + ' · Lebih ' + item.summary.warn + '</div>' +
+            '<div class="audit-cabang-meta">' + issueText + '</div>' +
+          '</button>';
+        }).join('') + '</div>';
+      }
+
+      function selectAuditCabang(encodedCabang) {
+        auditSelectedCabang = decodeURIComponent(encodedCabang || '');
+        renderAuditCabangList();
+        renderAuditCabangDetail();
+      }
+
+      function renderAuditCabangDetail() {
+        const detailEl = document.getElementById('auditCabangDetail');
+        const items = auditCabangState && Array.isArray(auditCabangState.items) ? auditCabangState.items : [];
+        const selected = items.find(item => item.cabang === auditSelectedCabang) || items[0];
+
+        if (!selected) {
+          detailEl.innerHTML = '<div class="empty-state"><i class="bi bi-building"></i>Pilih cabang untuk melihat audit harian</div>';
+          return;
+        }
+
+        auditSelectedCabang = selected.cabang;
+        const summary = selected.summary || { safe: 0, pending: 0, warn: 0, activeDays: 0 };
+        const rowsHtml = selected.rows.map(row => {
+          const proofsHtml = row.transfers.filter(item => item.proofUrl).map((item, index) => {
+            const labelParts = ['Bukti ' + (index + 1)];
+            if (item.nama_bank) labelParts.push(item.nama_bank);
+            if (item.timestamp) labelParts.push(new Date(item.timestamp).toLocaleTimeString('id-ID', { timeZone: 'Asia/Makassar', hour: '2-digit', minute: '2-digit' }));
+            return '<a class="btn-proof-tr" href="' + escHtmlAdmin(item.proofUrl) + '" target="_blank" rel="noopener noreferrer" onclick="return openProof(this.href)"><i class="bi bi-image"></i> ' + escHtmlAdmin(labelParts.join(' · ')) + '</a>';
+          }).join('');
+
+          const metaParts = [];
+          if (row.proofCount > 0) metaParts.push(row.proofCount + ' bukti');
+          if (row.transferMeta.length > 0) metaParts.push(row.transferMeta.join(' | '));
+
+          return '<div class="audit-row ' + row.tone + '">' +
+            '<div class="audit-line ' + row.tone + '">' + escHtmlAdmin(row.line) + '</div>' +
+            (metaParts.length ? '<div class="audit-row-meta">' + escHtmlAdmin(metaParts.join(' · ')) + '</div>' : '') +
+            (proofsHtml ? '<div class="audit-proof-list">' + proofsHtml + '</div>' : '') +
+          '</div>';
+        }).join('');
+
+        detailEl.innerHTML = '<div class="audit-detail-card">' +
+          '<div class="audit-detail-head">' +
+            '<div>' +
+              '<div class="audit-detail-title">' + escHtmlAdmin(selected.cabang) + '</div>' +
+              '<div class="audit-detail-sub">Audit harian periode aktif ' + escHtmlAdmin(getPeriodeLabel(auditCabangState.periode)) + '</div>' +
+            '</div>' +
+            '<div class="audit-cabang-area">' + escHtmlAdmin(selected.area || 'LAINNYA') + '</div>' +
+          '</div>' +
+          '<div class="audit-stats">' +
+            '<div class="audit-stat safe"><div class="audit-stat-val">' + summary.safe + '</div><div class="audit-stat-label">Aman</div></div>' +
+            '<div class="audit-stat pending"><div class="audit-stat-val">' + summary.pending + '</div><div class="audit-stat-label">Kurang</div></div>' +
+            '<div class="audit-stat warn"><div class="audit-stat-val">' + summary.warn + '</div><div class="audit-stat-label">Lebih / Cek</div></div>' +
+          '</div>' +
+          '<div class="audit-rows">' + rowsHtml + '</div>' +
+        '</div>';
       }
 
       function safeDomId(value) {
@@ -1521,6 +1909,7 @@
           showToast('Transfer dihapus', 'success');
           await loadTransfers();
           loadMismatchMonitor();
+          refreshAuditCabangIfOpen();
         } catch {
           showToast('Kesalahan jaringan', 'error');
         }
@@ -1736,6 +2125,7 @@
             cancelEditTr(id);
             await loadTransfers();
             loadMismatchMonitor();
+            refreshAuditCabangIfOpen();
           }
         } catch { showToast('Kesalahan jaringan', 'error'); }
         saveBtn.disabled = false;
@@ -1830,7 +2220,7 @@
           const res = await fetch('/api/transfer', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': getOpsToken() }, body: JSON.stringify({ action: 'split', id: splitTarget.id, rows }) });
           const json = await res.json();
           if (!res.ok) { showToast(json.error || 'Gagal sinkronkan tanggal', 'error'); }
-          else { showToast('Sinkronisasi berhasil (' + json.inserted + ' baris)', 'success'); closeSplit(); loadTransfers(); loadMismatchMonitor(); }
+          else { showToast('Sinkronisasi berhasil (' + json.inserted + ' baris)', 'success'); closeSplit(); loadTransfers(); loadMismatchMonitor(); refreshAuditCabangIfOpen(); }
         } catch { showToast('Kesalahan jaringan', 'error'); }
         btn.innerHTML = '<i class="bi bi-scissors me-1"></i>Simpan Sinkronisasi';
         btn.disabled = false;
@@ -2119,6 +2509,8 @@
           if (!ncRes.ok) throw new Error(ncData.error || 'Gagal memuat NONCOD');
           if (!trRes.ok) throw new Error(trData.error || 'Gagal memuat transfer');
 
+          monitorDataCache = { periode, ncData, trData };
+
           const mismatchState = buildMismatchState(periode, ncData, trData);
           splitSuggestionsByTransferId = {};
           transferLookupById = {};
@@ -2131,7 +2523,6 @@
             }
           });
           document.getElementById('mismatchSuspect').textContent = mismatchState.suspects.length;
-          document.getElementById('mismatchPending').textContent = mismatchState.pendingCases.length;
           document.getElementById('mismatchOpen').textContent = mismatchState.mismatchCases.length;
           sumEl.style.display = 'grid';
           let html = '<div class="today-body">';
@@ -2150,16 +2541,10 @@
             mismatchState.mismatchCases.forEach(item => { html += renderOpenCaseItem(item, periode); });
           }
 
-          html += `<div class="today-sec blue"><i class="bi bi-hourglass-split"></i>Belum Transfer <span class="sec-badge">${mismatchState.pendingCases.length}</span></div>`;
-          if (!mismatchState.pendingCases.length) {
-            html += '<div class="mon-empty">Tidak ada NONCOD lama yang benar-benar belum ditransfer.</div>';
-          } else {
-            mismatchState.pendingCases.forEach(item => { html += renderPendingCaseItem(item, periode); });
-          }
-
           html += '</div>';
           contentEl.innerHTML = html;
         } catch (err) {
+          monitorDataCache = null;
           contentEl.innerHTML = '<div class="empty-state" style="padding:16px 0"><i class="bi bi-exclamation-circle text-danger me-1"></i>' + escHtmlAdmin(err.message || 'Gagal memuat data') + '</div>';
           sumEl.style.display = 'none';
         }
