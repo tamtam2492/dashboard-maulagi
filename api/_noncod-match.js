@@ -230,7 +230,7 @@ async function findNoncodDateMatch(supabase, { namaCabang, nominal, preferredPer
     return {
       match: null,
       candidates: [],
-      message: 'Tidak ada data NONCOD untuk ' + normalizedCabang + ' pada 3 periode terakhir.',
+      message: 'Tidak ada data NONCOD untuk ' + normalizedCabang + (hasPreferredPeriode ? (' pada periode aktif ' + normalizedPreferredPeriode + '.') : '.'),
     };
   }
 

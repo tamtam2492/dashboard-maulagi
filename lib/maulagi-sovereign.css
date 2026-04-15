@@ -1539,15 +1539,22 @@ body.app-input .success-screen {
     align-items: start;
   }
 
+  body.app-input .input-steps {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    top: 82px;
+  }
+
   body.app-input .form-wrap > .field-card:first-of-type {
     grid-column: 1;
-    grid-row: 1 / span 2;
+    grid-row: 2 / span 2;
     position: sticky;
-    top: 100px;
+    top: 176px;
   }
 
   body.app-input #formFields {
     grid-column: 2;
+    grid-row: 2;
   }
 
   body.app-input #formFields.show {
@@ -1827,7 +1834,16 @@ body.app-input .input-steps {
   display: flex;
   align-items: center;
   gap: 0;
-  padding: 4px 2px;
+  width: 100%;
+  padding: 14px 18px 12px;
+  border-radius: 24px;
+  border: 1px solid rgba(19, 27, 46, 0.08);
+  background: linear-gradient(180deg, rgba(249, 251, 253, 0.95), rgba(244, 246, 250, 0.9));
+  box-shadow: 0 14px 28px rgba(19, 27, 46, 0.08);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 70px;
+  z-index: 9;
 }
 
 body.app-input .is-step {
