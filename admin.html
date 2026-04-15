@@ -30,7 +30,9 @@
       }
       .top-bar a { width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.7); text-decoration: none; flex-shrink: 0; transition: 0.2s; backdrop-filter: blur(4px); }
       .top-bar a:hover { background: rgba(255,255,255,0.15); color: white; }
-      .top-bar h1 { font-size: 1rem; font-weight: 800; margin: 0; color: white; flex: 1; letter-spacing: -0.02em; }
+      .top-bar-info { flex: 1; min-width: 0; }
+      .top-bar-kicker { font-size: 0.6rem; font-weight: 700; color: rgba(255,255,255,0.42); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1px; }
+      .top-bar h1 { font-size: 1rem; font-weight: 800; margin: 0; color: white; letter-spacing: -0.02em; }
 
       /* ── Landing ── */
       .page-wrap { max-width: 500px; margin: 0 auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -81,6 +83,7 @@
       .modal-body { padding: 14px 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px; }
       .modal-body::-webkit-scrollbar { width: 3px; }
       .modal-body::-webkit-scrollbar-thumb { background: var(--gray3); border-radius: 4px; }
+      .modal-body { scrollbar-width: thin; scrollbar-color: var(--gray3) transparent; }
 
       /* ── Cabang Modal ── */
       .search-wrap { position: relative; }
@@ -250,6 +253,8 @@
       .btn-pw { width: 100%; border-radius: 10px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; padding: 10px; font-size: 0.85rem; font-weight: 700; transition: all 0.2s; box-shadow: 0 4px 14px rgba(245,158,11,0.25); }
       .btn-pw:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(245,158,11,0.35); }
       .btn-pw:disabled { background: var(--gray2); cursor: not-allowed; box-shadow: none; transform: none; }
+      .btn-pw.dark { background: linear-gradient(135deg, #131b2e, #1f2a44); box-shadow: 0 4px 14px rgba(19,27,46,0.25); }
+      .btn-pw.dark:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(19,27,46,0.35); }
       .verify-panel { max-width: 360px; }
       .verify-note { background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #fde68a; border-radius: 12px; padding: 12px; display: flex; gap: 10px; align-items: flex-start; color: #92400e; font-size: 0.74rem; font-weight: 600; line-height: 1.45; }
       .verify-note i { font-size: 0.95rem; color: #d97706; margin-top: 1px; }
@@ -306,7 +311,7 @@
       .today-refresh:hover { background: #e2e8f0; color: var(--dark); }
       .today-refresh.spinning i { animation: spin 0.7s linear infinite; }
       @keyframes spin { to { transform: rotate(360deg); } }
-      .today-summary { padding: 0 16px 10px; grid-template-columns: 1fr 1fr 1fr; }
+      .today-summary { display: grid; padding: 0 16px 10px; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
       .today-summary.two-cols { grid-template-columns: 1fr 1fr; }
       .today-body { padding: 0 16px 14px; }
       .today-sec { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 8px 0 5px; display: flex; align-items: center; gap: 6px; border-bottom: 1.5px solid #f1f5f9; margin-bottom: 4px; }
@@ -319,23 +324,12 @@
       .today-sec.green .sec-badge { background: #dcfce7; color: #16a34a; }
       .today-sec.amber .sec-badge { background: #ffedd5; color: #ea580c; }
       .today-sec.red .sec-badge { background: #fee2e2; color: #dc2626; }
-      .mon-item { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #f8fafc; gap: 8px; }
-      .mon-item:last-child { border-bottom: none; }
-      .mon-item-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
-      .mon-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-      .mon-dot.green { background: #22c55e; }
-      .mon-dot.red { background: #f87171; }
-      .mon-info { min-width: 0; }
-      .mon-name { font-size: 0.8rem; font-weight: 700; color: var(--dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .mon-meta { font-size: 0.64rem; color: var(--gray2); }
       .split-table { margin-top: 6px; background: #fffbeb; border: 1px solid #fbbf24; border-radius: 6px; padding: 6px 8px; font-size: 0.68rem; }
       .split-title { font-weight: 700; color: #92400e; margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
       .split-table table { width: 100%; border-collapse: collapse; }
       .split-table th, .split-table td { padding: 2px 4px; border-bottom: 1px solid #fde68a; }
       .split-table th { color: #92400e; font-weight: 600; }
       .split-total td { border-top: 2px solid #f59e0b; background: #fef3c7; }
-      .mon-nom { font-size: 0.8rem; font-weight: 800; color: var(--green); white-space: nowrap; flex-shrink: 0; }
-      .mon-empty { font-size: 0.78rem; color: var(--gray2); padding: 8px 0 4px; }
       .mon-section-head { font-size: 0.72rem; font-weight: 800; padding: 5px 0 6px; letter-spacing: 0.04em; display: flex; align-items: center; gap: 5px; }
       .mon-green { color: #15803d; border-bottom: 2px solid #bbf7d0; }
       .mon-red { color: #dc2626; border-bottom: 2px solid #fecaca; }
@@ -367,7 +361,9 @@
       .audit-shell { display: grid; grid-template-columns: 1fr; gap: 12px; min-height: 420px; }
       @media (min-width: 900px) { .audit-shell { grid-template-columns: 280px minmax(0, 1fr); align-items: start; } }
       .audit-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-      .audit-list { display: flex; flex-direction: column; gap: 8px; }
+      .audit-list { display: flex; flex-direction: column; gap: 8px; max-height: 54vh; overflow-y: auto; padding-right: 2px; }
+      .audit-list::-webkit-scrollbar { width: 3px; }
+      .audit-list::-webkit-scrollbar-thumb { background: var(--gray3); border-radius: 4px; }
       .audit-cabang-btn { width: 100%; text-align: left; border: 1px solid var(--border); background: #f8fafc; border-radius: 12px; padding: 11px 12px; display: flex; flex-direction: column; gap: 4px; transition: 0.15s; cursor: pointer; }
       .audit-cabang-btn:hover { background: #eef2f7; border-color: #cbd5e1; }
       .audit-cabang-btn.active { background: #eff6ff; border-color: #93c5fd; box-shadow: inset 0 0 0 1px #bfdbfe; }
@@ -442,7 +438,7 @@
     </div>
 
     <div class="page-wrap">
-      <div class="welcome-text">Kelola cabang, status resi, dan pantau transfer tidak cocok.</div>
+      <div class="welcome-text">Kelola cabang, audit transfer harian, dan pantau NONCOD tidak cocok.</div>
       <div class="menu-grid">
         <button class="menu-card mc-blue" onclick="openModal('modalCabang'); loadCabangModal()">
           <div class="mc-icon"><i class="bi bi-building"></i></div>
@@ -455,7 +451,7 @@
           <div class="mc-icon"><i class="bi bi-clipboard-data"></i></div>
           <div>
             <div class="mc-title">Audit Cabang</div>
-            <div class="mc-sub">Cari cabang & lihat NONCOD vs transfer per hari</div>
+            <div class="mc-sub">Audit NONCOD vs transfer per hari</div>
           </div>
           <div class="menu-chip green"><i class="bi bi-search"></i> Detail Harian</div>
         </button>
@@ -464,6 +460,13 @@
           <div>
             <div class="mc-title">Status Manual Resi</div>
             <div class="mc-sub">Cari resi &amp; timpa status</div>
+          </div>
+        </button>
+        <button class="menu-card mc-slate" onclick="openTransferModal()">
+          <div class="mc-icon"><i class="bi bi-arrow-left-right"></i></div>
+          <div>
+            <div class="mc-title">Kelola Transfer</div>
+            <div class="mc-sub">Lihat &amp; rekonsiliasi transfer</div>
           </div>
         </button>
       </div>
@@ -666,7 +669,7 @@
             <i class="bi bi-key-fill"></i>
             <div>Kelola cabang dan transfer tetap bisa dari workspace. Bagian <strong>Pengaturan</strong> dikunci terpisah agar perubahan password tetap memakai akses admin.</div>
           </div>
-          <input type="password" class="verify-input" id="adminVerifyPw" placeholder="Password admin..." oninput="clearAdminVerifyError()" onkeydown="if(event.key==='Enter')submitAdminVerify()">
+          <input type="password" class="verify-input" id="adminVerifyPw" placeholder="Password admin..." autocomplete="current-password" oninput="clearAdminVerifyError()" onkeydown="if(event.key==='Enter')submitAdminVerify()">
           <div class="verify-error" id="adminVerifyErr"></div>
           <button class="btn-pw" id="btnAdminVerify" onclick="submitAdminVerify()">
             <i class="bi bi-unlock-fill me-1"></i>Buka Pengaturan
@@ -693,8 +696,8 @@
           <div class="card-pw" id="cardBuatPw">
             <h3><i class="bi bi-key-fill text-warning"></i> Buat Password</h3>
             <div class="pw-sub">Buat password baru untuk admin panel</div>
-            <input type="password" class="form-control" id="pwBaru1" placeholder="Password baru..." oninput="checkPwBuat()">
-            <input type="password" class="form-control" id="pwBaru2" placeholder="Ulangi password..." oninput="checkPwBuat()">
+            <input type="password" class="form-control" id="pwBaru1" placeholder="Password baru..." autocomplete="new-password" oninput="checkPwBuat()">
+            <input type="password" class="form-control" id="pwBaru2" placeholder="Ulangi password..." autocomplete="new-password" oninput="checkPwBuat()">
             <div id="pwBuatError" style="font-size:0.75rem;color:#ef4444;margin-bottom:8px;display:none"></div>
             <button class="btn-pw" id="btnBuatPw" onclick="buatPassword()" disabled>
               <i class="bi bi-check-lg me-1"></i>Simpan Password
@@ -705,9 +708,9 @@
           <div class="card-pw" id="cardGantiPw" style="display:none">
             <h3><i class="bi bi-arrow-repeat text-warning"></i> Ganti Password Admin</h3>
             <div class="pw-sub">Masukkan password lama lalu password baru</div>
-            <input type="password" class="form-control" id="pwLama" placeholder="Password lama..." oninput="checkPwGanti()">
-            <input type="password" class="form-control" id="pwBaru3" placeholder="Password baru..." oninput="checkPwGanti()">
-            <input type="password" class="form-control" id="pwBaru4" placeholder="Ulangi password baru..." oninput="checkPwGanti()">
+            <input type="password" class="form-control" id="pwLama" placeholder="Password lama..." autocomplete="current-password" oninput="checkPwGanti()">
+            <input type="password" class="form-control" id="pwBaru3" placeholder="Password baru..." autocomplete="new-password" oninput="checkPwGanti()">
+            <input type="password" class="form-control" id="pwBaru4" placeholder="Ulangi password baru..." autocomplete="new-password" oninput="checkPwGanti()">
             <div id="pwGantiError" style="font-size:0.75rem;color:#ef4444;margin-bottom:8px;display:none"></div>
             <button class="btn-pw" id="btnGantiPw" onclick="gantiPassword()" disabled>
               <i class="bi bi-arrow-repeat me-1"></i>Ganti Password
@@ -720,10 +723,10 @@
           <div class="card-pw" id="cardBuatDashPw">
             <h3><i class="bi bi-speedometer2 text-primary"></i> Buat Password Viewer</h3>
             <div class="pw-sub">Password untuk akun view dan download</div>
-            <input type="password" class="form-control" id="dashPwBaru1" placeholder="Password baru..." oninput="checkDashPwBuat()">
-            <input type="password" class="form-control" id="dashPwBaru2" placeholder="Ulangi password..." oninput="checkDashPwBuat()">
+            <input type="password" class="form-control" id="dashPwBaru1" placeholder="Password baru..." autocomplete="new-password" oninput="checkDashPwBuat()">
+            <input type="password" class="form-control" id="dashPwBaru2" placeholder="Ulangi password..." autocomplete="new-password" oninput="checkDashPwBuat()">
             <div id="dashPwBuatError" style="font-size:0.75rem;color:#ef4444;margin-bottom:8px;display:none"></div>
-            <button class="btn-pw" id="btnBuatDashPw" onclick="buatDashPassword()" disabled style="background:#131b2e">
+            <button class="btn-pw dark" id="btnBuatDashPw" onclick="buatDashPassword()" disabled>
               <i class="bi bi-check-lg me-1"></i>Simpan Password
             </button>
           </div>
@@ -732,11 +735,11 @@
           <div class="card-pw" id="cardGantiDashPw" style="display:none">
             <h3><i class="bi bi-speedometer2 text-primary"></i> Ganti Password Viewer</h3>
             <div class="pw-sub">Ganti password akun viewer</div>
-            <input type="password" class="form-control" id="dashPwLama" placeholder="Password lama..." oninput="checkDashPwGanti()">
-            <input type="password" class="form-control" id="dashPwBaru3" placeholder="Password baru..." oninput="checkDashPwGanti()">
-            <input type="password" class="form-control" id="dashPwBaru4" placeholder="Ulangi password baru..." oninput="checkDashPwGanti()">
+            <input type="password" class="form-control" id="dashPwLama" placeholder="Password lama..." autocomplete="current-password" oninput="checkDashPwGanti()">
+            <input type="password" class="form-control" id="dashPwBaru3" placeholder="Password baru..." autocomplete="new-password" oninput="checkDashPwGanti()">
+            <input type="password" class="form-control" id="dashPwBaru4" placeholder="Ulangi password baru..." autocomplete="new-password" oninput="checkDashPwGanti()">
             <div id="dashPwGantiError" style="font-size:0.75rem;color:#ef4444;margin-bottom:8px;display:none"></div>
-            <button class="btn-pw" id="btnGantiDashPw" onclick="gantiDashPassword()" disabled style="background:#131b2e">
+            <button class="btn-pw dark" id="btnGantiDashPw" onclick="gantiDashPassword()" disabled>
               <i class="bi bi-arrow-repeat me-1"></i>Ganti Password
             </button>
           </div>
@@ -1469,6 +1472,11 @@
 
       function safeDomId(value) {
         return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+      }
+
+      function openTransferModal() {
+        openModal('modalTransfer');
+        initPeriodeSelect();
       }
 
       function openManualStatusModal() {
