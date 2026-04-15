@@ -1946,6 +1946,34 @@ body.app-input .form-section-label {
   padding: 4px 4px 0;
 }
 
+@media (max-width: 640px) {
+  body.app-input .input-steps {
+    padding: 10px 12px 8px;
+    border-radius: 18px;
+    top: 62px;
+  }
+
+  body.app-input .is-step {
+    gap: 4px;
+  }
+
+  body.app-input .is-dot {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
+  }
+
+  body.app-input .is-label {
+    font-size: 0.5rem;
+    letter-spacing: 0.08em;
+  }
+
+  body.app-input .is-connector {
+    margin: 0 4px;
+    margin-bottom: 18px;
+  }
+}
+
 /* ── Rekap: maukirim section ── */
 body.app-rekap .mk-section {
   margin-top: 22px;
