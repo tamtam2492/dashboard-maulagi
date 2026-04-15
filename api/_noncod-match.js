@@ -5,6 +5,14 @@ const NONCOD_MATCH_TOLERANCE = 10000;
 const NONCOD_SPLIT_TOLERANCE = 500;
 const PERIODE_RE = /^\d{4}-\d{2}$/;
 
+function getPreferredSyncPeriodes(periodes, preferredPeriode) {
+  const normalizedPreferredPeriode = String(preferredPeriode || '').trim();
+  if (PERIODE_RE.test(normalizedPreferredPeriode) && periodes.includes(normalizedPreferredPeriode)) {
+    return [normalizedPreferredPeriode];
+  }
+  return periodes.length ? [periodes[periodes.length - 1]] : [];
+}
+
 function buildDateCandidates(byDate) {
   return Object.entries(byDate || {}).map(([tgl, totalOngkir]) => ({
     tanggal_buat: tgl,
@@ -21,6 +29,12 @@ function filterByPreferredPeriode(byDate, preferredPeriode) {
     if (String(tgl).startsWith(normalizedPeriode + '-')) filtered[tgl] = totalOngkir;
   }
   return filtered;
+}
+
+function getSearchByDate(byDate, preferredPeriode) {
+  const normalizedPeriode = String(preferredPeriode || '').trim();
+  if (!PERIODE_RE.test(normalizedPeriode)) return byDate || {};
+  return filterByPreferredPeriode(byDate, normalizedPeriode);
 }
 
 function groupTransfersByDate(existingTransfers) {
@@ -193,12 +207,14 @@ async function ensureFreshNoncod(supabase, periodes) {
 async function findNoncodDateMatch(supabase, { namaCabang, nominal, preferredPeriode }) {
   const normalizedCabang = String(namaCabang || '').trim().toUpperCase();
   const normalizedNominal = Number(nominal || 0);
+  const normalizedPreferredPeriode = String(preferredPeriode || '').trim();
+  const hasPreferredPeriode = PERIODE_RE.test(normalizedPreferredPeriode);
   if (!normalizedCabang || normalizedNominal <= 0) {
     return { match: null, candidates: [], message: 'Cabang dan nominal wajib diisi.' };
   }
 
   const periodes = getRecentPeriodes();
-  await ensureFreshNoncod(supabase, periodes);
+  await ensureFreshNoncod(supabase, getPreferredSyncPeriodes(periodes, normalizedPreferredPeriode));
   const { data: noncodRows, error: ncErr } = await supabase
     .from('noncod')
     .select('tanggal_buat, ongkir, metode_pembayaran, nomor_resi, status_terakhir')
@@ -218,7 +234,16 @@ async function findNoncodDateMatch(supabase, { namaCabang, nominal, preferredPer
     };
   }
 
-  const allCandidateDates = Object.keys(byDate);
+  const searchByDate = getSearchByDate(byDate, normalizedPreferredPeriode);
+  if (hasPreferredPeriode && !Object.keys(searchByDate).length) {
+    return {
+      match: null,
+      candidates: [],
+      message: 'Tidak ada data NONCOD untuk ' + normalizedCabang + ' pada periode ' + normalizedPreferredPeriode + '.',
+    };
+  }
+
+  const allCandidateDates = Object.keys(searchByDate);
   const { data: existingTransfers, error: trErr } = await supabase
     .from('transfers')
     .select('id, tgl_inputan, nominal, nama_bank, nama_cabang, timestamp')
@@ -226,60 +251,47 @@ async function findNoncodDateMatch(supabase, { namaCabang, nominal, preferredPer
     .in('tgl_inputan', allCandidateDates);
   if (trErr) throw trErr;
 
-  const preferredByDate = filterByPreferredPeriode(byDate, preferredPeriode);
-  const searchByDateList = [];
-  if (Object.keys(preferredByDate).length) searchByDateList.push(preferredByDate);
-  searchByDateList.push(byDate);
+  const outstandingCandidates = findOutstandingMatchingDates(
+    searchByDate,
+    existingTransfers,
+    normalizedNominal,
+    NONCOD_MATCH_TOLERANCE,
+  );
 
-  for (const searchByDate of searchByDateList) {
-    const outstandingCandidates = findOutstandingMatchingDates(
-      searchByDate,
-      existingTransfers,
-      normalizedNominal,
-      NONCOD_MATCH_TOLERANCE,
-    );
-
-    if (outstandingCandidates.length) {
-      return {
-        match: outstandingCandidates[0],
-        candidates: outstandingCandidates,
-        blocked: false,
-        message: null,
-      };
-    }
+  if (outstandingCandidates.length) {
+    return {
+      match: outstandingCandidates[0],
+      candidates: outstandingCandidates,
+      blocked: false,
+      message: null,
+    };
   }
 
-  for (const searchByDate of searchByDateList) {
-    const splitMatch = findSplitMatchingDates(
-      searchByDate,
-      existingTransfers,
-      normalizedNominal,
-      NONCOD_SPLIT_TOLERANCE,
-    );
+  const splitMatch = findSplitMatchingDates(
+    searchByDate,
+    existingTransfers,
+    normalizedNominal,
+    NONCOD_SPLIT_TOLERANCE,
+  );
 
-    if (splitMatch && Array.isArray(splitMatch.dates) && splitMatch.dates.length > 1) {
-      return {
-        match: null,
-        splitMatch,
-        candidates: [],
-        blocked: false,
-        message: null,
-      };
-    }
+  if (splitMatch && Array.isArray(splitMatch.dates) && splitMatch.dates.length > 1) {
+    return {
+      match: null,
+      splitMatch,
+      candidates: [],
+      blocked: false,
+      message: null,
+    };
   }
 
-  let candidates = [];
-  for (const searchByDate of searchByDateList) {
-    candidates = findMatchingDates(searchByDate, normalizedNominal, NONCOD_MATCH_TOLERANCE);
-    if (candidates.length) break;
-  }
+  const candidates = findMatchingDates(searchByDate, normalizedNominal, NONCOD_MATCH_TOLERANCE);
 
   if (!candidates.length) {
     return {
       match: null,
       candidates: [],
       message: 'Nominal Rp ' + normalizedNominal.toLocaleString('id-ID') +
-        ' tidak cocok dengan NONCOD manapun untuk ' + normalizedCabang +
+        ' tidak cocok dengan NONCOD ' + (hasPreferredPeriode ? ('periode ' + normalizedPreferredPeriode + ' ') : 'manapun ') + 'untuk ' + normalizedCabang +
         '. Toleransi maks Rp ' + NONCOD_MATCH_TOLERANCE.toLocaleString('id-ID') + '.',
     };
   }
@@ -311,7 +323,9 @@ module.exports = {
   findOutstandingMatchingDates,
   findSplitMatchingDates,
   findNoncodDateMatch,
+  getPreferredSyncPeriodes,
   getRecentPeriodes,
+  getSearchByDate,
   getOutstandingCandidates,
   groupTransfersByDate,
   resolveMatch,

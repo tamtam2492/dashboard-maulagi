@@ -348,6 +348,7 @@
     <script>
       // Init periode dropdown
       const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Makassar' }));
+      const currentPeriode = now.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit' }).slice(0, 7);
       const periodeEl = document.getElementById('periodeInput');
       for (let i = 0; i < 3; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -384,6 +385,11 @@
         ensurePeriodeOption(tglInput.slice(0, 7));
       }
 
+      function resetPeriodePreference() {
+        ensurePeriodeOption(currentPeriode);
+        periodeEl.value = currentPeriode;
+      }
+
       // tglInput sekarang otomatis dari NONCOD match — tidak ada date picker manual
 
       // Format nominal — strip non-numeric, add thousand separator
@@ -406,6 +412,7 @@
       let lastSummaryRequestId = 0;
       let lastDupeContext = null;
       let detailStageUnlocked = false;
+      let cabangSummaryAbortController = null;
 
       async function loadCabang() {
         try {
@@ -597,6 +604,10 @@
 
       function resetCabangSummary() {
         clearTimeout(cabangSummaryTimer);
+        if (cabangSummaryAbortController) {
+          cabangSummaryAbortController.abort();
+          cabangSummaryAbortController = null;
+        }
         lastSummaryKey = '';
         lastSummaryRequestId = 0;
         lastDupeContext = null;
@@ -607,10 +618,23 @@
         lastDupeContext = null;
         lastSummaryKey = '';
         document.getElementById('tglInput').value = '';
+        resetPeriodePreference();
         detailStageUnlocked = true;
         renderCabangSummary(null);
         updateCabangStepState();
         refreshCabangSummary(true);
+      }
+
+      async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 15000, existingController = null) {
+        const controller = existingController || new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const res = await fetch(url, { ...options, signal: controller.signal });
+          const json = await res.json();
+          return { res, json };
+        } finally {
+          clearTimeout(timeoutId);
+        }
       }
 
       function scheduleCabangSummaryRefresh() {
@@ -643,7 +667,7 @@
           return;
         }
 
-        const summaryKey = [vals.nama_cabang, vals.nominal].join('|');
+        const summaryKey = [vals.nama_cabang, vals.nominal, vals.periode].join('|');
         if (!force && summaryKey === lastSummaryKey && lastDupeContext) {
           renderCabangSummary(lastDupeContext);
           checkReady();
@@ -655,9 +679,11 @@
         document.getElementById('tglInput').value = '';
         renderCabangSummary(null);
         const requestId = ++lastSummaryRequestId;
+        if (cabangSummaryAbortController) cabangSummaryAbortController.abort();
+        cabangSummaryAbortController = new AbortController();
 
         try {
-          const res = await fetch('/api/check-dupe', {
+          const { res, json } = await fetchJsonWithTimeout('/api/check-dupe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -665,8 +691,7 @@
               periode: vals.periode,
               nominal: vals.nominal,
             }),
-          });
-          const json = await res.json();
+          }, 15000, cabangSummaryAbortController);
           if (requestId !== lastSummaryRequestId) return;
           if (!res.ok) throw new Error(json.error || 'Gagal cek.');
           lastDupeContext = json;
@@ -681,14 +706,21 @@
 
           renderCabangSummary(lastDupeContext);
           checkReady();
-        } catch {
+        } catch (err) {
           if (requestId !== lastSummaryRequestId) return;
+          const message = err && err.name === 'AbortError'
+            ? 'Pencocokan NONCOD terlalu lama. Coba pilih ulang cabang atau tunggu OCR selesai.'
+            : 'Gagal mencocokkan data NONCOD. Coba lagi.';
           lastDupeContext = {
-            noncodMatch: { match: null, message: 'Gagal mencocokkan data NONCOD. Coba lagi.' },
+            noncodMatch: { match: null, message },
           };
           document.getElementById('tglInput').value = '';
           renderCabangSummary(lastDupeContext);
           checkReady();
+        } finally {
+          if (cabangSummaryAbortController && requestId === lastSummaryRequestId) {
+            cabangSummaryAbortController = null;
+          }
         }
       }
 
@@ -807,6 +839,7 @@
         reader.onload = (e) => {
           const img = document.getElementById('previewImg');
           const placeholder = document.getElementById('uploadPlaceholder');
+          resetPeriodePreference();
           img.src = e.target.result;
           img.style.display = 'block';
           placeholder.style.display = 'none';
@@ -898,6 +931,7 @@
         },
         setNominalValue(value) {
           document.getElementById('nominal').value = Number(value).toLocaleString('id-ID');
+          if (hasSelectedCabang()) scheduleCabangSummaryRefresh();
         },
         onReadyChange: checkReady,
         log: console.error.bind(console),
@@ -905,8 +939,12 @@
 
       // Collect form values helper
       function getFormValues() {
+        const matchedDate = document.getElementById('tglInput').value;
+        const preferredPeriode = /^\d{4}-\d{2}-\d{2}$/.test(matchedDate)
+          ? (document.getElementById('periodeInput').value || matchedDate.slice(0, 7))
+          : currentPeriode;
         return {
-          periode: document.getElementById('periodeInput').value,
+          periode: preferredPeriode,
           tgl_inputan: document.getElementById('tglInput').value,
           nama_bank: normalizeBankNameInput(document.getElementById('namaBank').value),
           nama_cabang: document.getElementById('namaCabang').value,
@@ -1030,7 +1068,7 @@
 
         try {
           const selectedCabang = getSelectedCabangRecord();
-          const chkRes = await fetch('/api/check-dupe', {
+          const { res: chkRes, json: chkJson } = await fetchJsonWithTimeout('/api/check-dupe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1038,8 +1076,7 @@
               periode: vals.periode,
               nominal: vals.nominal,
             }),
-          });
-          const chkJson = await chkRes.json();
+          }, 15000);
 
           lastDupeContext = chkJson;
           renderCabangSummary(lastDupeContext);
@@ -1073,8 +1110,11 @@
             document.getElementById('dupeOverlay').classList.add('show');
             return;
           }
-        } catch {
-          alert('Gagal mencocokkan data NONCOD. Pastikan koneksi stabil.');
+        } catch (err) {
+          const message = err && err.name === 'AbortError'
+            ? 'Pencocokan NONCOD terlalu lama. Coba pilih ulang cabang atau tunggu OCR selesai.'
+            : 'Gagal mencocokkan data NONCOD. Pastikan koneksi stabil.';
+          alert(message);
           btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Kirim Data';
           btn.disabled = false;
           return;

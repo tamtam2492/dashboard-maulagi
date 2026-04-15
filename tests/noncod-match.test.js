@@ -10,7 +10,9 @@ const {
   findOutstandingMatchingDates,
   findMatchingDates,
   findSplitMatchingDates,
+  getPreferredSyncPeriodes,
   getRecentPeriodes,
+  getSearchByDate,
   resolveMatch,
 } = require('../api/_noncod-match');
 
@@ -31,6 +33,22 @@ describe('getRecentPeriodes', () => {
     const periodes = getRecentPeriodes();
     assert.ok(periodes[0] <= periodes[1]);
     assert.ok(periodes[1] <= periodes[2]);
+  });
+});
+
+describe('getPreferredSyncPeriodes', () => {
+  it('syncs only the preferred periode when it is part of recent periodes', () => {
+    assert.deepEqual(
+      getPreferredSyncPeriodes(['2026-02', '2026-03', '2026-04'], '2026-04'),
+      ['2026-04'],
+    );
+  });
+
+  it('falls back to the newest periode when preferred periode is invalid', () => {
+    assert.deepEqual(
+      getPreferredSyncPeriodes(['2026-02', '2026-03', '2026-04'], 'April 2026'),
+      ['2026-04'],
+    );
   });
 });
 
@@ -90,6 +108,33 @@ describe('filterByPreferredPeriode', () => {
 
   it('returns empty object for invalid periode hint', () => {
     assert.deepEqual(filterByPreferredPeriode({ '2026-04-04': 174000 }, 'April 2026'), {});
+  });
+});
+
+describe('getSearchByDate', () => {
+  it('locks matching scope to the preferred periode when valid', () => {
+    const result = getSearchByDate({
+      '2026-03-31': 50000,
+      '2026-04-04': 174000,
+      '2026-04-05': 176000,
+    }, '2026-04');
+
+    assert.deepEqual(result, {
+      '2026-04-04': 174000,
+      '2026-04-05': 176000,
+    });
+  });
+
+  it('returns empty when preferred periode is valid but absent from the data', () => {
+    assert.deepEqual(getSearchByDate({ '2026-03-31': 50000 }, '2026-04'), {});
+  });
+
+  it('falls back to all dates when preferred periode is invalid', () => {
+    const byDate = {
+      '2026-03-31': 50000,
+      '2026-04-04': 174000,
+    };
+    assert.deepEqual(getSearchByDate(byDate, 'April 2026'), byDate);
   });
 });
 
