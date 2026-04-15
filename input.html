@@ -41,16 +41,6 @@
       .form-control, .form-select { border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.88rem; padding: 10px 14px; color: var(--dark); background: #f8fafc; transition: border-color 0.2s, box-shadow 0.2s; font-family: 'Inter', sans-serif; }
       .form-control:focus, .form-select:focus { border-color: rgba(19,27,46,0.5); box-shadow: 0 0 0 3px rgba(19,27,46,0.07); background: var(--card); outline: none; }
 
-      /* Tanggal 3 kolom */
-      .date-row { display: grid; grid-template-columns: 2fr 3fr 2.5fr; gap: 8px; }
-      .date-col label { font-size: 0.68rem; font-weight: 600; color: #94a3b8; display: block; margin-bottom: 4px; text-align: center; }
-
-      /* Nominal */
-      .nominal-wrap { position: relative; }
-      .nominal-wrap .prefix { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-weight: 700; color: var(--gray); font-size: 0.9rem; pointer-events: none; }
-      .nominal-wrap .form-control { padding-left: 38px; }
-      #nominalPreview { font-size: 0.78rem; color: var(--dark); font-weight: 600; margin-top: 6px; min-height: 18px; }
-
 
 
       /* Upload bukti */
@@ -77,8 +67,10 @@
       /* Hidden fields container — revealed after scan */
       #formFields { display: none; flex-direction: column; gap: 12px; }
       #formFields.show { display: flex; animation: slideIn 0.35s ease-out; }
-      #detailAfterCabang { display: none; flex-direction: column; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border); }
+      #detailAfterCabang { display: none; flex-direction: column; gap: 0; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border); }
       #detailAfterCabang.show { display: flex; animation: slideIn 0.35s ease-out; }
+      #detailAfterCabang > :not(:first-child) { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 10px; }
+      #detailAfterCabang > .inline-field { padding-left: 0; padding-right: 0; padding-bottom: 2px; }
       @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 
       .cabang-stage-note {
@@ -103,14 +95,6 @@
       .inline-field .if-value { font-size: 0.95rem; font-weight: 600; color: var(--dark); border: none; background: transparent; width: 100%; padding: 0; outline: none; font-family: 'Inter', sans-serif; }
       .inline-field .if-value:focus { color: var(--dark); }
       .inline-field .if-value::placeholder { color: var(--gray3); font-weight: 400; }
-
-      /* Day picker pills */
-      .day-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-      .day-pill { flex: 1; min-width: 0; padding: 8px 6px; border-radius: 10px; border: 1.5px solid var(--border); background: #f8fafc; font-size: 0.75rem; font-weight: 600; color: var(--gray); text-align: center; cursor: pointer; transition: all 0.15s; line-height: 1.3; }
-      .day-pill .pill-day { font-size: 0.95rem; font-weight: 700; color: var(--dark); display: block; }
-      .day-pill:hover { border-color: rgba(19,27,46,0.3); background: #f1f5f9; }
-      .day-pill.active { border-color: var(--dark); background: var(--dark); color: white; }
-      .day-pill.active .pill-day { color: white; }
 
       /* Search dropdown */
       .search-dd { position: relative; }
@@ -239,6 +223,7 @@
             <div class="up-cta">Pilih Foto</div>
           </div>
           <img id="previewImg" src="" alt="preview">
+          <div id="previewChangeHint" style="display:none; font-size:0.72rem; font-weight:700; color:var(--gray); text-align:center; padding:6px 0 10px; letter-spacing:0.02em;"><i class="bi bi-arrow-repeat me-1"></i>Tap untuk ganti foto</div>
         </div>
         <div class="ocr-status" id="ocrStatus"></div>
       </div>
@@ -292,7 +277,7 @@
         <div id="detailAfterCabang">
           <div class="branch-summary-editor-label">Lengkapi Transfer</div>
 
-          <div class="field-card inline-field">
+          <div class="inline-field">
             <div class="if-icon" style="background:#fef9c3;color:#ca8a04"><i class="bi bi-bank2"></i></div>
             <div class="if-body">
               <div class="if-label">Bank</div>
@@ -301,7 +286,7 @@
             <span class="ocr-badge" id="bankBadge" style="display:none"><i class="bi bi-robot"></i>AI</span>
           </div>
 
-          <div class="field-card inline-field">
+          <div class="inline-field">
             <div class="if-icon" style="background:#dcfce7;color:#16a34a"><i class="bi bi-cash-stack"></i></div>
             <div class="if-body">
               <div class="if-label">Nominal Transfer <span style="font-weight:400;color:var(--gray2)">(tanpa admin)</span></div>
@@ -310,7 +295,7 @@
             <span class="ocr-badge" id="nominalBadge" style="display:none"><i class="bi bi-robot"></i>AI</span>
           </div>
 
-          <div class="field-card">
+          <div>
             <div class="field-label">
               <span class="lbl-icon" style="background:#e0e7ff;color:#4338ca"><i class="bi bi-calendar-month-fill"></i></span>
               Periode Rekap
@@ -763,6 +748,25 @@
 
       loadCabang();
 
+      // Drag-and-drop on upload area
+      (function() {
+        const ua = document.getElementById('uploadArea');
+        ua.addEventListener('dragover', function(e) { e.preventDefault(); ua.classList.add('dragover'); });
+        ua.addEventListener('dragleave', function(e) { if (!ua.contains(e.relatedTarget)) ua.classList.remove('dragover'); });
+        ua.addEventListener('drop', function(e) {
+          e.preventDefault();
+          ua.classList.remove('dragover');
+          const file = e.dataTransfer.files[0];
+          if (file && file.type.startsWith('image/')) {
+            const inp = document.getElementById('fileBukti');
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            inp.files = dt.files;
+            inp.dispatchEvent(new Event('change'));
+          }
+        });
+      })();
+
       // File preview + OCR auto-scan
       const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
       const inputOcrModule = window.InputOcrModule;
@@ -804,6 +808,7 @@
           img.src = e.target.result;
           img.style.display = 'block';
           placeholder.style.display = 'none';
+          document.getElementById('previewChangeHint').style.display = 'block';
           showFields();
           // Auto-scan with OCR
           runOCR(e.target.result);
@@ -1125,6 +1130,7 @@
         document.getElementById('cabangDD').classList.remove('open');
         document.getElementById('fileBukti').value = '';
         document.getElementById('previewImg').style.display = 'none';
+        document.getElementById('previewChangeHint').style.display = 'none';
         document.getElementById('uploadPlaceholder').style.display = 'block';
         document.getElementById('btnSubmit').innerHTML = '<i class="bi bi-send-fill me-2"></i>Kirim Data';
         document.getElementById('ocrStatus').className = 'ocr-status';
