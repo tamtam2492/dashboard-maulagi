@@ -385,11 +385,12 @@
       .audit-stat.warn .audit-stat-val { color: #c2410c; }
       .audit-stat.pending .audit-stat-val { color: #dc2626; }
       .audit-rows { display: flex; flex-direction: column; }
-      .audit-row { padding: 12px 16px; border-top: 1px solid #f8fafc; display: flex; flex-direction: column; gap: 8px; }
+      .audit-row { padding: 9px 16px 9px 13px; border-top: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 6px; border-left: 3px solid transparent; }
       .audit-row:first-child { border-top: none; }
-      .audit-row.safe { background: linear-gradient(180deg, rgba(220,252,231,0.22), transparent); }
-      .audit-row.pending { background: linear-gradient(180deg, rgba(254,226,226,0.22), transparent); }
-      .audit-row.warn { background: linear-gradient(180deg, rgba(255,237,213,0.26), transparent); }
+      .audit-row.safe { background: #f0fdf4; border-left-color: #86efac; }
+      .audit-row.pending { background: #fef2f2; border-left-color: #fca5a5; }
+      .audit-row.warn { background: #fff7ed; border-left-color: #fdba74; }
+      .audit-empty-note { padding: 10px 16px; font-size: 0.7rem; color: var(--gray2); display: flex; align-items: center; gap: 6px; border-top: 1px dashed #e2e8f0; font-style: italic; }
       .audit-line { font-size: 0.78rem; font-weight: 700; color: var(--dark); line-height: 1.55; }
       .audit-line.safe { color: #166534; }
       .audit-line.pending { color: #b91c1c; }
@@ -1434,7 +1435,9 @@
 
         auditSelectedCabang = selected.cabang;
         const summary = selected.summary || { safe: 0, pending: 0, warn: 0, activeDays: 0 };
-        const rowsHtml = selected.rows.map(row => {
+        const activeRows = selected.rows.filter(row => row.noncod > 0 || row.transfer > 0);
+        const hiddenCount = selected.rows.length - activeRows.length;
+        const rowsHtml = activeRows.map(row => {
           const proofsHtml = row.transfers.filter(item => item.proofUrl).map((item, index) => {
             const labelParts = ['Bukti ' + (index + 1)];
             if (item.nama_bank) labelParts.push(item.nama_bank);
@@ -1453,6 +1456,13 @@
           '</div>';
         }).join('');
 
+        const noActivityHtml = !activeRows.length
+          ? '<div class="audit-empty-note"><i class="bi bi-inbox"></i>Belum ada NONCOD maupun transfer bulan ini</div>'
+          : '';
+        const hiddenNote = hiddenCount > 0
+          ? '<div class="audit-empty-note"><i class="bi bi-eye-slash"></i>' + hiddenCount + ' hari tanpa aktivitas disembunyikan</div>'
+          : '';
+
         detailEl.innerHTML = '<div class="audit-detail-card">' +
           '<div class="audit-detail-head">' +
             '<div>' +
@@ -1466,7 +1476,7 @@
             '<div class="audit-stat pending"><div class="audit-stat-val">' + summary.pending + '</div><div class="audit-stat-label">Kurang</div></div>' +
             '<div class="audit-stat warn"><div class="audit-stat-val">' + summary.warn + '</div><div class="audit-stat-label">Lebih / Cek</div></div>' +
           '</div>' +
-          '<div class="audit-rows">' + rowsHtml + '</div>' +
+          '<div class="audit-rows">' + noActivityHtml + rowsHtml + hiddenNote + '</div>' +
         '</div>';
       }
 
