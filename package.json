@@ -1,7 +1,7 @@
 {
   "name": "dashboard-transfer",
   "version": "1.0.0",
-  "description": "Dashboard Rekap Transfer",
+  "description": "Dashboard Rekap Transfer + AWS Lambda Telegram Notifier",
   "scripts": {
     "lint": "node scripts/check-syntax.js",
     "test": "node --test",

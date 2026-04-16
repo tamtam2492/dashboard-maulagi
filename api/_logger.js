@@ -1,4 +1,5 @@
 const { getSupabase } = require('./_supabase');
+const { queueOpsNotification, shouldNotifySource } = require('./_ops-notifier');
 
 /**
  * Log an error to the error_logs table (fire-and-forget).
@@ -15,6 +16,17 @@ function logError(source, message, meta = {}) {
       meta: JSON.stringify(meta).slice(0, 2000),
     }).then(() => {}).catch(() => {});
   } catch (_) { /* silent */ }
+
+  if (shouldNotifySource(source)) {
+    queueOpsNotification({
+      source,
+      eventType: 'error_log',
+      severity: 'error',
+      title: 'Error ' + String(source || '').trim(),
+      message: String(message || '').trim(),
+      meta,
+    });
+  }
 }
 
 module.exports = { logError };
