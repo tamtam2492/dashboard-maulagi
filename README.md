@@ -1,6 +1,6 @@
 # Dashboard Maulagi
 
-Dashboard internal untuk input bukti transfer, rekap transfer cabang, monitoring NONCOD/DFOD, dan operasi admin. Aplikasi memakai halaman HTML statis di root proyek dan API serverless di folder `api/`, dengan penyimpanan data dan file di Supabase. Notifikasi operasional berjalan dengan arsitektur hybrid `Vercel -> AWS Lambda -> Telegram`.
+Dashboard internal untuk input bukti transfer, rekap transfer cabang, monitoring NONCOD/DFOD, dan operasi admin. Aplikasi memakai halaman HTML statis di root proyek dan API serverless di folder api/, dengan penyimpanan data dan file di Supabase. Notifikasi operasional berjalan dengan arsitektur hybrid Vercel -> AWS Lambda -> Telegram.
 
 ## Ringkasan
 
@@ -50,9 +50,9 @@ Ringkasnya:
 |-- vercel.json    # Konfigurasi deployment Vercel
 ```
 
-Tambahan penting di dalam `scripts/`:
+Tambahan penting di dalam folder scripts:
 
-- `scripts/aws/telegram-notifier/` untuk template AWS Lambda notifier Telegram.
+- Folder [scripts/aws/telegram-notifier](scripts/aws/telegram-notifier) berisi template AWS Lambda notifier Telegram.
 
 ## Halaman Utama
 
@@ -104,7 +104,7 @@ npx vercel dev
 
 ## Variabel Lingkungan
 
-Template tersedia di `.env.example`.
+Template tersedia di [.env.example](.env.example).
 
 ```env
 SUPABASE_URL=https://your-project.supabase.co
@@ -133,18 +133,18 @@ Kebutuhan utama:
 
 Proyek ini mengandalkan resource berikut:
 
-- Tabel `settings`
-- Tabel `cabang`
-- Tabel `transfers`
-- Tabel `noncod`
-- Tabel `visitors`
-- Tabel `error_logs`
-- Bucket storage `bukti-transfer`
+- Tabel settings
+- Tabel cabang
+- Tabel transfers
+- Tabel noncod
+- Tabel visitors
+- Tabel error_logs
+- Bucket storage bukti-transfer
 
 Tambahan SQL di repo:
 
-- `sql-indexes.sql` untuk indeks tambahan.
-- `sql-security.sql` untuk enable RLS + revoke akses langsung pada tabel `settings`, `cabang`, `transfers`, `noncod`, `visitors`, dan `error_logs`.
+- [sql-indexes.sql](sql-indexes.sql) untuk indeks tambahan.
+- [sql-security.sql](sql-security.sql) untuk enable RLS + revoke akses langsung pada tabel settings, cabang, transfers, noncod, visitors, dan error_logs.
 
 ## Skrip
 
@@ -155,16 +155,16 @@ Tambahan SQL di repo:
 - `npm run local:cleanup:dry` untuk simulasi cleanup tanpa hapus data.
 - `npm run local:seed-cabang` untuk isi ulang master data cabang.
 
-Utilitas maintenance yang masih aktif disimpan di `scripts/local/`.
-Skrip migrasi dan integrasi lama yang sifatnya one-off diarsipkan di `scripts/legacy/`.
+Utilitas maintenance yang masih aktif disimpan di folder [scripts/local](scripts/local).
+Skrip migrasi dan integrasi lama yang sifatnya one-off diarsipkan di folder [scripts/legacy](scripts/legacy).
 
 ## Deploy
 
 1. Hubungkan repository ke project Vercel.
 2. Isi semua environment variable di Vercel Project Settings.
-3. Jalankan `sql-security.sql` di Supabase SQL Editor agar semua tabel aplikasi memakai RLS.
+3. Jalankan [sql-security.sql](sql-security.sql) di Supabase SQL Editor agar semua tabel aplikasi memakai RLS.
 4. Pastikan backend memakai `SUPABASE_SERVICE_ROLE_KEY`, bukan fallback ke anon key.
-5. Deploy branch `main`.
+5. Deploy branch main.
 
 ## AWS Telegram Notifier
 
@@ -175,7 +175,7 @@ Komponen yang dipakai:
 - Helper backend: [api/_ops-notifier.js](api/_ops-notifier.js)
 - Trigger default: [api/_logger.js](api/_logger.js)
 - Template Lambda: [scripts/aws/telegram-notifier/index.js](scripts/aws/telegram-notifier/index.js)
-- Template Lambda untuk editor AWS default `index.mjs`: [scripts/aws/telegram-notifier/index.mjs](scripts/aws/telegram-notifier/index.mjs)
+- Template Lambda untuk editor AWS default index.mjs: [scripts/aws/telegram-notifier/index.mjs](scripts/aws/telegram-notifier/index.mjs)
 
 Langkah singkat:
 
