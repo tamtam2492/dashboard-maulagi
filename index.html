@@ -101,12 +101,12 @@
   </head>
   <body class="app-index">
     <!-- Popup: Pilih Cabang untuk Rekap -->
-    <div class="pop-overlay" id="popCabang" onclick="if(event.target===this)closePop()">
+    <div class="pop-overlay" id="popCabang">
       <div class="pop-panel">
         <div class="pop-head">
           <div class="pop-head-icon"><i class="bi bi-building-fill-search"></i></div>
           <h3>Pilih Cabang</h3>
-          <div class="pop-close" onclick="closePop()"><i class="bi bi-x"></i></div>
+          <button class="pop-close" id="popCabangClose" type="button" aria-label="Tutup pilih cabang"><i class="bi bi-x"></i></button>
         </div>
         <div class="pop-body">
           <div class="pop-search-wrap">
@@ -119,14 +119,14 @@
     </div>
 
     <!-- Login Gate Popup -->
-    <div class="login-gate" id="loginGate" onclick="handleOverlayClick(event)">
+    <div class="login-gate" id="loginGate">
       <div class="login-box">
         <div class="l-icon"><i class="bi bi-shield-lock-fill"></i></div>
         <h2 id="loginTitle">Admin Panel</h2>
         <div class="l-sub" id="loginSub">Masukkan password untuk melanjutkan</div>
-        <input type="password" class="form-control" id="loginPw" placeholder="Password..." oninput="document.getElementById('loginErr').textContent=''" onkeydown="if(event.key==='Enter')doLogin()">
+        <input type="password" class="form-control" id="loginPw" placeholder="Password...">
         <div class="l-err" id="loginErr"></div>
-        <button class="btn-login" id="btnLogin" onclick="doLogin()">
+        <button class="btn-login" id="btnLogin" type="button">
           <i class="bi bi-unlock-fill me-1"></i>Masuk
         </button>
       </div>
@@ -158,21 +158,21 @@
             <div class="menu-desc">Foto bukti transfer, OCR otomatis.</div>
           </div>
         </a>
-        <a class="menu-card rekap" onclick="openRekapPicker()" style="cursor:pointer">
+        <a href="/rekap.html" class="menu-card rekap" id="rekapCard">
           <div class="menu-icon"><i class="bi bi-bar-chart-line-fill"></i></div>
           <div>
             <div class="menu-title">Rekap Transfer</div>
             <div class="menu-desc">Ringkasan cabang, riwayat, dan bukti transaksi.</div>
           </div>
         </a>
-        <a class="menu-card dash" onclick="openDashboard('dashboard', 'dashboard')" style="cursor:pointer">
+        <a href="/dashboard.html#dashboard" class="menu-card dash" data-dashboard-target="dashboard" data-dashboard-role="dashboard">
           <div class="menu-icon"><i class="bi bi-speedometer2"></i></div>
           <div>
             <div class="menu-title">Dashboard</div>
             <div class="menu-desc">Performa operasional dan omset bulan ini.</div>
           </div>
         </a>
-        <a class="menu-card admin" onclick="openDashboard('dashboard', 'admin')" style="cursor:pointer">
+        <a href="/dashboard.html#dashboard" class="menu-card admin" data-dashboard-target="dashboard" data-dashboard-role="admin">
           <div class="menu-icon"><i class="bi bi-shield-lock-fill"></i></div>
           <div>
             <div class="menu-title">Admin</div>
@@ -188,208 +188,6 @@
       <div class="index-shell-credit">&copy; 2026 Maulagi &middot; CREATED BY TAMS</div>
     </footer>
 
-    <script>
-      let allCabang = null; // cache
-      let loginMode = 'dashboard';
-      let dashboardTargetTab = 'dashboard';
-
-      function hasValidSession(prefix) {
-        const ts = parseInt(sessionStorage.getItem(prefix + 'AuthTs') || '0');
-        return !!sessionStorage.getItem(prefix + 'Auth') && ts && (Date.now() - ts <= 60 * 60 * 1000);
-      }
-
-      function clearSession(prefix) {
-        sessionStorage.removeItem(prefix + 'Auth');
-        sessionStorage.removeItem(prefix + 'AuthTs');
-        sessionStorage.removeItem(prefix + 'Token');
-      }
-
-      function setActiveRole(role, token = '') {
-        if (role === 'admin') {
-          clearSession('dash');
-          sessionStorage.setItem('adminAuth', '1');
-          sessionStorage.setItem('adminAuthTs', String(Date.now()));
-          sessionStorage.setItem('adminToken', token || '');
-          return;
-        }
-        clearSession('admin');
-        sessionStorage.setItem('dashAuth', '1');
-        sessionStorage.setItem('dashAuthTs', String(Date.now()));
-        sessionStorage.setItem('dashToken', token || '');
-      }
-
-      function setLoginCopy(role) {
-        if (role === 'admin') {
-          document.getElementById('loginTitle').textContent = 'Maulagi Admin';
-          document.getElementById('loginSub').textContent = 'Password admin untuk upload, edit, dan pengaturan';
-          return;
-        }
-        document.getElementById('loginTitle').textContent = 'Maulagi Viewer';
-        document.getElementById('loginSub').textContent = 'Password viewer untuk lihat dan download';
-      }
-
-      async function openDashboard(targetTab = 'dashboard', role = 'dashboard') {
-        dashboardTargetTab = targetTab;
-        loginMode = role === 'admin' ? 'admin' : 'dashboard';
-        const prefix = loginMode === 'admin' ? 'admin' : 'dash';
-        const pwKey = loginMode === 'admin' ? 'admin_password' : 'dashboard_password';
-        // Check if already authenticated this session
-        if (hasValidSession(prefix)) {
-          location.href = '/dashboard.html#' + dashboardTargetTab;
-          return;
-        }
-        clearSession(prefix);
-        // Check if selected role password exists
-        try {
-          const res = await fetch('/api/auth?key=' + pwKey);
-          const json = await res.json();
-          if (!json.hasPassword) {
-            setActiveRole(loginMode);
-            location.href = '/dashboard.html#' + dashboardTargetTab;
-            return;
-          }
-        } catch { /* tetap tampilkan popup jika gagal cek */ }
-        setLoginCopy(loginMode);
-        document.getElementById('loginPw').value = '';
-        document.getElementById('loginErr').textContent = '';
-        document.getElementById('loginGate').classList.add('show');
-        setTimeout(() => document.getElementById('loginPw').focus(), 50);
-      }
-
-      function openRekapPicker() {
-        document.getElementById('inpCabang').value = '';
-        document.getElementById('popCabang').classList.add('show');
-        document.body.style.overflow = 'hidden';
-        if (allCabang) {
-          renderCabangList('');
-          setTimeout(() => document.getElementById('inpCabang').focus(), 80);
-        } else {
-          document.getElementById('cabangList').innerHTML = '<div class="cabang-loading"><i class="bi bi-arrow-repeat spin"></i> Memuat...</div>';
-          fetch('/api/cabang')
-            .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-            .then(data => {
-              allCabang = ((data && data.cabang) || []).sort((a, b) => (a.area || '').localeCompare(b.area || '') || a.nama.localeCompare(b.nama));
-              renderCabangList('');
-              setTimeout(() => document.getElementById('inpCabang').focus(), 80);
-            })
-            .catch(() => {
-              document.getElementById('cabangList').innerHTML = '<div class="cabang-loading"><i class="bi bi-exclamation-circle text-danger me-1"></i> Gagal memuat data</div>';
-            });
-        }
-      }
-
-      function closePop() {
-        document.getElementById('popCabang').classList.remove('show');
-        document.body.style.overflow = '';
-      }
-
-      function renderCabangList(q) {
-        const el = document.getElementById('cabangList');
-        const list = (allCabang || []).filter(c => !q || c.nama.toLowerCase().includes(q.toLowerCase()));
-        if (!list.length) {
-          el.innerHTML = '<div class="cabang-loading">Tidak ditemukan</div>';
-          return;
-        }
-        // Group by area
-        const groups = {};
-        list.forEach(c => {
-          const area = c.area || 'Lainnya';
-          if (!groups[area]) groups[area] = [];
-          groups[area].push(c);
-        });
-        let html = '';
-        for (const area in groups) {
-          html += `<div class="area-label"><i class="bi bi-geo-fill me-1"></i>${esc(area)}</div>`;
-          html += groups[area].map(c => `
-            <div class="cabang-item" onclick="gotoRekap('${escName(c.nama)}')">
-              <div class="ci-icon"><i class="bi bi-geo-alt-fill"></i></div>
-              <div>
-                <div class="ci-name">${esc(c.nama)}</div>
-                <div class="ci-area">${esc(c.area || '-')}</div>
-              </div>
-            </div>`).join('');
-        }
-        el.innerHTML = html;
-      }
-
-      function escName(s) {
-        return encodeURIComponent(s).replace(/'/g, '%27');
-      }
-
-      function esc(s) {
-        const el = document.createElement('span');
-        el.textContent = s;
-        return el.innerHTML;
-      }
-
-      function gotoRekap(nama) {
-        location.href = '/rekap.html?cabang=' + nama;
-      }
-
-      document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('inpCabang').addEventListener('input', e => renderCabangList(e.target.value));
-        // Visitor count — rate-limit: max 1 call per 5 min, cache last count
-        let vid = localStorage.getItem('dash_vid');
-        if (!vid) { vid = Date.now().toString(36) + Math.random().toString(36).slice(2,10); localStorage.setItem('dash_vid', vid); }
-        const lastVisit = parseInt(localStorage.getItem('dash_vts') || '0');
-        const cachedCount = localStorage.getItem('dash_vcount');
-        if (Date.now() - lastVisit > 5 * 60 * 1000) {
-          localStorage.setItem('dash_vts', String(Date.now()));
-          fetch('/api/visit?vid=' + encodeURIComponent(vid))
-            .then(r => r.json())
-            .then(v => {
-              const n = parseInt(v.today);
-              const display = isNaN(n) ? '-' : n;
-              document.getElementById('visitorToday').textContent = display;
-              localStorage.setItem('dash_vcount', String(display));
-            })
-            .catch(() => { document.getElementById('visitorToday').textContent = cachedCount || '-'; });
-        } else {
-          document.getElementById('visitorToday').textContent = cachedCount || '...';
-        }
-      });
-
-      function handleOverlayClick(e) {
-        if (e.target === document.getElementById('loginGate')) {
-          document.getElementById('loginGate').classList.remove('show');
-          document.getElementById('loginPw').value = '';
-          document.getElementById('loginErr').textContent = '';
-        }
-      }
-
-      async function doLogin() {
-        const pw = document.getElementById('loginPw').value;
-        const errEl = document.getElementById('loginErr');
-        const btn = document.getElementById('btnLogin');
-        if (!pw) { errEl.textContent = 'Masukkan password'; return; }
-
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Memverifikasi...';
-
-        const pwKey = loginMode === 'dashboard' ? 'dashboard_password' : 'admin_password';
-
-        try {
-          const res = await fetch('/api/auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'verify', password: pw, key: pwKey }),
-          });
-          const json = await res.json();
-          if (!res.ok) {
-            errEl.textContent = json.error || 'Password salah';
-            btn.innerHTML = '<i class="bi bi-unlock-fill me-1"></i>Masuk';
-            btn.disabled = false;
-            document.getElementById('loginPw').select();
-          } else {
-            setActiveRole(loginMode, json.token || '');
-            location.href = '/dashboard.html#' + dashboardTargetTab;
-          }
-        } catch {
-          errEl.textContent = 'Kesalahan jaringan, coba lagi';
-          btn.innerHTML = '<i class="bi bi-unlock-fill me-1"></i>Masuk';
-          btn.disabled = false;
-        }
-      }
-    </script>
+    <script src="/lib/index-page.js" defer></script>
   </body>
 </html>

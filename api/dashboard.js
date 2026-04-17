@@ -2,11 +2,38 @@ const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { rateLimit } = require('./_ratelimit');
 const { normalizeBankName } = require('./_bank');
+const { MK_HOST, httpReq, ckStr, loginMaukirim } = require('./_maukirim');
 const { getSupabase } = require('./_supabase');
 
 const dashboardLimiter = rateLimit({ windowMs: 60 * 1000, max: 60 });
 const DEFAULT_BATCH_SIZE = 1000;
 const MAX_BATCH_SIZE = 2000;
+const MAUKIRIM_CACHE_TTL_MS = 60 * 1000;
+const maukirimCache = {
+  expiresAt: 0,
+  orders: null,
+  pending: null,
+};
+
+function isVisitRequest(req) {
+  return String(req.query.visit || '').trim() === '1';
+}
+
+function isUpdateCountRequest(req) {
+  return String(req.query.update || '').trim() === '1';
+}
+
+function isMaukirimRequest(req) {
+  return String(req.query.maukirim || '').trim() === '1';
+}
+
+function normalizeCabangName(value) {
+  return String(value || '')
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .replace(/^CABANG\s+/, '')
+    .trim();
+}
 
 function getBatchSize(req) {
   const requested = parseInt(req.query.batchSize, 10);
@@ -56,6 +83,139 @@ function normalizeProofUrl(buktiUrl) {
     return '/api/proxy-image?path=' + encodeURIComponent(value);
   }
   return value;
+}
+
+function parseOrders(html) {
+  const orders = [];
+  const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  let match;
+  while ((match = trRe.exec(html)) !== null) {
+    const tds = match[1].match(/<td[^>]*>([\s\S]*?)<\/td>/gi);
+    if (!tds || tds.length < 7) continue;
+    const clean = (text) => text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const col1 = clean(tds[0]);
+    if (!col1 || Number.isNaN(parseInt(col1, 10))) continue;
+    const resiMatch = clean(tds[2]).match(/^(\S+)/);
+    const cabangMatch = clean(tds[4]).match(/Dibuat oleh\s*:\s*(.+)/i);
+    orders.push({
+      no: parseInt(col1, 10),
+      tanggal: clean(tds[1]),
+      resi: resiMatch ? resiMatch[1] : clean(tds[2]),
+      penerima: clean(tds[3]),
+      ekspedisi: clean(tds[4]).split('Dibuat')[0].trim(),
+      cabang: cabangMatch ? cabangMatch[1].trim() : '',
+      total: clean(tds[5]),
+      metode: clean(tds[6]).toLowerCase(),
+      status: tds[7] ? clean(tds[7]) : '',
+    });
+  }
+  return orders;
+}
+
+function getTwoMonthRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const formatDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return { date_start: formatDate(start), date_end: formatDate(end) };
+}
+
+async function fetchOrdersPage(cookies, page, dateRange) {
+  const params = new URLSearchParams({
+    date_start: dateRange.date_start,
+    date_end: dateRange.date_end,
+    date_by: 'created_at',
+    page: String(page),
+  });
+  const response = await httpReq({
+    hostname: MK_HOST,
+    path: `/orders?${params.toString()}`,
+    method: 'GET',
+    headers: {
+      'Cookie': ckStr(cookies),
+      'User-Agent': 'Mozilla/5.0',
+      'Accept': 'text/html',
+      'Referer': `https://${MK_HOST}/orders`,
+    },
+  });
+  return response.body;
+}
+
+async function fetchAllOrders(cookies) {
+  const dateRange = getTwoMonthRange();
+  const allOrders = [];
+  let page = 1;
+  const MAX_PAGES = 20;
+
+  while (page <= MAX_PAGES) {
+    const html = await fetchOrdersPage(cookies, page, dateRange);
+    if (html.includes('Selamat Datang')) throw new Error('Session expired');
+    const rows = parseOrders(html);
+    if (rows.length === 0) break;
+    allOrders.push(...rows);
+    const hasNextPage = html.includes(`page=${page + 1}`);
+    if (!hasNextPage) break;
+    page += 1;
+  }
+
+  return allOrders;
+}
+
+async function getMaukirimOrders() {
+  const now = Date.now();
+  if (maukirimCache.orders && now < maukirimCache.expiresAt) {
+    return maukirimCache.orders;
+  }
+  if (maukirimCache.pending) {
+    return maukirimCache.pending;
+  }
+
+  maukirimCache.pending = (async () => {
+    try {
+      const cookies = await loginMaukirim();
+      const orders = await fetchAllOrders(cookies);
+      maukirimCache.orders = orders;
+      maukirimCache.expiresAt = Date.now() + MAUKIRIM_CACHE_TTL_MS;
+      return orders;
+    } finally {
+      maukirimCache.pending = null;
+    }
+  })();
+
+  return maukirimCache.pending;
+}
+
+async function handleUpdateCountRoute(res) {
+  try {
+    const supabase = getSupabase();
+    const { count, error } = await supabase
+      .from('transfers')
+      .select('id', { count: 'exact', head: true });
+    if (error) throw error;
+    return res.json(count || 0);
+  } catch (err) {
+    console.error(err);
+    logError('check-update', err.message, { method: 'GET' });
+    return res.status(500).json(0);
+  }
+}
+
+async function handleMaukirimRoute(req, res) {
+  const cabang = String(req.query.cabang || '').trim().toUpperCase();
+  try {
+    const all = await getMaukirimOrders();
+    const cabangKey = normalizeCabangName(cabang);
+    const filtered = cabangKey
+      ? all.filter((order) => {
+          const orderCabang = normalizeCabangName(order.cabang);
+          return orderCabang.includes(cabangKey) || cabangKey.includes(orderCabang);
+        })
+      : all;
+    return res.json({ ok: true, total: filtered.length, orders: filtered });
+  } catch (err) {
+    console.error('[maukirim]', err.message);
+    return res.status(500).json({ error: err.message });
+  }
 }
 
 async function buildDashboardPayload(supabase, batchSize) {
@@ -142,9 +302,55 @@ async function buildDashboardPayload(supabase, batchSize) {
   };
 }
 
+async function handleVisitRoute(req, res) {
+  try {
+    const visitorId = String(req.query.vid || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+    if (!visitorId) return res.json({ today: 0 });
+
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+    const supabase = getSupabase();
+
+    const { data: existing } = await supabase
+      .from('visitors')
+      .select('id')
+      .eq('tgl', today)
+      .eq('visitor_id', visitorId)
+      .maybeSingle();
+
+    if (!existing) {
+      await supabase.from('visitors').insert({ tgl: today, visitor_id: visitorId });
+    }
+
+    const { data: todayRows } = await supabase
+      .from('visitors')
+      .select('visitor_id')
+      .eq('tgl', today);
+
+    const uniqueCount = new Set((todayRows || []).map((row) => row.visitor_id)).size;
+    return res.json({ today: uniqueCount });
+  } catch (err) {
+    logError('visit', err.message, { method: req.method });
+    console.error(err);
+    return res.status(500).json({ today: 0 });
+  }
+}
+
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store, max-age=0");
   if (cors(req, res)) return;
+
+  if (isVisitRequest(req)) {
+    return handleVisitRoute(req, res);
+  }
+
+  if (isUpdateCountRequest(req)) {
+    return handleUpdateCountRoute(res);
+  }
+
+  if (isMaukirimRequest(req)) {
+    return handleMaukirimRoute(req, res);
+  }
+
   if (await dashboardLimiter(req, res)) return;
   try {
     const supabase = getSupabase();

@@ -139,6 +139,53 @@
       .status-helper .sh-icon { width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,0.65); color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
       .status-helper .sh-title { font-size: 0.78rem; font-weight: 800; color: #92400e; letter-spacing: -0.01em; }
       .status-helper .sh-sub { font-size: 0.7rem; line-height: 1.45; color: #a16207; margin-top: 2px; }
+      .carry-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+      @media (min-width: 768px) { .carry-grid.two-cols { grid-template-columns: 1fr 1fr; } }
+      .carry-field label { display: block; font-size: 0.72rem; font-weight: 700; color: var(--gray); margin-bottom: 6px; }
+      .carry-field .form-control, .carry-field .form-select { border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.82rem; padding: 10px 12px; background: #f8fafc; color: var(--dark); font-family: 'Inter', sans-serif; }
+      .carry-field .form-control:focus, .carry-field .form-select:focus { border-color: rgba(19,27,46,0.5); outline: none; background: var(--card); box-shadow: 0 0 0 3px rgba(19,27,46,0.07); }
+      .carry-foot { display: flex; gap: 8px; margin-top: 4px; }
+      .carry-foot .btn-split-cancel { padding: 10px 12px; }
+      .carry-foot .btn-pw { margin: 0; }
+      .carry-file-note { font-size: 0.68rem; color: var(--gray2); line-height: 1.45; margin-top: 4px; }
+      .carry-ocr-card { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 14px; border: 1px solid #dbeafe; background: linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%); }
+      .carry-ocr-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+      .carry-ocr-title { font-size: 0.78rem; font-weight: 800; color: var(--dark); }
+      .carry-ocr-sub { font-size: 0.69rem; line-height: 1.45; color: var(--gray2); margin-top: 2px; }
+      .carry-ai-chip { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 5px 9px; font-size: 0.66rem; font-weight: 800; background: #dbeafe; color: #1d4ed8; white-space: nowrap; }
+      .carry-upload-area { position: relative; min-height: 170px; border-radius: 14px; border: 1.5px dashed #93c5fd; background: rgba(255,255,255,0.9); overflow: hidden; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+      .carry-upload-area input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 2; }
+      .carry-upload-area.has-preview { border-style: solid; border-color: #60a5fa; background: #eff6ff; }
+      .carry-upload-placeholder { display: flex; align-items: center; gap: 12px; padding: 20px; pointer-events: none; }
+      .carry-upload-icon { width: 46px; height: 46px; border-radius: 14px; background: linear-gradient(135deg, #1d4ed8, #38bdf8); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; box-shadow: 0 10px 24px rgba(29,78,216,0.2); }
+      .carry-upload-copy { min-width: 0; }
+      .carry-upload-text { font-size: 0.84rem; font-weight: 800; color: var(--dark); }
+      .carry-upload-sub { font-size: 0.7rem; color: var(--gray2); margin-top: 2px; line-height: 1.45; }
+      .carry-upload-cta { margin-left: auto; border-radius: 999px; padding: 7px 12px; background: #dbeafe; color: #1d4ed8; font-size: 0.68rem; font-weight: 800; white-space: nowrap; }
+      .carry-proof-preview { display: none; width: 100%; max-height: 260px; object-fit: contain; background: #ffffff; }
+      .carry-change-hint { display: none; align-items: center; gap: 6px; font-size: 0.68rem; color: var(--gray2); }
+      .carry-ocr-status { display: none; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; font-size: 0.79rem; font-weight: 600; }
+      .carry-ocr-status.scanning { display: flex; background: rgba(19,27,46,0.05); color: var(--dark); }
+      .carry-ocr-status.success { display: flex; background: #f0fdf4; color: #15803d; }
+      .carry-ocr-status.info { display: flex; background: #fffbeb; color: #b45309; }
+      .carry-ocr-status.error { display: flex; background: #fef2f2; color: #dc2626; }
+      .carry-ocr-status .spinner-border { width: 16px; height: 16px; border-width: 2px; }
+      .carry-field-meta { font-size: 0.68rem; color: var(--gray2); line-height: 1.45; margin-top: 5px; }
+      .carry-input-with-badge { position: relative; }
+      .carry-input-with-badge .form-control { padding-right: 58px; }
+      .carry-ai-badge { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); display: none; align-items: center; gap: 4px; font-size: 0.64rem; font-weight: 800; border-radius: 999px; padding: 4px 8px; background: #dbeafe; color: #1d4ed8; }
+      .carry-search-dd { position: relative; }
+      .carry-search-dd input { width: 100%; border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.82rem; padding: 10px 12px 10px 36px; background: #f8fafc; color: var(--dark); font-family: 'Inter', sans-serif; }
+      .carry-search-dd input:focus { border-color: rgba(19,27,46,0.5); outline: none; background: var(--card); box-shadow: 0 0 0 3px rgba(19,27,46,0.07); }
+      .carry-search-dd .dd-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--gray2); font-size: 0.84rem; pointer-events: none; z-index: 1; }
+      .carry-search-dd .dd-list { display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--card); border: 1.5px solid var(--border); border-radius: 10px; max-height: 220px; overflow-y: auto; z-index: 30; box-shadow: 0 12px 32px rgba(15,23,42,0.12); }
+      .carry-search-dd.open .dd-list { display: block; }
+      .carry-search-dd .dd-group { font-size: 0.68rem; font-weight: 700; color: var(--gray); text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 14px 4px; }
+      .carry-search-dd .dd-item { padding: 10px 14px; font-size: 0.82rem; cursor: pointer; color: var(--dark); transition: background 0.15s; }
+      .carry-search-dd .dd-item:hover, .carry-search-dd .dd-item.active { background: #f1f5f9; }
+      .carry-search-dd .dd-empty { padding: 12px 14px; font-size: 0.8rem; color: var(--gray2); text-align: center; }
+      .carry-search-dd .dd-name { font-size: 0.82rem; font-weight: 700; color: var(--dark); }
+      .carry-search-dd .dd-meta { font-size: 0.7rem; color: var(--gray2); margin-top: 2px; }
       .status-list { display: flex; flex-direction: column; gap: 8px; }
       .status-item { background: #ffffff; border-radius: 12px; border: 1px solid var(--border); padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
       .status-item.editing { background: #fffbeb; border-color: #fde68a; }
@@ -192,27 +239,33 @@
       .tr-item-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
       .tr-item-nominal { font-size: 0.84rem; font-weight: 800; color: var(--dark); white-space: nowrap; }
       .tr-dup-flag { font-size: 0.58rem; font-weight: 800; background: #fee2e2; color: #dc2626; border-radius: 999px; padding: 2px 7px; letter-spacing: 0.04em; text-transform: uppercase; }
-      .btn-proof-tr { font-size: 0.63rem; font-weight: 700; color: var(--dark); background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; padding: 2px 8px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px; transition: 0.15s; text-decoration: none; }
+      .btn-proof-tr { font-size: 0.63rem; font-weight: 700; color: var(--dark); background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 4px 9px; min-height: 28px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: 0.15s; text-decoration: none; }
       .btn-proof-tr:hover { background: #e2e8f0; color: var(--dark); text-decoration: none; }
       .btn-split-item { font-size: 0.63rem; font-weight: 700; color: #d97706; background: #fef9c3; border: 1px solid #fde68a; border-radius: 6px; padding: 2px 9px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px; transition: 0.15s; }
       .btn-split-item:hover { background: #fef08a; }
+      .btn-approve-h1 { font-size: 0.63rem; font-weight: 700; color: #0f766e; background: #ccfbf1; border: 1px solid #99f6e4; border-radius: 6px; padding: 2px 9px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px; transition: 0.15s; }
+      .btn-approve-h1:hover { background: #99f6e4; }
       .btn-del-tr { font-size: 0.63rem; font-weight: 700; color: #dc2626; background: #fee2e2; border: 1px solid #fecaca; border-radius: 6px; padding: 2px 8px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 3px; transition: 0.15s; }
       .btn-del-tr:hover { background: #fecaca; }
 
-      .proof-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.82); z-index: 260; align-items: center; justify-content: center; padding: 18px; overflow: auto; }
+      .proof-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.62); z-index: 260; align-items: center; justify-content: center; padding: 18px; overflow: auto; }
       .proof-overlay.show { display: flex; }
-      .proof-panel { width: 100%; max-width: 960px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-      #proofImg { width: auto; height: auto; max-width: 100%; max-height: 78vh; object-fit: contain; image-orientation: from-image; border-radius: 14px; border: 5px solid white; box-shadow: 0 14px 36px rgba(0,0,0,0.35); transition: transform 0.25s ease; }
-      .proof-stage { position: relative; display: inline-flex; align-items: center; justify-content: center; max-width: 100%; max-height: 78vh; overflow: visible; }
-      .proof-actions { position: absolute; top: 14px; right: 14px; display: flex; align-items: center; gap: 8px; z-index: 2; visibility: hidden; }
-      .proof-btn { width: 42px; height: 42px; border: none; border-radius: 50%; background: rgba(255,255,255,0.96); color: var(--dark); box-shadow: 0 10px 28px rgba(0,0,0,0.25); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 1rem; padding: 0; }
-      .proof-btn:hover { background: white; }
-      .proof-error { display: none; color: white; padding: 24px; font-weight: 600; text-align: center; }
+      .proof-panel { width: 100%; max-width: 680px; max-height: min(88vh, 760px); display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding: 10px; border-radius: 20px; background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%); border: 1px solid rgba(148,163,184,0.18); box-shadow: 0 20px 44px rgba(15,23,42,0.2); overflow: hidden; }
+      #proofImg { width: auto; height: auto; max-width: 100%; max-height: min(64vh, 520px); object-fit: contain; image-orientation: from-image; border-radius: 12px; border: 4px solid white; box-shadow: 0 10px 26px rgba(15,23,42,0.18); transition: transform 0.25s ease; }
+      .proof-stage { position: relative; display: flex; flex: 1 1 auto; align-items: center; justify-content: center; width: 100%; min-height: 180px; padding: 12px; border-radius: 14px; border: 1px solid rgba(226,232,240,0.96); background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%); overflow: auto; }
+      .proof-actions { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 8px; visibility: hidden; flex-shrink: 0; }
+      .proof-btn { width: 100%; height: 38px; border: none; border-radius: 10px; background: #f8fafc; color: var(--gray); border: 1px solid var(--border); box-shadow: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.74rem; font-weight: 800; padding: 0 10px; }
+      .proof-btn:hover { background: #eef2f7; color: var(--dark); }
+      .proof-btn[data-admin-click="close-proof"] { background: linear-gradient(135deg, #131b2e, #202b46); border-color: transparent; color: #fff; box-shadow: 0 12px 22px rgba(19,23,42,0.16); }
+      .proof-btn[data-admin-click="close-proof"]:hover { filter: brightness(1.06); }
+      .proof-error { display: none; color: var(--gray); padding: 18px 12px; font-size: 0.74rem; line-height: 1.55; font-weight: 600; text-align: center; }
       @media (max-width: 640px) {
-        .proof-overlay { padding: 14px; }
+        .proof-overlay { align-items: flex-end; padding: 14px 10px 10px; }
+        .proof-panel { max-width: 520px; max-height: min(90dvh, 640px); padding: 8px; border-radius: 20px 20px 0 0; }
+        .proof-stage { min-height: 160px; max-height: min(84dvh, 560px); padding: 10px; }
+        #proofImg { max-height: min(46vh, 340px); }
         .proof-actions { gap: 6px; }
-        .proof-actions { top: 10px; right: 10px; }
-        .proof-btn { width: 40px; height: 40px; }
+        .proof-btn { height: 36px; font-size: 0.72rem; }
       }
 
       /* ── Filter bar transfer ── */
@@ -232,6 +285,8 @@
       .tr-edit-bar { display: flex; align-items: center; gap: 6px; padding: 0 12px 10px 12px; flex-wrap: wrap; }
       .tr-edit-bar input[type=date] { border-radius: 8px; border: 1.5px solid #fde68a; padding: 6px 9px; font-size: 0.78rem; background: var(--card); font-family: 'Inter', sans-serif; color: var(--dark); flex: 1; min-width: 120px; }
       .tr-edit-bar input[type=date]:focus { border-color: var(--orange); outline: none; }
+      .tr-edit-bar input[type=number] { border-radius: 8px; border: 1.5px solid #fde68a; padding: 6px 9px; font-size: 0.78rem; background: var(--card); font-family: 'Inter', sans-serif; color: var(--dark); flex: 1; min-width: 110px; }
+      .tr-edit-bar input[type=number]:focus { border-color: var(--orange); outline: none; }
       .tr-edit-bar input[type=text] { border-radius: 8px; border: 1.5px solid #fde68a; padding: 6px 9px; font-size: 0.78rem; background: var(--card); font-family: 'Inter', sans-serif; color: var(--dark); flex: 2; min-width: 100px; }
       .tr-edit-bar input[type=text]:focus { border-color: var(--orange); outline: none; }
       .tr-edit-label { font-size: 0.65rem; font-weight: 700; color: #92400e; white-space: nowrap; }
@@ -345,6 +400,7 @@
       .mon-dot.green { background: #22c55e; }
       .mon-dot.amber { background: #f59e0b; }
       .mon-dot.red { background: #f87171; }
+      .mon-dot.teal { background: #14b8a6; }
       .mon-info { min-width: 0; }
       .mon-name { font-size: 0.8rem; font-weight: 700; color: var(--dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .mon-meta { font-size: 0.65rem; color: var(--gray2); }
@@ -352,6 +408,7 @@
       .mon-nom.blue { color: var(--dark); }
       .mon-nom.amber { color: #d97706; }
       .mon-nom.red { color: #dc2626; }
+      .mon-nom.teal { color: #0f766e; }
       .mon-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
       .mon-actions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
 
@@ -384,17 +441,20 @@
       .audit-stat.safe .audit-stat-val { color: #15803d; }
       .audit-stat.warn .audit-stat-val { color: #c2410c; }
       .audit-stat.pending .audit-stat-val { color: #dc2626; }
+      .audit-stat.carry .audit-stat-val { color: #0f766e; }
       .audit-rows { display: flex; flex-direction: column; }
       .audit-row { padding: 9px 16px 9px 13px; border-top: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 6px; border-left: 3px solid transparent; }
       .audit-row:first-child { border-top: none; }
       .audit-row.safe { background: #f0fdf4; border-left-color: #86efac; }
       .audit-row.pending { background: #fef2f2; border-left-color: #fca5a5; }
       .audit-row.warn { background: #fff7ed; border-left-color: #fdba74; }
+      .audit-row.carry { background: #f0fdfa; border-left-color: #2dd4bf; }
       .audit-empty-note { padding: 10px 16px; font-size: 0.7rem; color: var(--gray2); display: flex; align-items: center; gap: 6px; border-top: 1px dashed #e2e8f0; font-style: italic; }
       .audit-line { font-size: 0.78rem; font-weight: 700; color: var(--dark); line-height: 1.55; }
       .audit-line.safe { color: #166534; }
       .audit-line.pending { color: #b91c1c; }
       .audit-line.warn { color: #9a3412; }
+      .audit-line.carry { color: #0f766e; }
       .audit-row-meta { font-size: 0.66rem; color: var(--gray2); line-height: 1.5; }
       .audit-proof-list { display: flex; flex-wrap: wrap; gap: 6px; }
       .audit-proof-list .btn-proof-tr { padding: 4px 9px; font-size: 0.64rem; }
@@ -429,26 +489,26 @@
   <body class="app-admin">
 
     <div class="top-bar">
-      <a href="/"><i class="bi bi-arrow-left"></i></a>
+      <a href="/" data-admin-click="exit-workspace"><i class="bi bi-arrow-left"></i></a>
       <div class="top-bar-info">
         <div class="top-bar-kicker">Maulagi &middot; Internal</div>
         <h1>Admin Panel</h1>
       </div>
-      <a href="#" onclick="event.preventDefault();openLogs()" title="Error Log"><i class="bi bi-journal-x"></i></a>
-      <a href="#" onclick="event.preventDefault();openSettingsGate()" title="Pengaturan"><i class="bi bi-gear-fill"></i></a>
+      <a href="#" data-admin-click="open-logs" title="Error Log"><i class="bi bi-journal-x"></i></a>
+      <a href="#" data-admin-click="open-settings-gate" title="Pengaturan"><i class="bi bi-gear-fill"></i></a>
     </div>
 
     <div class="page-wrap">
       <div class="welcome-text">Kelola cabang, audit transfer harian, dan pantau NONCOD tidak cocok.</div>
       <div class="menu-grid">
-        <button class="menu-card mc-blue" onclick="openModal('modalCabang'); loadCabangModal()">
+        <button class="menu-card mc-blue" type="button" data-admin-click="open-cabang-modal">
           <div class="mc-icon"><i class="bi bi-building"></i></div>
           <div>
             <div class="mc-title">Kelola Cabang</div>
             <div class="mc-sub">Tambah, edit & hapus</div>
           </div>
         </button>
-        <button class="menu-card mc-green" onclick="openAuditCabangModal()">
+        <button class="menu-card mc-green" type="button" data-admin-click="open-audit-cabang-modal">
           <div class="mc-icon"><i class="bi bi-clipboard-data"></i></div>
           <div>
             <div class="mc-title">Audit Cabang</div>
@@ -456,19 +516,27 @@
           </div>
           <div class="menu-chip green"><i class="bi bi-search"></i> Detail Harian</div>
         </button>
-        <button class="menu-card mc-amber" onclick="openManualStatusModal()">
+        <button class="menu-card mc-amber" type="button" data-admin-click="open-manual-status-modal">
           <div class="mc-icon"><i class="bi bi-exclamation-octagon"></i></div>
           <div>
             <div class="mc-title">Status Manual Resi</div>
             <div class="mc-sub">Cari resi &amp; timpa status</div>
           </div>
         </button>
-        <button class="menu-card mc-slate" onclick="openTransferModal()">
+        <button class="menu-card mc-slate" type="button" data-admin-click="open-transfer-modal">
           <div class="mc-icon"><i class="bi bi-arrow-left-right"></i></div>
           <div>
             <div class="mc-title">Kelola Transfer</div>
             <div class="mc-sub">Lihat &amp; rekonsiliasi transfer</div>
           </div>
+        </button>
+        <button class="menu-card mc-green menu-wide" type="button" data-admin-click="open-admin-carry-upload-modal">
+          <div class="mc-icon"><i class="bi bi-cloud-arrow-up"></i></div>
+          <div>
+            <div class="mc-title">Upload Split Pending</div>
+            <div class="mc-sub">Tempel ke NONCOD aktif dulu, sisa otomatis pending max Rp100.000</div>
+          </div>
+          <div class="menu-chip green"><i class="bi bi-shield-check"></i> Admin Only</div>
         </button>
       </div>
 
@@ -482,7 +550,7 @@
               <div class="today-sub" id="mismatchDateLabel">Memuat...</div>
             </div>
           </div>
-          <button class="today-refresh" id="mismatchRefreshBtn" onclick="loadMismatchMonitor()" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
+          <button class="today-refresh" id="mismatchRefreshBtn" type="button" data-admin-click="refresh-mismatch" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
         </div>
         <div class="today-summary tr-summary two-cols" id="mismatchSummary" style="display:none">
           <div class="tr-sum-card"><div class="tsv" id="mismatchSuspect" style="color:#c2410c">-</div><div class="tsl">Salah Tgl?</div></div>
@@ -495,7 +563,7 @@
     </div>
 
     <!-- ══ Modal: Kelola Cabang ══ -->
-    <div class="modal-overlay" id="modalCabang" onclick="handleModalOverlay(event,'modalCabang')">
+    <div class="modal-overlay" id="modalCabang">
       <div class="modal-panel">
         <div class="modal-head">
           <div class="modal-head-left">
@@ -505,27 +573,27 @@
               <div class="modal-sub" id="cabangCount">Memuat...</div>
             </div>
           </div>
-          <div class="modal-close" onclick="closeModal('modalCabang')"><i class="bi bi-x"></i></div>
+          <div class="modal-close" data-admin-click="close-modal" data-modal-id="modalCabang"><i class="bi bi-x"></i></div>
         </div>
         <div class="modal-body">
           <div class="add-cabang-form">
             <div class="form-label"><i class="bi bi-plus-circle-fill text-primary"></i> Tambah Cabang Baru</div>
             <div style="display:flex;gap:8px;align-items:stretch">
-              <select id="inputArea" oninput="toggleAddBtn()" style="flex:0 0 auto;width:140px;margin-bottom:0">
+              <select id="inputArea" data-admin-input="toggle-add-btn" style="flex:0 0 auto;width:140px;margin-bottom:0">
                 <option value="">-- Area --</option>
                 <option value="SULTRA">SULTRA</option>
                 <option value="MKS OUTER">MKS OUTER</option>
                 <option value="CUSTUMER">CUSTUMER</option>
               </select>
-              <input type="text" id="inputCabang" placeholder="Nama cabang baru..." autocomplete="off" maxlength="100" oninput="toggleAddBtn()" onkeydown="if(event.key==='Enter')addCabang()" style="flex:1;margin-bottom:0">
-              <button class="btn-add-cabang" id="btnAdd" onclick="addCabang()" disabled style="flex:0 0 auto;white-space:nowrap;width:auto;padding-left:14px;padding-right:14px">
+              <input type="text" id="inputCabang" placeholder="Nama cabang baru..." autocomplete="off" maxlength="100" data-admin-input="toggle-add-btn" data-admin-enter="add-cabang" style="flex:1;margin-bottom:0">
+              <button class="btn-add-cabang" id="btnAdd" type="button" data-admin-click="add-cabang" disabled style="flex:0 0 auto;white-space:nowrap;width:auto;padding-left:14px;padding-right:14px">
                 <i class="bi bi-plus-lg"></i> Tambah
               </button>
             </div>
           </div>
           <div class="search-wrap" style="margin-top:10px">
             <i class="bi bi-search"></i>
-            <input type="text" id="searchCabang" placeholder="Cari nama cabang..." oninput="renderCabangList()">
+            <input type="text" id="searchCabang" placeholder="Cari nama cabang..." data-admin-input="render-cabang-list">
           </div>
           <div id="cabangList">
             <div class="empty-state"><span class="spinner-border spinner-border-sm"></span></div>
@@ -534,7 +602,7 @@
       </div>
     </div>
 
-    <div class="modal-overlay" id="modalManualStatus" onclick="handleModalOverlay(event,'modalManualStatus')">
+    <div class="modal-overlay" id="modalManualStatus">
       <div class="modal-panel">
         <div class="modal-head">
           <div class="modal-head-left">
@@ -544,19 +612,19 @@
               <div class="modal-sub" id="manualStatusCount">Memuat...</div>
             </div>
           </div>
-          <div class="modal-close" onclick="closeModal('modalManualStatus')"><i class="bi bi-x"></i></div>
+          <div class="modal-close" data-admin-click="close-modal" data-modal-id="modalManualStatus"><i class="bi bi-x"></i></div>
         </div>
         <div class="modal-body">
           <div class="status-helper">
             <div class="sh-icon"><i class="bi bi-arrow-repeat"></i></div>
             <div>
               <div class="sh-title">Data tetap ikut sync, hanya status yang ditimpa</div>
-              <div class="sh-sub">Data MauKirim tetap sync. Override hanya mengubah <strong>status_terakhir</strong> saat dibaca di dashboard dan admin.</div>
+              <div class="sh-sub">Data MauKirim tetap sync. Override admin sekarang memakai status <strong>VOID</strong>; status <strong>BATAL</strong> dari sync tetap ikut dibaca.</div>
             </div>
           </div>
           <div class="search-wrap" style="margin-top:10px">
             <i class="bi bi-search"></i>
-            <input type="text" id="searchManualStatus" placeholder="Cari nomor resi..." oninput="scheduleManualStatusSearch()" autocomplete="off">
+            <input type="text" id="searchManualStatus" placeholder="Cari nomor resi..." data-admin-input="schedule-manual-status-search" autocomplete="off">
           </div>
           <div id="manualStatusList">
             <div class="empty-state"><span class="spinner-border spinner-border-sm"></span></div>
@@ -565,7 +633,7 @@
       </div>
     </div>
 
-    <div class="modal-overlay" id="modalAuditCabang" onclick="handleModalOverlay(event,'modalAuditCabang')">
+    <div class="modal-overlay" id="modalAuditCabang">
       <div class="modal-panel audit-panel">
         <div class="modal-head">
           <div class="modal-head-left">
@@ -577,8 +645,8 @@
           </div>
           <div class="audit-head-actions">
             <div class="audit-period-pill" id="auditPeriodeBadge"><i class="bi bi-calendar-month"></i>-</div>
-            <button class="today-refresh" id="auditRefreshBtn" onclick="loadAuditCabangModal(true)" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
-            <div class="modal-close" onclick="closeModal('modalAuditCabang')"><i class="bi bi-x"></i></div>
+            <button class="today-refresh" id="auditRefreshBtn" type="button" data-admin-click="refresh-audit-cabang" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
+            <div class="modal-close" data-admin-click="close-modal" data-modal-id="modalAuditCabang"><i class="bi bi-x"></i></div>
           </div>
         </div>
         <div class="modal-body">
@@ -593,7 +661,7 @@
             <div class="audit-side">
               <div class="search-wrap">
                 <i class="bi bi-search"></i>
-                <input type="text" id="searchAuditCabang" placeholder="Cari nama cabang..." oninput="renderAuditCabangList()" autocomplete="off">
+                <input type="text" id="searchAuditCabang" placeholder="Cari nama cabang..." data-admin-input="render-audit-cabang-list" autocomplete="off">
               </div>
               <div id="auditCabangList">
                 <div class="empty-state"><span class="spinner-border spinner-border-sm"></span></div>
@@ -608,7 +676,7 @@
     </div>
 
     <!-- ══ Modal: Kelola Transfer ══ -->
-    <div class="modal-overlay" id="modalTransfer" onclick="handleModalOverlay(event,'modalTransfer')">
+    <div class="modal-overlay" id="modalTransfer">
       <div class="modal-panel">
         <div class="modal-head">
           <div class="modal-head-left">
@@ -618,12 +686,12 @@
                 <div class="modal-sub">Lihat transfer tersimpan dan rekonsiliasikan ke NONCOD</div>
             </div>
           </div>
-          <div class="modal-close" onclick="closeModal('modalTransfer')"><i class="bi bi-x"></i></div>
+          <div class="modal-close" data-admin-click="close-modal" data-modal-id="modalTransfer"><i class="bi bi-x"></i></div>
         </div>
         <div class="modal-body">
           <div class="periode-bar">
             <label><i class="bi bi-calendar-month me-1"></i>Periode</label>
-            <select id="periodeSelect" onchange="loadTransfers()"></select>
+            <select id="periodeSelect" data-admin-change="load-transfers"></select>
           </div>
           <div class="tr-helper">
             <div class="th-icon"><i class="bi bi-diagram-3-fill"></i></div>
@@ -635,10 +703,10 @@
           <div class="tr-filters" id="trFilters" style="display:none">
             <div class="trf-search-wrap">
               <i class="bi bi-search"></i>
-              <input type="text" id="trSearchCabang" placeholder="Cari cabang..." oninput="applyTrFilter()">
+              <input type="text" id="trSearchCabang" placeholder="Cari cabang..." data-admin-input="apply-tr-filter">
             </div>
             <input type="date" id="trSearchTgl" class="trf-date">
-            <button class="trf-clear" id="trClearFilter" onclick="clearTrFilter()" title="Reset filter"><i class="bi bi-x-lg"></i></button>
+            <button class="trf-clear" id="trClearFilter" type="button" data-admin-click="clear-tr-filter" title="Reset filter"><i class="bi bi-x-lg"></i></button>
           </div>
           <div class="tr-summary" id="trSummary" style="display:none">
             <div class="tr-sum-card"><div class="tsv text-primary" id="trTotal">-</div><div class="tsl">Total</div></div>
@@ -652,8 +720,115 @@
       </div>
     </div>
 
+    <div class="modal-overlay" id="modalAdminCarryUpload">
+      <div class="modal-panel">
+        <div class="modal-head">
+          <div class="modal-head-left">
+            <div class="modal-head-icon" style="background:#dcfce7;color:#0f766e"><i class="bi bi-cloud-arrow-up"></i></div>
+            <div>
+              <h2>Upload Split Pending</h2>
+              <div class="modal-sub">Admin only · tempel ke NONCOD lalu sisanya auto pending</div>
+            </div>
+          </div>
+          <div class="modal-close" data-admin-click="close-modal" data-modal-id="modalAdminCarryUpload"><i class="bi bi-x"></i></div>
+        </div>
+        <div class="modal-body">
+          <div class="status-helper">
+            <div class="sh-icon"><i class="bi bi-shield-check"></i></div>
+            <div>
+              <div class="sh-title">Tempel ke tanggal sekarang dulu, sisa jangan hilang</div>
+              <div class="sh-sub">Pilih tanggal NONCOD yang sedang kurang. Sistem akan tempel nominal ke tanggal itu dulu, lanjut ke tanggal NONCOD berikutnya bila sudah ada, dan sisanya masuk pending sampai NONCOD update.</div>
+            </div>
+          </div>
+
+          <div class="carry-ocr-card">
+            <div class="carry-ocr-head">
+              <div>
+                <div class="carry-ocr-title">Upload bukti dulu</div>
+                <div class="carry-ocr-sub">AI akan baca bank dan nominal otomatis dari gambar. Cabang tetap dipilih manual dari daftar supaya mapping aman.</div>
+              </div>
+              <div class="carry-ai-chip"><i class="bi bi-robot"></i> OCR</div>
+            </div>
+
+            <label class="carry-upload-area" id="carryUploadArea" for="carryProofFile">
+              <input type="file" class="form-control" id="carryProofFile" accept="image/*">
+              <div id="carryUploadPlaceholder" class="carry-upload-placeholder">
+                <div class="carry-upload-icon"><i class="bi bi-cloud-arrow-up-fill"></i></div>
+                <div class="carry-upload-copy">
+                  <div class="carry-upload-text">Klik untuk upload bukti transfer</div>
+                  <div class="carry-upload-sub">AI scan otomatis setelah gambar dipilih · JPG, PNG, WEBP, GIF · maks 5MB</div>
+                </div>
+                <div class="carry-upload-cta">Pilih Gambar</div>
+              </div>
+              <img id="carryProofPreview" class="carry-proof-preview" alt="Preview bukti transfer split pending admin">
+            </label>
+
+            <div class="carry-change-hint" id="carryChangeHint"><i class="bi bi-arrow-repeat"></i>Klik area gambar untuk mengganti bukti transfer</div>
+            <div class="carry-ocr-status" id="carryOcrStatus"></div>
+          </div>
+
+          <div class="carry-grid two-cols">
+            <div class="carry-field">
+              <label for="carryCabangSearch">Cabang</label>
+              <div class="carry-search-dd" id="carryCabangDD">
+                <i class="bi bi-search dd-icon"></i>
+                <input type="text" id="carryCabangSearch" placeholder="Cari dan pilih cabang..." autocomplete="off">
+                <input type="hidden" id="carryCabangInput">
+                <div class="dd-list" id="carryCabangList"></div>
+              </div>
+              <div class="carry-field-meta" id="carryCabangMeta">Pilih cabang dari daftar agar tidak salah mapping.</div>
+            </div>
+            <div class="carry-field">
+              <label for="carryBankInput">Bank</label>
+              <div class="carry-input-with-badge">
+                <input type="text" class="form-control" id="carryBankInput" placeholder="Contoh: BCA" autocomplete="off" data-admin-blur="normalize-carry-bank">
+                <span class="carry-ai-badge" id="carryBankBadge"><i class="bi bi-robot"></i>AI</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="carry-grid two-cols">
+            <div class="carry-field">
+              <label for="carryNominalInput">Nominal Bukti Yang Diproses</label>
+              <div class="carry-input-with-badge">
+                <input type="number" class="form-control" id="carryNominalInput" min="1" step="1" placeholder="Contoh: 387000">
+                <span class="carry-ai-badge" id="carryNominalBadge"><i class="bi bi-robot"></i>AI</span>
+              </div>
+              <div class="carry-field-meta">Isi nominal bukti yang sedang diproses. Sistem yang menghitung mana yang langsung nempel dan mana yang jadi pending.</div>
+            </div>
+            <div class="carry-field">
+              <label for="carryTargetDate">Tanggal NONCOD Awal</label>
+              <input type="date" class="form-control" id="carryTargetDate">
+            </div>
+          </div>
+
+          <div class="carry-grid two-cols">
+            <div class="carry-field">
+              <label for="carryReasonInput">Catatan Pending (opsional)</label>
+              <input type="text" class="form-control" id="carryReasonInput" maxlength="200" placeholder="Contoh: Sisa bukti ini menunggu NONCOD update">
+            </div>
+            <div class="carry-field">
+              <label>Aturan Auto Tempel</label>
+              <div class="carry-field-meta" style="margin-top:0">Tanggal yang dipilih diisi dulu. Kalau ada kekurangan NONCOD setelahnya, sistem lanjut tempel otomatis. Kalau belum ada, sisanya jadi pending.</div>
+            </div>
+          </div>
+
+          <div class="carry-field">
+            <label for="carryKetInput">Catatan Transfer (opsional)</label>
+            <input type="text" class="form-control" id="carryKetInput" maxlength="200" placeholder="Catatan tambahan bila perlu">
+            <div class="carry-file-note">Bukti transfer tetap wajib diupload. Kalau bukti totalnya Rp 387.000, isi Rp 387.000. Sistem yang akan menyisakan pending bila memang masih ada selisih.</div>
+          </div>
+
+          <div class="carry-foot">
+            <button class="btn-split-cancel" type="button" data-admin-click="close-modal" data-modal-id="modalAdminCarryUpload">Batal</button>
+            <button class="btn-pw" id="btnAdminCarryUpload" type="button" data-admin-click="submit-admin-carry-upload"><i class="bi bi-cloud-arrow-up me-1"></i>Upload Split</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ══ Modal: Pengaturan ══ -->
-    <div class="modal-overlay" id="modalAdminVerify" onclick="handleModalOverlay(event,'modalAdminVerify')">
+    <div class="modal-overlay" id="modalAdminVerify">
       <div class="modal-panel verify-panel">
         <div class="modal-head">
           <div class="modal-head-left">
@@ -663,23 +838,23 @@
               <div class="modal-sub">Gunakan password admin sebelum membuka pengaturan</div>
             </div>
           </div>
-          <div class="modal-close" onclick="closeModal('modalAdminVerify')"><i class="bi bi-x"></i></div>
+          <div class="modal-close" data-admin-click="close-modal" data-modal-id="modalAdminVerify"><i class="bi bi-x"></i></div>
         </div>
         <div class="modal-body">
           <div class="verify-note">
             <i class="bi bi-key-fill"></i>
             <div>Kelola cabang dan transfer tetap bisa dari workspace. Bagian <strong>Pengaturan</strong> dikunci terpisah agar perubahan password tetap memakai akses admin.</div>
           </div>
-          <input type="password" class="verify-input" id="adminVerifyPw" placeholder="Password admin..." autocomplete="current-password" oninput="clearAdminVerifyError()" onkeydown="if(event.key==='Enter')submitAdminVerify()">
+          <input type="password" class="verify-input" id="adminVerifyPw" placeholder="Password admin..." autocomplete="current-password" data-admin-input="clear-admin-verify-error" data-admin-enter="submit-admin-verify">
           <div class="verify-error" id="adminVerifyErr"></div>
-          <button class="btn-pw" id="btnAdminVerify" onclick="submitAdminVerify()">
+          <button class="btn-pw" id="btnAdminVerify" type="button" data-admin-click="submit-admin-verify">
             <i class="bi bi-unlock-fill me-1"></i>Buka Pengaturan
           </button>
         </div>
       </div>
     </div>
 
-    <div class="modal-overlay" id="modalSettings" onclick="handleModalOverlay(event,'modalSettings')">
+    <div class="modal-overlay" id="modalSettings">
       <div class="modal-panel">
         <div class="modal-head">
           <div class="modal-head-left">
@@ -689,7 +864,7 @@
               <div class="modal-sub">Keamanan & password</div>
             </div>
           </div>
-          <div class="modal-close" onclick="closeModal('modalSettings')"><i class="bi bi-x"></i></div>
+          <div class="modal-close" data-admin-click="close-modal" data-modal-id="modalSettings"><i class="bi bi-x"></i></div>
         </div>
         <div class="modal-body">
 
@@ -697,10 +872,10 @@
           <div class="card-pw" id="cardBuatPw">
             <h3><i class="bi bi-key-fill text-warning"></i> Buat Password</h3>
             <div class="pw-sub">Buat password baru untuk admin panel</div>
-            <input type="password" class="form-control" id="pwBaru1" placeholder="Password baru..." autocomplete="new-password" oninput="checkPwBuat()">
-            <input type="password" class="form-control" id="pwBaru2" placeholder="Ulangi password..." autocomplete="new-password" oninput="checkPwBuat()">
+            <input type="password" class="form-control" id="pwBaru1" placeholder="Password baru..." autocomplete="new-password" data-admin-input="check-pw-buat">
+            <input type="password" class="form-control" id="pwBaru2" placeholder="Ulangi password..." autocomplete="new-password" data-admin-input="check-pw-buat">
             <div id="pwBuatError" style="font-size:0.75rem;color:#ef4444;margin-bottom:8px;display:none"></div>
-            <button class="btn-pw" id="btnBuatPw" onclick="buatPassword()" disabled>
+            <button class="btn-pw" id="btnBuatPw" type="button" data-admin-click="buat-password" disabled>
               <i class="bi bi-check-lg me-1"></i>Simpan Password
             </button>
           </div>
@@ -709,11 +884,11 @@
           <div class="card-pw" id="cardGantiPw" style="display:none">
             <h3><i class="bi bi-arrow-repeat text-warning"></i> Ganti Password Admin</h3>
             <div class="pw-sub">Masukkan password lama lalu password baru</div>
-            <input type="password" class="form-control" id="pwLama" placeholder="Password lama..." autocomplete="current-password" oninput="checkPwGanti()">
-            <input type="password" class="form-control" id="pwBaru3" placeholder="Password baru..." autocomplete="new-password" oninput="checkPwGanti()">
-            <input type="password" class="form-control" id="pwBaru4" placeholder="Ulangi password baru..." autocomplete="new-password" oninput="checkPwGanti()">
+            <input type="password" class="form-control" id="pwLama" placeholder="Password lama..." autocomplete="current-password" data-admin-input="check-pw-ganti">
+            <input type="password" class="form-control" id="pwBaru3" placeholder="Password baru..." autocomplete="new-password" data-admin-input="check-pw-ganti">
+            <input type="password" class="form-control" id="pwBaru4" placeholder="Ulangi password baru..." autocomplete="new-password" data-admin-input="check-pw-ganti">
             <div id="pwGantiError" style="font-size:0.75rem;color:#ef4444;margin-bottom:8px;display:none"></div>
-            <button class="btn-pw" id="btnGantiPw" onclick="gantiPassword()" disabled>
+            <button class="btn-pw" id="btnGantiPw" type="button" data-admin-click="ganti-password" disabled>
               <i class="bi bi-arrow-repeat me-1"></i>Ganti Password
             </button>
           </div>
@@ -724,10 +899,10 @@
           <div class="card-pw" id="cardBuatDashPw">
             <h3><i class="bi bi-speedometer2 text-primary"></i> Buat Password Viewer</h3>
             <div class="pw-sub">Password untuk akun view dan download</div>
-            <input type="password" class="form-control" id="dashPwBaru1" placeholder="Password baru..." autocomplete="new-password" oninput="checkDashPwBuat()">
-            <input type="password" class="form-control" id="dashPwBaru2" placeholder="Ulangi password..." autocomplete="new-password" oninput="checkDashPwBuat()">
+            <input type="password" class="form-control" id="dashPwBaru1" placeholder="Password baru..." autocomplete="new-password" data-admin-input="check-dash-pw-buat">
+            <input type="password" class="form-control" id="dashPwBaru2" placeholder="Ulangi password..." autocomplete="new-password" data-admin-input="check-dash-pw-buat">
             <div id="dashPwBuatError" style="font-size:0.75rem;color:#ef4444;margin-bottom:8px;display:none"></div>
-            <button class="btn-pw dark" id="btnBuatDashPw" onclick="buatDashPassword()" disabled>
+            <button class="btn-pw dark" id="btnBuatDashPw" type="button" data-admin-click="buat-dash-password" disabled>
               <i class="bi bi-check-lg me-1"></i>Simpan Password
             </button>
           </div>
@@ -736,11 +911,11 @@
           <div class="card-pw" id="cardGantiDashPw" style="display:none">
             <h3><i class="bi bi-speedometer2 text-primary"></i> Ganti Password Viewer</h3>
             <div class="pw-sub">Ganti password akun viewer</div>
-            <input type="password" class="form-control" id="dashPwLama" placeholder="Password lama..." autocomplete="current-password" oninput="checkDashPwGanti()">
-            <input type="password" class="form-control" id="dashPwBaru3" placeholder="Password baru..." autocomplete="new-password" oninput="checkDashPwGanti()">
-            <input type="password" class="form-control" id="dashPwBaru4" placeholder="Ulangi password baru..." autocomplete="new-password" oninput="checkDashPwGanti()">
+            <input type="password" class="form-control" id="dashPwLama" placeholder="Password lama..." autocomplete="current-password" data-admin-input="check-dash-pw-ganti">
+            <input type="password" class="form-control" id="dashPwBaru3" placeholder="Password baru..." autocomplete="new-password" data-admin-input="check-dash-pw-ganti">
+            <input type="password" class="form-control" id="dashPwBaru4" placeholder="Ulangi password baru..." autocomplete="new-password" data-admin-input="check-dash-pw-ganti">
             <div id="dashPwGantiError" style="font-size:0.75rem;color:#ef4444;margin-bottom:8px;display:none"></div>
-            <button class="btn-pw dark" id="btnGantiDashPw" onclick="gantiDashPassword()" disabled>
+            <button class="btn-pw dark" id="btnGantiDashPw" type="button" data-admin-click="ganti-dash-password" disabled>
               <i class="bi bi-arrow-repeat me-1"></i>Ganti Password
             </button>
           </div>
@@ -757,7 +932,7 @@
             <h3><i class="bi bi-scissors me-1 text-warning"></i>Split Tanggal Transfer</h3>
             <div class="sh-sub">Pecah 1 transfer agar tiap baris dibebankan ke tanggal NONCOD yang benar</div>
           </div>
-          <div class="split-close" onclick="closeSplit()"><i class="bi bi-x"></i></div>
+          <div class="split-close" data-admin-click="close-split"><i class="bi bi-x"></i></div>
         </div>
         <div class="split-body">
           <div class="split-orig" id="splitOrigInfo"></div>
@@ -769,31 +944,32 @@
             <div class="srh">&nbsp;</div>
           </div>
           <div id="rincianList"></div>
-          <button class="btn-add-row" onclick="addRincianRow()"><i class="bi bi-plus-circle"></i> Tambah Tanggal</button>
+          <button class="btn-add-row" type="button" data-admin-click="add-rincian-row"><i class="bi bi-plus-circle"></i> Tambah Tanggal</button>
           <div class="sisa-bar" id="sisaBar"></div>
         </div>
         <div class="split-foot">
-          <button class="btn-split-cancel" onclick="closeSplit()">Batal</button>
-          <button class="btn-split-confirm" id="btnSplitConfirm" onclick="doSplit()"><i class="bi bi-scissors me-1"></i>Simpan Sinkronisasi</button>
+          <button class="btn-split-cancel" type="button" data-admin-click="close-split">Batal</button>
+          <button class="btn-split-confirm" id="btnSplitConfirm" type="button" data-admin-click="do-split"><i class="bi bi-scissors me-1"></i>Simpan Sinkronisasi</button>
         </div>
       </div>
     </div>
 
-    <div class="proof-overlay" id="proofOverlay" onclick="handleProofOverlay(event)">
+    <div class="proof-overlay" id="proofOverlay">
       <div class="proof-panel">
         <div class="proof-stage" id="proofStage">
-          <img id="proofImg" onload="handleProofLoad()" onerror="handleProofError()">
+          <img id="proofImg">
           <div class="proof-error" id="proofErr"><i class="bi bi-image-fill" style="font-size:2rem;display:block;margin-bottom:8px"></i>Gambar bukti tidak dapat ditampilkan</div>
-          <div class="proof-actions" id="proofActions">
-            <button class="proof-btn" onclick="rotateProof()" title="Putar gambar" aria-label="Putar gambar"><i class="bi bi-arrow-clockwise"></i></button>
-            <button class="proof-btn" onclick="closeProof()" title="Tutup bukti" aria-label="Tutup bukti"><i class="bi bi-x-lg"></i></button>
-          </div>
+        </div>
+        <div class="proof-actions" id="proofActions">
+          <button class="proof-btn" type="button" data-admin-click="rotate-proof" title="Putar gambar" aria-label="Putar gambar"><i class="bi bi-arrow-clockwise"></i><span>Putar</span></button>
+          <button class="proof-btn" type="button" data-admin-click="close-proof" title="Tutup bukti" aria-label="Tutup bukti"><i class="bi bi-x-lg"></i><span>Tutup</span></button>
         </div>
       </div>
     </div>
 
     <div class="toast-box" id="toast"></div>
     <script src="/lib/admin-proof-viewer.js"></script>
+    <script src="/lib/input-ocr.js"></script>
     <script>
       const EMBED_MODE = new URLSearchParams(location.search).get('embed') === '1' || window.self !== window.top;
       if (EMBED_MODE) document.body.classList.add('embed');
@@ -805,6 +981,11 @@
       let monitorDataCache = null;
       let auditCabangState = null;
       let auditSelectedCabang = '';
+      let adminCarryUploadContext = null;
+      const ADMIN_CARRY_MAX_FILE_SIZE = 5 * 1024 * 1024;
+      const adminCarryOcrModule = window.InputOcrModule || null;
+      let adminCarryOcrController = null;
+      let adminCarryCabangFetchPromise = null;
 
       function hasActiveSession(prefix) {
         const ts = parseInt(sessionStorage.getItem(prefix + 'AuthTs') || '0');
@@ -831,13 +1012,26 @@
         clearSession('admin');
       }
 
+      async function invalidateServerSession() {
+        try {
+          await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            keepalive: true,
+            body: JSON.stringify({ action: 'logout' })
+          });
+        } catch {}
+      }
+
       function refreshAuditCabangIfOpen() {
         const modal = document.getElementById('modalAuditCabang');
         if (modal && modal.classList.contains('show')) loadAuditCabangModal(true);
       }
 
-      function exitWorkspace() {
+      async function exitWorkspace() {
         clearAllSessions();
+        await invalidateServerSession();
         try {
           if (window.top && window.top !== window.self) {
             window.top.location.replace('/');
@@ -858,6 +1052,270 @@
       }
       function handleModalOverlay(e, id) {
         if (e.target === document.getElementById(id)) closeModal(id);
+      }
+
+      function handleAdminDelegatedClick(event) {
+        if (event.target.matches('.modal-overlay')) {
+          closeModal(event.target.id);
+          return;
+        }
+        if (event.target.id === 'proofOverlay') {
+          handleProofOverlay(event);
+          return;
+        }
+        if (event.target.id === 'logOverlay') {
+          closeLogs();
+          return;
+        }
+
+        const actionEl = event.target.closest('[data-admin-click]');
+        if (!actionEl) return;
+
+        const action = actionEl.dataset.adminClick;
+        switch (action) {
+          case 'exit-workspace':
+            event.preventDefault();
+            exitWorkspace();
+            break;
+          case 'open-logs':
+            event.preventDefault();
+            openLogs();
+            break;
+          case 'open-settings-gate':
+            event.preventDefault();
+            openSettingsGate();
+            break;
+          case 'open-cabang-modal':
+            openModal('modalCabang');
+            loadCabangModal();
+            break;
+          case 'open-audit-cabang-modal':
+            openAuditCabangModal();
+            break;
+          case 'open-manual-status-modal':
+            openManualStatusModal();
+            break;
+          case 'open-transfer-modal':
+            openTransferModal();
+            break;
+          case 'open-admin-carry-upload-modal':
+            openAdminCarryUploadModal();
+            break;
+          case 'refresh-mismatch':
+            loadMismatchMonitor();
+            break;
+          case 'close-modal':
+            closeModal(actionEl.dataset.modalId || '');
+            break;
+          case 'add-cabang':
+            addCabang();
+            break;
+          case 'render-cabang-list':
+            renderCabangList();
+            break;
+          case 'refresh-audit-cabang':
+            loadAuditCabangModal(true);
+            break;
+          case 'clear-tr-filter':
+            clearTrFilter();
+            break;
+          case 'submit-admin-carry-upload':
+            submitAdminCarryUpload();
+            break;
+          case 'submit-admin-verify':
+            submitAdminVerify();
+            break;
+          case 'buat-password':
+            buatPassword();
+            break;
+          case 'ganti-password':
+            gantiPassword();
+            break;
+          case 'buat-dash-password':
+            buatDashPassword();
+            break;
+          case 'ganti-dash-password':
+            gantiDashPassword();
+            break;
+          case 'close-split':
+            closeSplit();
+            break;
+          case 'add-rincian-row':
+            addRincianRow();
+            break;
+          case 'do-split':
+            doSplit();
+            break;
+          case 'rotate-proof':
+            rotateProof();
+            break;
+          case 'close-proof':
+            closeProof();
+            break;
+          case 'save-edit-cabang':
+            saveEditCabang(Number(actionEl.dataset.cabangId || 0));
+            break;
+          case 'edit-cabang':
+            startEditCabang(Number(actionEl.dataset.cabangId || 0));
+            break;
+          case 'delete-cabang':
+            deleteCabang(Number(actionEl.dataset.cabangId || 0), decodeURIComponent(actionEl.dataset.cabangName || ''));
+            break;
+          case 'select-audit-cabang':
+            selectAuditCabang(actionEl.dataset.cabang || '');
+            break;
+          case 'open-proof': {
+            event.preventDefault();
+            const href = actionEl.getAttribute('href') || '';
+            if (openProof(href)) {
+              window.open(href, '_blank', 'noopener');
+            }
+            break;
+          }
+          case 'select-admin-carry-cabang':
+            selectAdminCarryCabang(actionEl.dataset.cabang || '');
+            break;
+          case 'save-manual-status':
+            saveManualStatus(actionEl.dataset.resi || '');
+            break;
+          case 'cancel-manual-status-edit':
+            cancelManualStatusEdit();
+            break;
+          case 'edit-manual-status':
+            startEditManualStatus(actionEl.dataset.resi || '');
+            break;
+          case 'clear-manual-status':
+            clearManualStatus(actionEl.dataset.resi || '');
+            break;
+          case 'edit-transfer':
+            startEditTrById(actionEl.dataset.transferId || '');
+            break;
+          case 'split-transfer':
+            openSplitById(actionEl.dataset.transferId || '');
+            break;
+          case 'delete-transfer':
+            deleteTransferById(actionEl.dataset.transferId || '');
+            break;
+          case 'save-edit-transfer':
+            saveEditTr(actionEl.dataset.transferId || '');
+            break;
+          case 'cancel-edit-transfer':
+            cancelEditTr(actionEl.dataset.transferId || '');
+            break;
+          case 'delete-rincian-row':
+            delRincianRow(actionEl);
+            break;
+          case 'open-transfer-review':
+            openTransferReview(
+              actionEl.dataset.periode || '',
+              actionEl.dataset.cabang || '',
+              actionEl.dataset.filterDate || '',
+              actionEl.dataset.transferId || '',
+              actionEl.dataset.reviewAction || ''
+            );
+            break;
+          case 'clear-pending-allocation':
+            clearPendingAllocation(actionEl.dataset.transferId || '');
+            break;
+          case 'open-admin-carry-upload-from-case':
+            openAdminCarryUploadFromCase(
+              actionEl.dataset.cabang || '',
+              actionEl.dataset.date || '',
+              Number(actionEl.dataset.nominal || 0)
+            );
+            break;
+          case 'download-logs':
+            downloadLogs();
+            break;
+          case 'clear-logs':
+            clearLogs();
+            break;
+          case 'close-logs':
+            closeLogs();
+            break;
+        }
+      }
+
+      function handleAdminDelegatedInput(event) {
+        const action = event.target.dataset.adminInput;
+        switch (action) {
+          case 'toggle-add-btn':
+            toggleAddBtn();
+            break;
+          case 'render-cabang-list':
+            renderCabangList();
+            break;
+          case 'schedule-manual-status-search':
+            scheduleManualStatusSearch();
+            break;
+          case 'render-audit-cabang-list':
+            renderAuditCabangList();
+            break;
+          case 'apply-tr-filter':
+            applyTrFilter();
+            break;
+          case 'clear-admin-verify-error':
+            clearAdminVerifyError();
+            break;
+          case 'check-pw-buat':
+            checkPwBuat();
+            break;
+          case 'check-pw-ganti':
+            checkPwGanti();
+            break;
+          case 'check-dash-pw-buat':
+            checkDashPwBuat();
+            break;
+          case 'check-dash-pw-ganti':
+            checkDashPwGanti();
+            break;
+          case 'update-sisa':
+            updateSisa();
+            break;
+        }
+      }
+
+      function handleAdminDelegatedChange(event) {
+        const action = event.target.dataset.adminChange;
+        if (action === 'load-transfers') {
+          loadTransfers();
+        }
+      }
+
+      function handleAdminDelegatedKeydown(event) {
+        if (event.key !== 'Enter') return;
+        const action = event.target.dataset.adminEnter;
+        if (!action) return;
+        event.preventDefault();
+
+        if (action === 'add-cabang') {
+          addCabang();
+          return;
+        }
+        if (action === 'submit-admin-verify') {
+          submitAdminVerify();
+        }
+      }
+
+      function handleAdminDelegatedBlur(event) {
+        const action = event.target.dataset.adminBlur;
+        if (action === 'normalize-carry-bank') {
+          normalizeAdminCarryBankField();
+        }
+      }
+
+      function initAdminEventBindings() {
+        document.addEventListener('click', handleAdminDelegatedClick);
+        document.addEventListener('input', handleAdminDelegatedInput);
+        document.addEventListener('change', handleAdminDelegatedChange);
+        document.addEventListener('keydown', handleAdminDelegatedKeydown);
+        document.addEventListener('blur', handleAdminDelegatedBlur, true);
+
+        const proofImg = document.getElementById('proofImg');
+        if (proofImg) {
+          proofImg.addEventListener('load', handleProofLoad);
+          proofImg.addEventListener('error', handleProofError);
+        }
       }
 
       function clearAdminVerifyError() {
@@ -922,7 +1380,7 @@
 
           sessionStorage.setItem('adminAuth', '1');
           sessionStorage.setItem('adminAuthTs', String(Date.now()));
-          sessionStorage.setItem('adminToken', json.token || '');
+          sessionStorage.setItem('adminToken', '');
           document.getElementById('modalAdminVerify').classList.remove('show');
           openSettingsModal();
         } catch {
@@ -1118,8 +1576,8 @@
             </select>
           </div>
           <div class="c-actions">
-            <button class="c-btn c-btn-save" onclick="saveEditCabang(${id})" title="Simpan"><i class="bi bi-check-lg"></i></button>
-            <button class="c-btn c-btn-cancel" onclick="renderCabangList()" title="Batal"><i class="bi bi-x-lg"></i></button>
+            <button class="c-btn c-btn-save" type="button" data-admin-click="save-edit-cabang" data-cabang-id="${id}" title="Simpan"><i class="bi bi-check-lg"></i></button>
+            <button class="c-btn c-btn-cancel" type="button" data-admin-click="render-cabang-list" title="Batal"><i class="bi bi-x-lg"></i></button>
           </div>`;
         document.getElementById('editNama-' + id).focus();
       }
@@ -1174,8 +1632,8 @@
                 <span class="c-area-tag" style="background:${bg};color:${tc}">${area}</span>
               </div>
               <div class="c-actions">
-                <button class="c-btn c-btn-edit" onclick="startEditCabang(${c.id})" title="Edit"><i class="bi bi-pencil"></i></button>
-                <button class="c-btn c-btn-del" onclick="deleteCabang(${c.id}, '${c.nama.replace(/'/g,"\\'")}')" title="Hapus"><i class="bi bi-trash3"></i></button>
+                <button class="c-btn c-btn-edit" type="button" data-admin-click="edit-cabang" data-cabang-id="${c.id}" title="Edit"><i class="bi bi-pencil"></i></button>
+                <button class="c-btn c-btn-del" type="button" data-admin-click="delete-cabang" data-cabang-id="${c.id}" data-cabang-name="${encodeURIComponent(c.nama)}" title="Hapus"><i class="bi bi-trash3"></i></button>
               </div>
             </div>`;
           });
@@ -1269,9 +1727,9 @@
             const noncod = toNominal(entry.ncByDate[date] || 0);
             const transfers = (entry.trByDate[date] || []).slice().sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
             const transfer = transfers.reduce((sum, item) => sum + toNominal(item.nominal), 0);
-            const diff = noncod - transfer;
             const transferText = buildAuditTransferBreakdown(transfers);
-            const isSafe = noncod > 0 && transfer > 0 && (diff === 0 || (diff < 0 && Math.abs(diff) <= 500));
+            const diff = noncod - transfer;
+            const isSafe = noncod > 0 && (diff === 0 || (diff < 0 && Math.abs(diff) <= 500));
             let tone = 'safe';
             let line = '';
 
@@ -1303,12 +1761,12 @@
               return [bank, time, ket].filter(Boolean).join(' · ');
             }).filter(Boolean);
 
-            return { date, noncod, transfer, diff, tone, line, transfers, proofCount, transferMeta };
+            return { date, noncod, transfer, diff, tone, line, transfers, proofCount, transferMeta, carryMeta: [] };
           });
 
           const summary = rows.reduce((acc, row) => {
             if (row.noncod > 0 || row.transfer > 0) acc.activeDays += 1;
-            if (row.tone === 'safe' && row.noncod > 0) acc.safe += 1;
+            if (row.tone === 'safe' && (row.noncod > 0 || row.transfer > 0)) acc.safe += 1;
             if (row.tone === 'pending') acc.pending += 1;
             if (row.tone === 'warn') acc.warn += 1;
             return acc;
@@ -1406,7 +1864,7 @@
           const issueText = item.summary.pending > 0 || item.summary.warn > 0
             ? '<span class="audit-cabang-alert">' + (item.summary.pending + item.summary.warn) + ' perlu dicek</span>'
             : 'Semua tanggal aktif aman';
-          return '<button class="audit-cabang-btn' + (item.cabang === auditSelectedCabang ? ' active' : '') + '" onclick="selectAuditCabang(\'' + encodedCabang + '\')">' +
+          return '<button class="audit-cabang-btn' + (item.cabang === auditSelectedCabang ? ' active' : '') + '" type="button" data-admin-click="select-audit-cabang" data-cabang="' + encodedCabang + '">' +
             '<div class="audit-cabang-top">' +
               '<div class="audit-cabang-name">' + escHtmlAdmin(item.cabang) + '</div>' +
               '<div class="audit-cabang-area">' + escHtmlAdmin(item.area || 'LAINNYA') + '</div>' +
@@ -1442,10 +1900,11 @@
             const labelParts = ['Bukti ' + (index + 1)];
             if (item.nama_bank) labelParts.push(item.nama_bank);
             if (item.timestamp) labelParts.push(new Date(item.timestamp).toLocaleTimeString('id-ID', { timeZone: 'Asia/Makassar', hour: '2-digit', minute: '2-digit' }));
-            return '<a class="btn-proof-tr" href="' + escHtmlAdmin(item.proofUrl) + '" target="_blank" rel="noopener noreferrer" onclick="return openProof(this.href)"><i class="bi bi-image"></i> ' + escHtmlAdmin(labelParts.join(' · ')) + '</a>';
+            return '<a class="btn-proof-tr" href="' + escHtmlAdmin(item.proofUrl) + '" target="_blank" rel="noopener noreferrer" data-admin-click="open-proof"><i class="bi bi-image"></i> ' + escHtmlAdmin(labelParts.join(' · ')) + '</a>';
           }).join('');
 
           const metaParts = [];
+          if (row.carryMeta.length > 0) metaParts.push(row.carryMeta.join(' | '));
           if (row.proofCount > 0) metaParts.push(row.proofCount + ' bukti');
           if (row.transferMeta.length > 0) metaParts.push(row.transferMeta.join(' | '));
 
@@ -1483,6 +1942,478 @@
       function safeDomId(value) {
         return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '_');
       }
+
+      function normalizeAdminCarryBankInput(value) {
+        if (adminCarryOcrModule && typeof adminCarryOcrModule.normalizeBankNameInput === 'function') {
+          return adminCarryOcrModule.normalizeBankNameInput(value);
+        }
+        return String(value || '').trim().toUpperCase();
+      }
+
+      function normalizeAdminCarryBankField() {
+        const input = document.getElementById('carryBankInput');
+        if (!input) return;
+        const normalized = normalizeAdminCarryBankInput(input.value);
+        if (normalized) input.value = normalized;
+      }
+
+      function setAdminCarryOcrStatus(type, text) {
+        const el = document.getElementById('carryOcrStatus');
+        if (!el) return;
+        if (!type) {
+          el.className = 'carry-ocr-status';
+          el.innerHTML = '';
+          return;
+        }
+
+        el.className = 'carry-ocr-status ' + type;
+        const safeText = escHtmlAdmin(String(text || ''));
+        if (type === 'scanning') {
+          el.innerHTML = '<span class="spinner-border"></span>' + safeText;
+        } else if (type === 'success') {
+          el.innerHTML = '<i class="bi bi-check-circle-fill"></i>' + safeText;
+        } else if (type === 'info') {
+          el.innerHTML = '<i class="bi bi-info-circle-fill"></i>' + safeText;
+        } else {
+          el.innerHTML = '<i class="bi bi-x-circle-fill"></i>' + safeText;
+        }
+      }
+
+      function setAdminCarryBadge(badgeId, show) {
+        const mappedId = badgeId === 'bankBadge'
+          ? 'carryBankBadge'
+          : badgeId === 'nominalBadge'
+            ? 'carryNominalBadge'
+            : badgeId;
+        const badge = document.getElementById(mappedId);
+        if (badge) badge.style.display = show ? 'inline-flex' : 'none';
+      }
+
+      function compressAdminCarryImage(dataUrl, maxWidth = 800) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+            if (width > maxWidth) {
+              height = Math.round(height * maxWidth / width);
+              width = maxWidth;
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.6));
+          };
+          img.src = dataUrl;
+        });
+      }
+
+      function getAdminCarryCabangRows() {
+        const areaOrder = ['SULTRA', 'MKS OUTER', 'CUSTUMER', 'LAINNYA'];
+        return (Array.isArray(cabangData) ? cabangData : []).slice().sort((a, b) => {
+          const areaA = String(a.area || 'LAINNYA');
+          const areaB = String(b.area || 'LAINNYA');
+          const orderA = areaOrder.indexOf(areaA);
+          const orderB = areaOrder.indexOf(areaB);
+          if ((orderA === -1 ? 99 : orderA) !== (orderB === -1 ? 99 : orderB)) {
+            return (orderA === -1 ? 99 : orderA) - (orderB === -1 ? 99 : orderB);
+          }
+          return String(a.nama || '').localeCompare(String(b.nama || ''), 'id');
+        });
+      }
+
+      function findAdminCarryCabangRecord(value) {
+        const normalized = String(value || '').trim().toUpperCase();
+        if (!normalized) return null;
+        return getAdminCarryCabangRows().find((row) => String(row.nama || '').trim().toUpperCase() === normalized) || null;
+      }
+
+      function updateAdminCarryCabangMeta() {
+        const metaEl = document.getElementById('carryCabangMeta');
+        const searchEl = document.getElementById('carryCabangSearch');
+        const hiddenEl = document.getElementById('carryCabangInput');
+        if (!metaEl || !searchEl || !hiddenEl) return;
+
+        const selected = findAdminCarryCabangRecord(hiddenEl.value);
+        const typed = String(searchEl.value || '').trim();
+
+        if (selected) {
+          metaEl.textContent = 'Area ' + (selected.area || 'LAINNYA') + ' · dipilih dari master cabang.';
+        } else if (adminCarryCabangFetchPromise) {
+          metaEl.textContent = 'Memuat daftar cabang...';
+        } else if (typed) {
+          metaEl.textContent = 'Klik hasil pencarian agar cabang tepat dan tidak salah mapping.';
+        } else {
+          metaEl.textContent = 'Pilih cabang dari daftar agar tidak salah mapping.';
+        }
+      }
+
+      function closeAdminCarryCabangDropdown() {
+        const dd = document.getElementById('carryCabangDD');
+        if (dd) dd.classList.remove('open');
+      }
+
+      function openAdminCarryCabangDropdown() {
+        const dd = document.getElementById('carryCabangDD');
+        if (!dd) return;
+        dd.classList.add('open');
+        renderAdminCarryCabangOptions(document.getElementById('carryCabangSearch').value || '');
+      }
+
+      function renderAdminCarryCabangOptions(query = '') {
+        const listEl = document.getElementById('carryCabangList');
+        const hiddenEl = document.getElementById('carryCabangInput');
+        if (!listEl || !hiddenEl) return;
+
+        const normalizedQuery = String(query || '').trim().toLowerCase();
+        const selectedName = String(hiddenEl.value || '').trim().toUpperCase();
+        const rows = getAdminCarryCabangRows().filter((row) => {
+          const name = String(row.nama || '').toLowerCase();
+          const area = String(row.area || '').toLowerCase();
+          return !normalizedQuery || name.includes(normalizedQuery) || area.includes(normalizedQuery);
+        });
+
+        if (!rows.length) {
+          listEl.innerHTML = '<div class="dd-empty">Tidak ditemukan</div>';
+          return;
+        }
+
+        let html = '';
+        let lastArea = '';
+        rows.forEach((row) => {
+          const area = String(row.area || 'LAINNYA');
+          const name = String(row.nama || '').trim();
+          if (area !== lastArea) {
+            lastArea = area;
+            html += '<div class="dd-group">' + escHtmlAdmin(area) + '</div>';
+          }
+          const activeClass = name.toUpperCase() === selectedName ? ' active' : '';
+          html += '<div class="dd-item' + activeClass + '" data-admin-click="select-admin-carry-cabang" data-cabang="' + encodeURIComponent(name) + '">' +
+            '<div class="dd-name">' + escHtmlAdmin(name) + '</div>' +
+            '<div class="dd-meta">Area ' + escHtmlAdmin(area) + '</div>' +
+          '</div>';
+        });
+
+        listEl.innerHTML = html;
+      }
+
+      function handleAdminCarryCabangInput() {
+        const searchEl = document.getElementById('carryCabangSearch');
+        const hiddenEl = document.getElementById('carryCabangInput');
+        if (!searchEl || !hiddenEl) return;
+
+        if (String(searchEl.value || '').trim().toUpperCase() !== String(hiddenEl.value || '').trim().toUpperCase()) {
+          hiddenEl.value = '';
+        }
+
+        renderAdminCarryCabangOptions(searchEl.value || '');
+        openAdminCarryCabangDropdown();
+        updateAdminCarryCabangMeta();
+      }
+
+      function setAdminCarrySelectedCabang(value) {
+        const searchEl = document.getElementById('carryCabangSearch');
+        const hiddenEl = document.getElementById('carryCabangInput');
+        if (!searchEl || !hiddenEl) return;
+
+        const matched = findAdminCarryCabangRecord(value);
+        const displayName = matched ? String(matched.nama || '').trim() : String(value || '').trim();
+        hiddenEl.value = matched ? displayName : '';
+        searchEl.value = displayName;
+        renderAdminCarryCabangOptions(displayName);
+        updateAdminCarryCabangMeta();
+        closeAdminCarryCabangDropdown();
+      }
+
+      function selectAdminCarryCabang(encodedValue) {
+        setAdminCarrySelectedCabang(decodeURIComponent(encodedValue || ''));
+      }
+
+      function maybeSelectAdminCarryCabangFromInput(showFeedback = false) {
+        const searchEl = document.getElementById('carryCabangSearch');
+        const hiddenEl = document.getElementById('carryCabangInput');
+        if (!searchEl || !hiddenEl) return false;
+
+        const typed = String(searchEl.value || '').trim();
+        if (!typed) {
+          hiddenEl.value = '';
+          updateAdminCarryCabangMeta();
+          return false;
+        }
+
+        const exactMatch = findAdminCarryCabangRecord(typed);
+        if (exactMatch) {
+          setAdminCarrySelectedCabang(exactMatch.nama);
+          return true;
+        }
+
+        const candidates = getAdminCarryCabangRows().filter((row) => String(row.nama || '').toLowerCase().includes(typed.toLowerCase()));
+        if (candidates.length === 1) {
+          setAdminCarrySelectedCabang(candidates[0].nama);
+          return true;
+        }
+
+        if (showFeedback) showToast('Pilih cabang dari daftar yang tersedia', 'error');
+        updateAdminCarryCabangMeta();
+        return false;
+      }
+
+      async function ensureAdminCarryCabangData() {
+        if (Array.isArray(cabangData) && cabangData.length) {
+          renderAdminCarryCabangOptions(document.getElementById('carryCabangSearch').value || '');
+          updateAdminCarryCabangMeta();
+          return cabangData;
+        }
+        if (adminCarryCabangFetchPromise) return adminCarryCabangFetchPromise;
+
+        updateAdminCarryCabangMeta();
+        adminCarryCabangFetchPromise = (async () => {
+          try {
+            const res = await fetch('/api/cabang');
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Gagal memuat daftar cabang');
+            cabangData = Array.isArray(json.cabang) ? json.cabang : [];
+            return cabangData;
+          } catch (err) {
+            showToast(err.message || 'Gagal memuat daftar cabang', 'error');
+            return Array.isArray(cabangData) ? cabangData : [];
+          } finally {
+            adminCarryCabangFetchPromise = null;
+            renderAdminCarryCabangOptions(document.getElementById('carryCabangSearch').value || '');
+            updateAdminCarryCabangMeta();
+          }
+        })();
+
+        return adminCarryCabangFetchPromise;
+      }
+
+      function resetAdminCarryPreview() {
+        const uploadArea = document.getElementById('carryUploadArea');
+        const preview = document.getElementById('carryProofPreview');
+        const placeholder = document.getElementById('carryUploadPlaceholder');
+        const hint = document.getElementById('carryChangeHint');
+
+        if (preview) {
+          preview.removeAttribute('src');
+          preview.style.display = 'none';
+        }
+        if (placeholder) placeholder.style.display = 'flex';
+        if (hint) hint.style.display = 'none';
+        if (uploadArea) uploadArea.classList.remove('has-preview');
+      }
+
+      async function runAdminCarryOCR(base64DataUrl) {
+        if (!adminCarryOcrController) {
+          setAdminCarryOcrStatus('info', 'OCR tidak tersedia. Isi bank dan nominal manual.');
+          return;
+        }
+        await adminCarryOcrController.runOCR(base64DataUrl);
+      }
+
+      async function handleAdminCarryProofChange(event) {
+        const input = event && event.target ? event.target : document.getElementById('carryProofFile');
+        const file = input && input.files && input.files[0] ? input.files[0] : null;
+        if (!input || !file) return;
+
+        if (file.size > ADMIN_CARRY_MAX_FILE_SIZE) {
+          input.value = '';
+          resetAdminCarryPreview();
+          setAdminCarryOcrStatus('error', 'File terlalu besar. Maksimal 5MB.');
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (loadEvent) => {
+          const dataUrl = String(loadEvent && loadEvent.target && loadEvent.target.result || '');
+          if (!dataUrl) {
+            setAdminCarryOcrStatus('error', 'Gagal membaca file.');
+            return;
+          }
+
+          const uploadArea = document.getElementById('carryUploadArea');
+          const preview = document.getElementById('carryProofPreview');
+          const placeholder = document.getElementById('carryUploadPlaceholder');
+          const hint = document.getElementById('carryChangeHint');
+
+          if (preview) {
+            preview.src = dataUrl;
+            preview.style.display = 'block';
+          }
+          if (placeholder) placeholder.style.display = 'none';
+          if (hint) hint.style.display = 'flex';
+          if (uploadArea) uploadArea.classList.add('has-preview');
+
+          await runAdminCarryOCR(dataUrl);
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function resetAdminCarryUploadForm() {
+        adminCarryUploadContext = null;
+        document.getElementById('carryCabangInput').value = '';
+        document.getElementById('carryCabangSearch').value = '';
+        document.getElementById('carryBankInput').value = '';
+        document.getElementById('carryTargetDate').value = '';
+        document.getElementById('carryNominalInput').value = '';
+        document.getElementById('carryProofFile').value = '';
+        document.getElementById('carryReasonInput').value = '';
+        document.getElementById('carryKetInput').value = '';
+        setAdminCarryBadge('bankBadge', false);
+        setAdminCarryBadge('nominalBadge', false);
+        setAdminCarryOcrStatus('', '');
+        resetAdminCarryPreview();
+        renderAdminCarryCabangOptions('');
+        updateAdminCarryCabangMeta();
+        closeAdminCarryCabangDropdown();
+        if (adminCarryOcrController) adminCarryOcrController.resetState();
+      }
+
+      async function openAdminCarryUploadModal(prefill = {}) {
+        resetAdminCarryUploadForm();
+        adminCarryUploadContext = { ...prefill };
+
+        await ensureAdminCarryCabangData();
+
+        if (prefill.cabang) setAdminCarrySelectedCabang(String(prefill.cabang || '').trim());
+        document.getElementById('carryBankInput').value = normalizeAdminCarryBankInput(String(prefill.bank || '').trim());
+        document.getElementById('carryTargetDate').value = String(prefill.targetDate || '').trim();
+        if (prefill.nominal) document.getElementById('carryNominalInput').value = toNominal(prefill.nominal);
+        if (prefill.reason) document.getElementById('carryReasonInput').value = String(prefill.reason || '').trim();
+        if (prefill.ket) document.getElementById('carryKetInput').value = String(prefill.ket || '').trim();
+
+        openModal('modalAdminCarryUpload');
+      }
+
+      async function openAdminCarryUploadFromCase(encodedCabang, targetDate, nominal) {
+        const cabang = decodeURIComponent(encodedCabang || '');
+        const normalizedTargetDate = String(targetDate || '').trim();
+        await openAdminCarryUploadModal({
+          cabang,
+          targetDate: normalizedTargetDate,
+          nominal: toNominal(nominal),
+          reason: 'Sisa dari bukti ini menunggu NONCOD update',
+        });
+      }
+
+      async function submitAdminCarryUpload() {
+        maybeSelectAdminCarryCabangFromInput(false);
+        normalizeAdminCarryBankField();
+
+        const cabang = String(document.getElementById('carryCabangInput').value || '').trim().toUpperCase();
+        const bank = String(document.getElementById('carryBankInput').value || '').trim().toUpperCase();
+        const targetDate = String(document.getElementById('carryTargetDate').value || '').trim();
+        const nominal = toNominal(document.getElementById('carryNominalInput').value);
+        const reason = String(document.getElementById('carryReasonInput').value || '').trim();
+        const ket = String(document.getElementById('carryKetInput').value || '').trim();
+        const fileInput = document.getElementById('carryProofFile');
+        const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+        const btn = document.getElementById('btnAdminCarryUpload');
+
+        if (!cabang) {
+          showToast('Pilih cabang dari daftar', 'error');
+          return;
+        }
+        if (!bank || !targetDate || nominal <= 0) {
+          showToast('Semua field wajib diisi', 'error');
+          return;
+        }
+        if (!file) {
+          showToast('Bukti transfer wajib diupload', 'error');
+          return;
+        }
+        if (file.size > ADMIN_CARRY_MAX_FILE_SIZE) {
+          showToast('Bukti transfer maksimal 5MB', 'error');
+          return;
+        }
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Mengupload...';
+
+        try {
+          const formData = new FormData();
+          formData.append('proof', file);
+          formData.append('nama_cabang', cabang);
+          formData.append('nama_bank', bank);
+          formData.append('nominal', String(nominal));
+          formData.append('target_date', targetDate);
+          if (reason) formData.append('pending_reason', reason);
+          if (ket) formData.append('ket', ket);
+
+          const { response: res, json } = await fetchJsonWithTimeout('/api/input?admin_pending=1', {
+            method: 'POST',
+            headers: { 'X-Admin-Token': getOpsToken() },
+            body: formData,
+          }, 30000);
+
+          if (!res.ok) {
+            showToast(json.error || 'Gagal upload split admin', 'error');
+            return;
+          }
+
+          const pendingNominal = toNominal(json && json.pendingNominal);
+          if (pendingNominal > 0) {
+            const afterDate = String(json && json.pendingAfterDate || '').trim();
+            showToast('Upload split tersimpan. Sisa pending Rp ' + pendingNominal.toLocaleString('id-ID') + (afterDate ? ' setelah ' + fmtTanggalId(afterDate) : ''), 'success');
+          } else if (json && json.split) {
+            showToast('Upload split admin tersimpan dan langsung ditempel ke beberapa tanggal', 'success');
+          } else {
+            showToast('Upload split admin tersimpan', 'success');
+          }
+          closeModal('modalAdminCarryUpload');
+          resetAdminCarryUploadForm();
+          await loadMismatchMonitor();
+          if (document.getElementById('modalTransfer').classList.contains('show')) {
+            await loadTransfers();
+          }
+          refreshAuditCabangIfOpen();
+        } catch {
+          showToast('Kesalahan jaringan', 'error');
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-cloud-arrow-up me-1"></i>Upload Split';
+        }
+      }
+
+      if (adminCarryOcrModule && typeof adminCarryOcrModule.createInputOcrController === 'function') {
+        adminCarryOcrController = adminCarryOcrModule.createInputOcrController({
+          compressImage: compressAdminCarryImage,
+          fetchImpl: window.fetch.bind(window),
+          setStatus: setAdminCarryOcrStatus,
+          showFields() {},
+          setBadge: setAdminCarryBadge,
+          setBankValue(value) {
+            document.getElementById('carryBankInput').value = normalizeAdminCarryBankInput(value);
+          },
+          setNominalValue(value) {
+            document.getElementById('carryNominalInput').value = String(toNominal(value));
+          },
+          onReadyChange() {},
+          log: console.error.bind(console),
+        });
+      }
+
+      const carryProofInputEl = document.getElementById('carryProofFile');
+      if (carryProofInputEl) carryProofInputEl.addEventListener('change', handleAdminCarryProofChange);
+
+      const carryCabangSearchEl = document.getElementById('carryCabangSearch');
+      if (carryCabangSearchEl) {
+        carryCabangSearchEl.addEventListener('input', handleAdminCarryCabangInput);
+        carryCabangSearchEl.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            maybeSelectAdminCarryCabangFromInput(true);
+          } else if (event.key === 'Escape') {
+            closeAdminCarryCabangDropdown();
+          }
+        });
+      }
+
+      document.addEventListener('click', (event) => {
+        const dropdown = document.getElementById('carryCabangDD');
+        if (!dropdown || dropdown.contains(event.target)) return;
+        maybeSelectAdminCarryCabangFromInput(false);
+        closeAdminCarryCabangDropdown();
+      });
 
       function openTransferModal() {
         openModal('modalTransfer');
@@ -1575,14 +2506,14 @@
 
           const editHtml = isEditing
             ? '<div class="status-edit-row">' +
-                '<input type="text" id="manualStatusInput-' + domId + '" value="' + escHtmlAdmin(row.manual_status_terakhir || effectiveStatus || 'BATAL') + '" maxlength="50" placeholder="Contoh: BATAL">' +
-                '<button class="status-action warn" id="manualStatusSaveBtn-' + domId + '" onclick="saveManualStatus(\'' + encodedResi + '\')"><i class="bi bi-check-lg"></i>Simpan</button>' +
-                '<button class="status-action" onclick="cancelManualStatusEdit()"><i class="bi bi-x-lg"></i>Batal</button>' +
+                '<input type="text" id="manualStatusInput-' + domId + '" value="' + escHtmlAdmin(row.manual_status_terakhir || effectiveStatus || 'VOID') + '" maxlength="50" placeholder="Contoh: VOID">' +
+                '<button class="status-action warn" id="manualStatusSaveBtn-' + domId + '" type="button" data-admin-click="save-manual-status" data-resi="' + encodedResi + '"><i class="bi bi-check-lg"></i>Simpan</button>' +
+                '<button class="status-action" type="button" data-admin-click="cancel-manual-status-edit"><i class="bi bi-x-lg"></i>Batal</button>' +
               '</div>'
             : '<div class="status-actions">' +
-                '<button class="status-action warn" onclick="startEditManualStatus(\'' + encodedResi + '\')"><i class="bi bi-pencil"></i>' + (row.override_active ? 'Edit Status' : 'Set Status') + '</button>' +
+                '<button class="status-action warn" type="button" data-admin-click="edit-manual-status" data-resi="' + encodedResi + '"><i class="bi bi-pencil"></i>' + (row.override_active ? 'Edit Status' : 'Set Status') + '</button>' +
                 (row.override_active
-                  ? '<button class="status-action danger" onclick="clearManualStatus(\'' + encodedResi + '\')"><i class="bi bi-trash3"></i>Hapus Override</button>'
+                  ? '<button class="status-action danger" type="button" data-admin-click="clear-manual-status" data-resi="' + encodedResi + '"><i class="bi bi-trash3"></i>Hapus Override</button>'
                   : '') +
               '</div>';
 
@@ -2056,7 +2987,7 @@
             : '';
           const proofUrl = getTransferProofUrl(t);
           const proofButton = proofUrl
-            ? '<a class="btn-proof-tr" href="' + escHtmlAdmin(proofUrl) + '" target="_blank" rel="noopener noreferrer" onclick="return openProof(this.href)" title="Lihat bukti transfer"><i class="bi bi-image"></i> Bukti</a>'
+            ? '<a class="btn-proof-tr" href="' + escHtmlAdmin(proofUrl) + '" target="_blank" rel="noopener noreferrer" data-admin-click="open-proof" title="Lihat bukti transfer"><i class="bi bi-image"></i> Bukti</a>'
             : '';
           const tglDisplay = t.tgl_inputan
             ? new Date(normTgl(t.tgl_inputan) + 'T00:00:00').toLocaleDateString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric' })
@@ -2077,9 +3008,9 @@
                 <span class="tr-item-nominal">${nom}</span>
                 <div style="display:flex;gap:4px;justify-content:flex-end">
                   ${proofButton}
-                  <span class="btn-edit-tr" onclick="startEditTrById('${transferId}')" title="Bebankan transfer ini ke satu tanggal NONCOD"><i class="bi bi-pencil"></i> Edit Tgl</span>
-                  <span class="btn-split-item" onclick="openSplitById('${transferId}')" title="Gunakan bila satu bukti transfer mencakup beberapa tanggal NONCOD"><i class="bi bi-scissors"></i> Split Tgl</span>
-                  <span class="btn-del-tr" onclick="deleteTransferById('${transferId}')" title="Hapus row transfer yang duplikat atau salah input"><i class="bi bi-trash3"></i> Hapus</span>
+                  <span class="btn-edit-tr" data-admin-click="edit-transfer" data-transfer-id="${transferId}" title="Edit tanggal, nominal, atau catatan transfer"><i class="bi bi-pencil"></i> Edit</span>
+                  <span class="btn-split-item" data-admin-click="split-transfer" data-transfer-id="${transferId}" title="Gunakan bila satu bukti transfer mencakup beberapa tanggal NONCOD"><i class="bi bi-scissors"></i> Split Tgl</span>
+                  <span class="btn-del-tr" data-admin-click="delete-transfer" data-transfer-id="${transferId}" title="Hapus row transfer yang duplikat atau salah input"><i class="bi bi-trash3"></i> Hapus</span>
                 </div>
               </div>
             </div>
@@ -2092,6 +3023,7 @@
         const item = document.getElementById('tri-' + t.id);
         if (!item) return;
         const tglVal = normTgl(t.tgl_inputan);
+        const nominalVal = Math.round(Number(t.nominal || 0));
         const ketVal = escHtmlAdmin(t.ket || '');
         item.classList.add('tr-editing');
         // Ganti main row jadi non-interactive
@@ -2102,12 +3034,13 @@
         bar.className = 'tr-edit-bar';
         bar.id = 'tr-edit-bar-' + t.id;
         bar.innerHTML = `
-          <span class="tr-edit-label"><i class="bi bi-pencil me-1"></i>Edit Tanggal</span>
+          <span class="tr-edit-label"><i class="bi bi-pencil me-1"></i>Edit Transfer</span>
           <input type="date" id="tr-edit-tgl-${t.id}" value="${tglVal}">
+          <input type="number" id="tr-edit-nom-${t.id}" value="${nominalVal}" min="1" step="1" inputmode="numeric" placeholder="Nominal">
           <input type="text" id="tr-edit-ket-${t.id}" value="${ketVal}" placeholder="Keterangan (opsional)">
           <div class="tr-edit-actions">
-            <button class="tr-ebtn tr-ebtn-save" onclick="saveEditTr('${t.id}')"><i class="bi bi-check-lg"></i> Simpan</button>
-            <button class="tr-ebtn tr-ebtn-cancel" onclick="cancelEditTr('${t.id}')">Batal</button>
+            <button class="tr-ebtn tr-ebtn-save" type="button" data-admin-click="save-edit-transfer" data-transfer-id="${t.id}"><i class="bi bi-check-lg"></i> Simpan</button>
+            <button class="tr-ebtn tr-ebtn-cancel" type="button" data-admin-click="cancel-edit-transfer" data-transfer-id="${t.id}">Batal</button>
           </div>`;
         item.appendChild(bar);
         document.getElementById('tr-edit-tgl-' + t.id).focus();
@@ -2125,8 +3058,10 @@
 
       async function saveEditTr(id) {
         const tgl = document.getElementById('tr-edit-tgl-' + id).value;
+        const nominal = document.getElementById('tr-edit-nom-' + id).value;
         const ket = document.getElementById('tr-edit-ket-' + id).value;
         if (!tgl) { showToast('Tanggal tidak boleh kosong', 'error'); return; }
+        if (!(Number(nominal) > 0)) { showToast('Nominal harus lebih dari 0', 'error'); return; }
         const saveBtn = document.querySelector(`#tr-edit-bar-${id} .tr-ebtn-save`);
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
@@ -2134,12 +3069,12 @@
           const res = await fetch('/api/transfer', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'X-Admin-Token': getOpsToken() },
-            body: JSON.stringify({ id, tgl_inputan: tgl, ket }),
+            body: JSON.stringify({ id, tgl_inputan: tgl, nominal, ket }),
           });
           const json = await res.json();
           if (!res.ok) { showToast(json.error || 'Gagal menyimpan', 'error'); }
           else {
-            showToast('Tanggal diperbarui', 'success');
+            showToast('Data transfer diperbarui', 'success');
             cancelEditTr(id);
             await loadTransfers();
             loadMismatchMonitor();
@@ -2190,9 +3125,9 @@
         const div = document.createElement('div');
         div.className = 'rincian-row';
         div.innerHTML = `
-          <input type="date" value="${tgl}" title="Tanggal NONCOD yang dibebankan" aria-label="Tanggal NONCOD yang dibebankan" oninput="updateSisa()">
-          <input type="number" placeholder="Nominal rincian" value="${nominal}" title="Nominal untuk tanggal ini" aria-label="Nominal untuk tanggal ini" oninput="updateSisa()" min="1">
-          <button class="btn-del-row" onclick="delRincianRow(this)" title="Hapus rincian tanggal"><i class="bi bi-trash3"></i></button>`;
+          <input type="date" value="${tgl}" title="Tanggal NONCOD yang dibebankan" aria-label="Tanggal NONCOD yang dibebankan" data-admin-input="update-sisa">
+          <input type="number" placeholder="Nominal rincian" value="${nominal}" title="Nominal untuk tanggal ini" aria-label="Nominal untuk tanggal ini" data-admin-input="update-sisa" min="1">
+          <button class="btn-del-row" type="button" data-admin-click="delete-rincian-row" title="Hapus rincian tanggal"><i class="bi bi-trash3"></i></button>`;
         document.getElementById('rincianList').appendChild(div);
         updateSisa();
       }
@@ -2282,7 +3217,23 @@
         return Math.round(parseFloat(val) || 0);
       }
 
-      function buildMismatchState(periode, ncData, trData) {
+      function buildPendingAllocationItems(pendingData) {
+        const rows = Array.isArray(pendingData && pendingData.rows) ? pendingData.rows : [];
+        return rows
+          .map((row) => ({
+            transferId: String(row && row.root_transfer_id || '').trim(),
+            cabang: String(row && row.cabang || '').trim(),
+            afterDate: normTgl(row && row.after_date),
+            nominal: toNominal(row && row.nominal),
+            transferBank: String(row && row.transfer_bank || '').trim(),
+            reason: String(row && row.reason || '').trim(),
+            createdAt: String(row && row.created_at || '').trim(),
+          }))
+          .filter((row) => row.transferId && row.cabang && row.afterDate && row.nominal > 0)
+          .sort((a, b) => b.nominal - a.nominal || a.afterDate.localeCompare(b.afterDate) || a.cabang.localeCompare(b.cabang));
+      }
+
+      function buildMismatchState(periode, ncData, trData, pendingData) {
         const ADMIN_TRANSFER_FEE_TOLERANCE = 500;
         const ncByDay = ncData.byDay || {};
         const transferRows = Array.isArray(trData.transfers) ? trData.transfers : [];
@@ -2315,6 +3266,7 @@
         });
 
         const cabangSet = new Set([...Object.keys(ncByCabangDate), ...Object.keys(trByCabangDate)]);
+  const pendingAllocations = buildPendingAllocationItems(pendingData);
         const suspects = [];
         const pendingCases = [];
         const mismatchCases = [];
@@ -2344,12 +3296,12 @@
             const shortIndex = shortages.findIndex((short, idx) => !usedShort.has(idx) && short.amount === extra.amount);
             if (shortIndex === -1) return;
 
-            usedShort.add(shortIndex);
-            usedExtra.add(extraIndex);
-
             const target = shortages[shortIndex];
             const rows = ((trRowsByCabangDate[cabang] || {})[extra.date] || []).filter(row => toNominal(row.nominal) === extra.amount);
             const exactRow = rows.length === 1 ? rows[0] : null;
+
+            usedShort.add(shortIndex);
+            usedExtra.add(extraIndex);
 
             suspects.push({
               cabang,
@@ -2418,6 +3370,7 @@
               nominal: short.amount,
               noncod: short.noncod,
               transfer: short.transfer,
+              canUploadPending: short.transfer <= 0,
               filterDate: short.transfer > 0 ? short.date : '',
               hint: short.transfer > 0
                 ? 'Nominal transfer belum menutup total NONCOD.'
@@ -2430,19 +3383,63 @@
         pendingCases.sort((a, b) => b.nominal - a.nominal || a.date.localeCompare(b.date) || a.cabang.localeCompare(b.cabang));
         mismatchCases.sort((a, b) => b.nominal - a.nominal || a.date.localeCompare(b.date) || a.cabang.localeCompare(b.cabang));
 
-        return { suspects, pendingCases, mismatchCases, periode };
+        return { pendingAllocations, suspects, pendingCases, mismatchCases, periode };
       }
 
       function renderMonitorAction(periode, cabang, filterDate, transferId, action, label, className) {
         const encodedCabang = encodeURIComponent(cabang || '');
         const icon = action === 'edit' ? 'pencil' : (action === 'split' ? 'scissors' : 'search');
-        return `<span class="${className}" onclick="openTransferReview('${periode}', '${encodedCabang}', '${filterDate || ''}', '${transferId || ''}', '${action || ''}')"><i class="bi bi-${icon}"></i> ${label}</span>`;
+        return `<span class="${className}" data-admin-click="open-transfer-review" data-periode="${periode}" data-cabang="${encodedCabang}" data-filter-date="${filterDate || ''}" data-transfer-id="${transferId || ''}" data-review-action="${action || ''}"><i class="bi bi-${icon}"></i> ${label}</span>`;
+      }
+
+      async function clearPendingAllocation(encodedTransferId) {
+        const transferId = decodeURIComponent(encodedTransferId || '');
+        if (!transferId) return;
+        if (!confirm('Hapus pending tempel NONCOD ini?')) return;
+
+        try {
+          const res = await fetch('/api/transfer?pending_allocation=1&transfer_id=' + encodeURIComponent(transferId), {
+            method: 'DELETE',
+            headers: { 'X-Admin-Token': getOpsToken() }
+          });
+          const json = await res.json();
+          if (!res.ok) {
+            showToast(json.error || 'Gagal menghapus pending tempel NONCOD', 'error');
+            return;
+          }
+          showToast('Pending tempel NONCOD dihapus', 'success');
+          await loadMismatchMonitor();
+          refreshAuditCabangIfOpen();
+        } catch {
+          showToast('Kesalahan jaringan', 'error');
+        }
+      }
+
+      function renderPendingAllocationItem(item, periode) {
+        const reviewAction = renderMonitorAction(periode, item.cabang, item.afterDate, item.transferId, 'edit', 'Cek Transfer', 'btn-edit-tr');
+        const clearAction = `<span class="btn-del-tr" data-admin-click="clear-pending-allocation" data-transfer-id="${encodeURIComponent(item.transferId || '')}"><i class="bi bi-x-circle"></i> Hapus Pending</span>`;
+
+        return `<div class="mon-item">
+          <div class="mon-item-left">
+            <div class="mon-dot teal"></div>
+            <div class="mon-info">
+              <div class="mon-name">${escHtmlAdmin(item.cabang)}</div>
+              <div class="mon-meta">Menunggu NONCOD setelah ${fmtTanggalId(item.afterDate)}${item.transferBank ? ' · ' + escHtmlAdmin(item.transferBank) : ''}</div>
+              <div class="mon-meta">${escHtmlAdmin(item.reason || 'Sisa nominal akan ditempel otomatis saat NONCOD baru tersedia.')}</div>
+            </div>
+          </div>
+          <div class="mon-right">
+            <div class="mon-nom teal">Rp ${item.nominal.toLocaleString('id-ID')}</div>
+            <div class="mon-actions">${reviewAction}${clearAction}</div>
+          </div>
+        </div>`;
       }
 
       function renderSuspectItem(item, periode) {
         const actionHtml = item.transferId
           ? renderMonitorAction(periode, item.cabang, item.transferDate, item.transferId, 'edit', 'Edit Tgl', 'btn-edit-tr')
           : renderMonitorAction(periode, item.cabang, item.transferDate, '', '', 'Cek Transfer', 'btn-split-item');
+        const detailHint = 'Nominalnya sama dengan kekurangan NONCOD tanggal ' + fmtTanggalId(item.targetDate) + '. Cek apakah transfer ini perlu dipindah atau di-split.';
 
         return `<div class="mon-item">
           <div class="mon-item-left">
@@ -2450,7 +3447,7 @@
             <div class="mon-info">
               <div class="mon-name">${escHtmlAdmin(item.cabang)}</div>
               <div class="mon-meta">Kelebihan transfer Rp ${item.nominal.toLocaleString('id-ID')} tercatat ${fmtTanggalId(item.transferDate)}${item.transferBank ? ' · ' + escHtmlAdmin(item.transferBank) : ''} dan nominalnya sama dengan kekurangan NONCOD ${fmtTanggalId(item.targetDate)}</div>
-              <div class="mon-meta">Perlu cek apakah sebagian nominal seharusnya masuk ke tanggal ${fmtTanggalId(item.targetDate)}.</div>
+              <div class="mon-meta">${escHtmlAdmin(detailHint)}</div>
             </div>
           </div>
           <div class="mon-right">
@@ -2462,6 +3459,12 @@
 
       function renderPendingCaseItem(item, periode) {
         const actionHtml = renderMonitorAction(periode, item.cabang, '', '', '', 'Buka Transfer', 'btn-edit-tr');
+        const uploadAction = item.canUploadPending
+          ? `<span class="btn-approve-h1" data-admin-click="open-admin-carry-upload-from-case" data-cabang="${encodeURIComponent(item.cabang || '')}" data-date="${item.date}" data-nominal="${item.nominal}"><i class="bi bi-cloud-arrow-up"></i> Upload Split</span>`
+          : '';
+        const hint = item.canUploadPending
+          ? item.hint + ' Jika bukti ini perlu langsung ditempel ke tanggal ini dan sisanya menunggu NONCOD berikutnya, pakai Upload Split.'
+          : item.hint;
 
         return `<div class="mon-item">
           <div class="mon-item-left">
@@ -2469,12 +3472,12 @@
             <div class="mon-info">
               <div class="mon-name">${escHtmlAdmin(item.cabang)}</div>
               <div class="mon-meta">NONCOD ${fmtTanggalId(item.date)} · NONCOD Rp ${item.noncod.toLocaleString('id-ID')} · Transfer Rp ${item.transfer.toLocaleString('id-ID')}</div>
-              <div class="mon-meta">${escHtmlAdmin(item.hint)}</div>
+              <div class="mon-meta">${escHtmlAdmin(hint)}</div>
             </div>
           </div>
           <div class="mon-right">
             <div class="mon-nom blue">Rp ${item.nominal.toLocaleString('id-ID')}</div>
-            <div class="mon-actions">${actionHtml}</div>
+            <div class="mon-actions">${actionHtml}${uploadAction}</div>
           </div>
         </div>`;
       }
@@ -2520,16 +3523,18 @@
         sumEl.style.display = 'none';
         document.getElementById('mismatchDateLabel').textContent = getPeriodeLabel(periode) + ' · cek selisih NONCOD vs transfer';
         try {
-          const [{ response: ncRes, json: ncData }, { response: trRes, json: trData }] = await Promise.all([
+          const [{ response: ncRes, json: ncData }, { response: trRes, json: trData }, { response: pendingRes, json: pendingData }] = await Promise.all([
             fetchJsonWithTimeout('/api/noncod?periode=' + encodeURIComponent(periode) + '&mode=noncod'),
-            fetchJsonWithTimeout('/api/transfer?periode=' + encodeURIComponent(periode), { headers: { 'X-Admin-Token': getOpsToken() } })
+            fetchJsonWithTimeout('/api/transfer?periode=' + encodeURIComponent(periode), { headers: { 'X-Admin-Token': getOpsToken() } }),
+            fetchJsonWithTimeout('/api/transfer?pending_allocation=1&periode=' + encodeURIComponent(periode), { headers: { 'X-Admin-Token': getOpsToken() } })
           ]);
           if (!ncRes.ok) throw new Error(ncData.error || 'Gagal memuat NONCOD');
           if (!trRes.ok) throw new Error(trData.error || 'Gagal memuat transfer');
+          if (!pendingRes.ok) throw new Error(pendingData.error || 'Gagal memuat pending tempel NONCOD');
 
-          monitorDataCache = { periode, ncData, trData };
+          monitorDataCache = { periode, ncData, trData, pendingData };
 
-          const mismatchState = buildMismatchState(periode, ncData, trData);
+          const mismatchState = buildMismatchState(periode, ncData, trData, pendingData);
           splitSuggestionsByTransferId = {};
           transferLookupById = {};
           (trData.transfers || []).forEach(item => {
@@ -2541,7 +3546,7 @@
             }
           });
           document.getElementById('mismatchSuspect').textContent = mismatchState.suspects.length;
-          document.getElementById('mismatchOpen').textContent = mismatchState.mismatchCases.length;
+          document.getElementById('mismatchOpen').textContent = mismatchState.mismatchCases.length + mismatchState.pendingCases.length + mismatchState.pendingAllocations.length;
           sumEl.style.display = 'grid';
           let html = '<div class="today-body">';
 
@@ -2550,6 +3555,20 @@
             html += '<div class="mon-empty">Belum ada kandidat kelebihan transfer yang nilainya sama dengan kekurangan NONCOD di tanggal lain.</div>';
           } else {
             mismatchState.suspects.forEach(item => { html += renderSuspectItem(item, periode); });
+          }
+
+          html += `<div class="today-sec green"><i class="bi bi-hourglass-split"></i>Pending Tempel NONCOD <span class="sec-badge">${mismatchState.pendingAllocations.length}</span></div>`;
+          if (!mismatchState.pendingAllocations.length) {
+            html += '<div class="mon-empty">Belum ada nominal yang menunggu NONCOD baru untuk ditempel otomatis.</div>';
+          } else {
+            mismatchState.pendingAllocations.forEach(item => { html += renderPendingAllocationItem(item, periode); });
+          }
+
+          html += `<div class="today-sec blue"><i class="bi bi-hourglass-split"></i>Belum Transfer <span class="sec-badge">${mismatchState.pendingCases.length}</span></div>`;
+          if (!mismatchState.pendingCases.length) {
+            html += '<div class="mon-empty">Tidak ada NONCOD yang masih menunggu transfer.</div>';
+          } else {
+            mismatchState.pendingCases.forEach(item => { html += renderPendingCaseItem(item, periode); });
           }
 
           html += `<div class="today-sec red"><i class="bi bi-exclamation-triangle-fill"></i>Belum Cocok <span class="sec-badge">${mismatchState.mismatchCases.length}</span></div>`;
@@ -2581,6 +3600,8 @@
         setTimeout(() => t.className = 'toast-box', 2200);
       }
 
+      initAdminEventBindings();
+
       // ── Date filter event (reliable cross-browser) ──
       document.getElementById('trSearchTgl').addEventListener('change', applyTrFilter);
       document.getElementById('trSearchTgl').addEventListener('input', applyTrFilter);
@@ -2607,15 +3628,15 @@
     </script>
 
     <!-- Log Modal -->
-    <div class="log-overlay" id="logOverlay" onclick="closeLogs()">
-      <div class="log-panel" onclick="event.stopPropagation()">
+    <div class="log-overlay" id="logOverlay">
+      <div class="log-panel">
         <div class="log-head">
           <div class="log-head-icon"><i class="bi bi-journal-x"></i></div>
           <div class="log-head-title">Error Log <span id="logCount" style="font-weight:400;color:#94a3b8;font-size:0.78rem"></span></div>
           <div class="log-head-actions">
-            <button onclick="downloadLogs()" title="Download"><i class="bi bi-download"></i></button>
-            <button onclick="clearLogs()" title="Hapus Semua"><i class="bi bi-trash3"></i></button>
-            <button onclick="closeLogs()" title="Tutup"><i class="bi bi-x-lg"></i></button>
+            <button type="button" data-admin-click="download-logs" title="Download"><i class="bi bi-download"></i></button>
+            <button type="button" data-admin-click="clear-logs" title="Hapus Semua"><i class="bi bi-trash3"></i></button>
+            <button type="button" data-admin-click="close-logs" title="Tutup"><i class="bi bi-x-lg"></i></button>
           </div>
         </div>
         <div class="log-body" id="logBody">
@@ -2631,7 +3652,7 @@
         document.getElementById('logOverlay').classList.add('show');
         document.getElementById('logBody').innerHTML = '<div class="log-empty"><span class="spinner-border spinner-border-sm me-2"></span>Memuat log...</div>';
         try {
-          const res = await fetch('/api/logs?limit=200', {
+          const res = await fetch('/api/auth?ops=logs&limit=200', {
             headers: { 'X-Admin-Token': getOpsToken() }
           });
           if (!res.ok) { document.getElementById('logBody').innerHTML = '<div class="log-empty">Gagal memuat log ('+res.status+')</div>'; return; }
@@ -2674,7 +3695,7 @@
       async function clearLogs() {
         if (!confirm('Hapus semua error log?')) return;
         try {
-          const res = await fetch('/api/logs', { method: 'DELETE', headers: { 'X-Admin-Token': getOpsToken() } });
+          const res = await fetch('/api/auth?ops=logs', { method: 'DELETE', headers: { 'X-Admin-Token': getOpsToken() } });
           if (res.ok) { logData = []; renderLogs(); showToast('Log dihapus', 'success'); }
           else { showToast('Gagal menghapus', 'error'); }
         } catch { showToast('Kesalahan jaringan', 'error'); }

@@ -13,9 +13,14 @@ const BATCH_SIZE = 100;
 
 function getSupabase() {
   const url  = process.env.SUPABASE_URL;
-  const key  = process.env.SUPABASE_ANON_KEY;
-  if (!url || !key) { console.error('Set SUPABASE_URL dan SUPABASE_ANON_KEY'); process.exit(1); }
-  return createClient(url, key);
+  const key  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) { console.error('Set SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY'); process.exit(1); }
+  return createClient(url, key, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
 }
 
 function getCutoffDate() {

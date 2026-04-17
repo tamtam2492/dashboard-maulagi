@@ -9,10 +9,13 @@ const {
   filterByPreferredPeriode,
   findOutstandingMatchingDates,
   findMatchingDates,
+  findSequentialAllocationDates,
   findSplitMatchingDates,
+  getOutstandingNominalForDate,
   getPreferredSyncPeriodes,
   getRecentPeriodes,
   getSearchByDate,
+  resolveNoncodDateMatchFromContext,
   resolveMatch,
 } = require('../api/_noncod-match');
 
@@ -67,13 +70,14 @@ describe('aggregateOngkirByDate', () => {
     });
   });
 
-  it('excludes BATAL status', () => {
+  it('includes BATAL from sync but excludes VOID override', () => {
     const rows = [
       { tanggal_buat: '2026-04-10', ongkir: 500000, metode_pembayaran: 'noncod', status_terakhir: 'BATAL' },
+      { tanggal_buat: '2026-04-10', ongkir: 200000, metode_pembayaran: 'noncod', status_terakhir: 'VOID' },
       { tanggal_buat: '2026-04-10', ongkir: 300000, metode_pembayaran: 'noncod', status_terakhir: 'DELIVERED' },
     ];
     const result = aggregateOngkirByDate(rows);
-    assert.deepEqual(result, { '2026-04-10': 300000 });
+    assert.deepEqual(result, { '2026-04-10': 800000 });
   });
 
   it('returns empty for empty input', () => {
@@ -325,5 +329,84 @@ describe('findSplitMatchingDates', () => {
     };
     const result = findSplitMatchingDates(byDate, [], 100000, NONCOD_SPLIT_TOLERANCE);
     assert.equal(result, null);
+  });
+
+  it('plans sequential allocations after selected date and leaves remainder as pending', () => {
+    const byDate = {
+      '2026-04-10': 40000,
+      '2026-04-11': 20000,
+      '2026-04-13': 15000,
+    };
+    const transfers = [
+      { tgl_inputan: '2026-04-10', nominal: 40000, id: 1 },
+    ];
+
+    assert.equal(getOutstandingNominalForDate(byDate, transfers, '2026-04-10'), 0);
+    assert.equal(getOutstandingNominalForDate(byDate, transfers, '2026-04-11'), 20000);
+
+    const plan = findSequentialAllocationDates(byDate, transfers, 50000, '2026-04-10');
+    assert.equal(plan.dates.length, 2);
+    assert.equal(plan.dates[0].tanggal_buat, '2026-04-11');
+    assert.equal(plan.dates[0].plannedNominal, 20000);
+    assert.equal(plan.dates[1].tanggal_buat, '2026-04-13');
+    assert.equal(plan.dates[1].plannedNominal, 15000);
+    assert.equal(plan.allocatedTotal, 35000);
+    assert.equal(plan.pendingNominal, 15000);
+    assert.equal(plan.lastDate, '2026-04-13');
+  });
+
+  it('can resume allocation from the same date when pending waits for updated NONCOD', () => {
+    const byDate = {
+      '2026-04-11': 50000,
+    };
+    const transfers = [
+      { tgl_inputan: '2026-04-11', nominal: 20000, id: 1 },
+    ];
+
+    const plan = findSequentialAllocationDates(byDate, transfers, 30000, '2026-04-11', { includeStartDate: true });
+    assert.equal(plan.dates.length, 1);
+    assert.equal(plan.dates[0].tanggal_buat, '2026-04-11');
+    assert.equal(plan.dates[0].plannedNominal, 30000);
+    assert.equal(plan.pendingNominal, 0);
+  });
+});
+
+describe('resolveNoncodDateMatchFromContext', () => {
+  it('meresolve exact outstanding match dari context hold cabang', () => {
+    const result = resolveNoncodDateMatchFromContext({
+      normalizedCabang: 'KENDARI',
+      normalizedPreferredPeriode: '2026-04',
+      hasPreferredPeriode: true,
+      hasData: true,
+      searchByDate: {
+        '2026-04-14': 101000,
+        '2026-04-15': 78000,
+      },
+      existingTransfers: [
+        { tgl_inputan: '2026-04-14', nominal: 8000, id: 7 },
+      ],
+      message: null,
+    }, 93000);
+
+    assert.equal(result.blocked, false);
+    assert.equal(result.match.tanggal_buat, '2026-04-14');
+    assert.equal(result.match.remainingNominal, 93000);
+    assert.equal(result.message, null);
+  });
+
+  it('mengembalikan pesan context kosong saat cabang belum punya data NONCOD', () => {
+    const result = resolveNoncodDateMatchFromContext({
+      normalizedCabang: 'KENDARI',
+      normalizedPreferredPeriode: '2026-04',
+      hasPreferredPeriode: true,
+      hasData: false,
+      searchByDate: {},
+      existingTransfers: [],
+      message: 'Tidak ada data NONCOD untuk KENDARI pada periode 2026-04.',
+    }, 93000);
+
+    assert.equal(result.match, null);
+    assert.equal(result.blocked, false);
+    assert.equal(result.message, 'Tidak ada data NONCOD untuk KENDARI pada periode 2026-04.');
   });
 });

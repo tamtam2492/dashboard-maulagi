@@ -89,7 +89,7 @@
       .tr-row .tr-tgl { font-size: 0.72rem; color: var(--gray); }
       .tr-row .tr-ket { font-size: 0.67rem; color: var(--gray2); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
       .tr-row .tr-nom { font-size: 0.9rem; font-weight: 800; color: var(--dark); white-space: nowrap; flex-shrink: 0; }
-      .btn-bukti-sm { font-size: 0.63rem; font-weight: 700; color: #7c3aed; background: #ede9fe; border: none; border-radius: 6px; padding: 2px 8px; cursor: pointer; margin-top: 3px; display: inline-flex; align-items: center; gap: 3px; transition: 0.15s; white-space: nowrap; text-decoration: none; }
+      .btn-bukti-sm { min-height: 28px; font-size: 0.63rem; font-weight: 700; color: #7c3aed; background: #ede9fe; border: none; border-radius: 8px; padding: 0 9px; cursor: pointer; margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; transition: 0.15s; white-space: nowrap; text-decoration: none; }
       .btn-bukti-sm:hover { background: #ddd6fe; color: #6d28d9; text-decoration: none; }
       .tr-empty { text-align: center; padding: 36px 0; color: var(--gray2); font-size: 0.85rem; }
       .tr-empty i { font-size: 2rem; display: block; margin-bottom: 8px; }
@@ -111,16 +111,187 @@
       .mk-metode.noncod { background:#f1f5f9; color:#475569; }
       .mk-metode.other  { background:#e2e8f0; color:#334155; }
 
-      #fullImg { width: auto; height: auto; max-width: 100%; max-height: 80vh; object-fit: contain; image-orientation: from-image; border-radius: 12px; border: 5px solid white; box-shadow: 0 10px 30px rgba(0,0,0,0.3); transition: transform 0.3s ease; }
-      .modal-proof-stage { position: relative; display: inline-flex; align-items: center; justify-content: center; max-width: 100%; max-height: 80vh; overflow: visible; }
-      .modal-proof-actions { position: absolute; top: 14px; right: 14px; display: flex; align-items: center; gap: 8px; z-index: 2; visibility: hidden; }
-      .modal-proof-btn { width: 40px; height: 40px; border: none; border-radius: 50%; background: rgba(255,255,255,0.96); color: var(--dark); box-shadow: 0 10px 28px rgba(0,0,0,0.28); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 1rem; padding: 0; transition: 0.2s; }
-      .modal-proof-btn:hover { background: white; }
+      .proof-popup {
+        position: fixed;
+        inset: 0;
+        z-index: 220;
+        display: none;
+        align-items: flex-end;
+        justify-content: center;
+        padding-top: 18px;
+        background: rgba(15,23,42,0.62);
+        backdrop-filter: blur(6px);
+      }
+      .proof-popup.show { display: flex; }
+      .proof-popup-sheet {
+        width: min(100%, 520px);
+        max-height: min(86dvh, 620px);
+        display: flex;
+        flex-direction: column;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        border: 1px solid rgba(226,232,240,0.95);
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -14px 34px rgba(15,23,42,0.18);
+        overflow: hidden;
+      }
+      .proof-popup-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 12px 10px;
+        border-bottom: 1px solid rgba(226,232,240,0.9);
+        flex-shrink: 0;
+      }
+      .proof-popup-head-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        flex: 1;
+      }
+      .proof-popup-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+        color: #7c3aed;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.88rem;
+        flex-shrink: 0;
+      }
+      .proof-popup-title {
+        font-size: 0.82rem;
+        font-weight: 800;
+        color: var(--dark);
+        letter-spacing: -0.02em;
+      }
+      .proof-popup-sub {
+        font-size: 0.66rem;
+        color: var(--gray2);
+        margin-top: 2px;
+      }
+      .proof-popup-close {
+        width: 30px;
+        height: 30px;
+        margin-left: auto;
+        border: 1px solid var(--border);
+        border-radius: 50%;
+        background: #f8fafc;
+        color: var(--gray);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: 0.15s;
+      }
+      .proof-popup-close:hover {
+        background: #eef2f7;
+        color: var(--dark);
+      }
+      .proof-popup-body {
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto;
+      }
+      .proof-popup-stage {
+        flex: 1 1 auto;
+        min-height: 180px;
+        border-radius: 14px;
+        border: 1px solid rgba(226,232,240,0.95);
+        background: linear-gradient(180deg, #e2e8f0 0%, #f8fafc 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px;
+        overflow: auto;
+      }
+      #fullImg {
+        width: auto;
+        height: auto;
+        max-width: 100%;
+        max-height: min(46vh, 340px);
+        object-fit: contain;
+        image-orientation: from-image;
+        border-radius: 12px;
+        border: 4px solid white;
+        box-shadow: 0 8px 22px rgba(0,0,0,0.14);
+        transition: transform 0.3s ease;
+      }
+      .proof-popup-error {
+        display: none;
+        color: var(--gray);
+        padding: 18px 12px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        text-align: center;
+        line-height: 1.55;
+      }
+      .proof-popup-footer {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        position: sticky;
+        bottom: 0;
+        margin-top: auto;
+        padding-top: 8px;
+        background: linear-gradient(180deg, rgba(248,251,255,0) 0%, rgba(248,251,255,0.94) 32%, #f8fbff 100%);
+      }
+      .proof-popup-btn {
+        height: 38px;
+        border-radius: 10px;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        font-size: 0.74rem;
+        font-weight: 800;
+        font-family: 'Inter', sans-serif;
+        cursor: pointer;
+        transition: 0.15s;
+      }
+      .proof-popup-btn.ghost {
+        background: #f8fafc;
+        color: var(--gray);
+        border: 1px solid var(--border);
+      }
+      .proof-popup-btn.ghost:hover {
+        background: #eef2f7;
+        color: var(--dark);
+      }
+      .proof-popup-btn.primary {
+        background: linear-gradient(135deg, #131b2e, #202b46);
+        color: white;
+        box-shadow: 0 12px 22px rgba(19,23,42,0.16);
+      }
+      .proof-popup-btn.primary:hover {
+        filter: brightness(1.06);
+      }
       @keyframes spin { to { transform: rotate(360deg); } }
 
-      @media (max-width: 640px) {
-        .modal-proof-actions { gap: 6px; }
-        .modal-proof-actions { top: 10px; right: 10px; }
+      @media (min-width: 720px) {
+        .proof-popup {
+          align-items: center;
+          padding: 20px;
+        }
+        .proof-popup-sheet {
+          width: min(100%, 680px);
+          max-height: min(88vh, 760px);
+          border-radius: 22px;
+          box-shadow: 0 20px 44px rgba(15,23,42,0.18);
+        }
+        .proof-popup-body {
+          padding: 14px;
+        }
+        #fullImg {
+          max-height: min(64vh, 520px);
+        }
       }
     </style>
     <link rel="stylesheet" href="/lib/maulagi-sovereign.css">
@@ -190,17 +361,27 @@
       </div>
     </div>
 
-    <!-- Modal Bukti -->
-    <div class="modal fade" id="modalImg" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content bg-transparent border-0 text-center">
-          <div class="modal-proof-stage" id="modalImgStage">
-            <img src="" id="fullImg" onload="autoRotate(this)" onerror="this.style.display='none'; document.getElementById('imgErr').style.display=''; scheduleModalProofActionsPosition()">
-            <div id="imgErr" style="display:none; color:white; padding:24px; font-weight:600"><i class="bi bi-image-fill" style="font-size:2rem; display:block; margin-bottom:8px"></i>Gambar tidak dapat ditampilkan</div>
-            <div class="modal-proof-actions" id="modalImgActions">
-              <button class="modal-proof-btn" type="button" onclick="rotateImg()" title="Putar gambar" aria-label="Putar gambar"><i class="bi bi-arrow-clockwise"></i></button>
-              <button class="modal-proof-btn" type="button" data-bs-dismiss="modal" title="Tutup bukti" aria-label="Tutup bukti"><i class="bi bi-x-lg"></i></button>
+    <!-- Popup Bukti -->
+    <div class="proof-popup" id="modalImg" aria-hidden="true">
+      <div class="proof-popup-sheet" role="dialog" aria-modal="true" aria-labelledby="proofPopupTitle">
+        <div class="proof-popup-head">
+          <div class="proof-popup-head-left">
+            <div class="proof-popup-icon"><i class="bi bi-image"></i></div>
+            <div>
+              <div class="proof-popup-title" id="proofPopupTitle">Bukti Transfer</div>
+              <div class="proof-popup-sub">Preview bukti transfer langsung di popup.</div>
             </div>
+          </div>
+          <button class="proof-popup-close" type="button" onclick="closeProofModal()" aria-label="Tutup popup bukti"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="proof-popup-body">
+          <div class="proof-popup-stage" id="modalImgStage">
+            <img src="" id="fullImg" onload="handleProofLoad()" onerror="handleProofError()" style="display:none">
+            <div id="imgErr" class="proof-popup-error"><i class="bi bi-image-fill" style="font-size:2rem; display:block; margin-bottom:8px"></i>Gambar tidak dapat ditampilkan</div>
+          </div>
+          <div class="proof-popup-footer">
+            <button class="proof-popup-btn ghost" type="button" onclick="rotateImg()"><i class="bi bi-arrow-clockwise"></i> Putar</button>
+            <button class="proof-popup-btn primary" type="button" onclick="closeProofModal()">Tutup</button>
           </div>
         </div>
       </div>
@@ -248,7 +429,7 @@
       }
 
       function checkUpdate() {
-        fetch('/api/check-update')
+        fetch('/api/dashboard?update=1')
           .then(r => r.json())
           .then(n => { if (n > lastRowCount) { lastRowCount = n; loadDataFromServer(); } })
           .catch(() => {});
@@ -341,7 +522,7 @@
               <span class="tr-bank">${escHtml(l.bank)}</span>
               <div class="tr-tgl">${escHtml(l.tgl)}${l.ts ? ' · ' + fmtWITA(l.ts) : ''}</div>
               ${l.ket && l.ket !== '-' ? `<div class="tr-ket">${escHtml(l.ket)}</div>` : ''}
-              ${l.bukti ? `<a class="btn-bukti-sm" href="${escHtml(l.bukti)}" target="_blank" rel="noopener noreferrer" onclick="return openPic(this.href)"><i class="bi bi-image"></i> Lihat Bukti</a>` : ''}
+              ${l.bukti ? `<a class="btn-bukti-sm" href="${escHtml(l.bukti)}" onclick="return openPic(this.href)"><i class="bi bi-image"></i> Lihat Bukti</a>` : ''}
             </div>
             <div class="tr-nom">Rp ${l.nominal.toLocaleString('id-ID')}</div>
           </div>`).join('');
@@ -355,62 +536,43 @@
       }
 
       let rotateDeg = 0;
-      let modalProofPositionTimer = 0;
 
-      function scheduleModalProofActionsPosition() {
-        window.clearTimeout(modalProofPositionTimer);
-        positionModalProofActions();
-        requestAnimationFrame(() => {
-          positionModalProofActions();
-          requestAnimationFrame(positionModalProofActions);
-        });
-        modalProofPositionTimer = window.setTimeout(positionModalProofActions, 340);
+      function getModalProofBounds(sideways) {
+        const mobile = window.innerWidth < 720;
+        if (sideways) {
+          return {
+            maxWidth: mobile ? '68vh' : '60vh',
+            maxHeight: mobile ? '82vw' : '68vw',
+          };
+        }
+        return {
+          maxWidth: '100%',
+          maxHeight: mobile ? 'min(46vh, 340px)' : 'min(64vh, 520px)',
+        };
       }
 
       function applyModalProofRotation() {
         const img = document.getElementById('fullImg');
         const normalized = ((rotateDeg % 360) + 360) % 360;
         const sideways = normalized === 90 || normalized === 270;
+        const bounds = getModalProofBounds(sideways);
         img.style.transform = `rotate(${rotateDeg}deg)`;
-        img.style.maxWidth = sideways ? '80vh' : '100%';
-        img.style.maxHeight = sideways ? '100vw' : '80vh';
-        scheduleModalProofActionsPosition();
+        img.style.maxWidth = bounds.maxWidth;
+        img.style.maxHeight = bounds.maxHeight;
       }
 
-      function autoRotate(img) {
+      function handleProofLoad() {
+        const img = document.getElementById('fullImg');
+        const err = document.getElementById('imgErr');
+        img.style.display = '';
+        err.style.display = 'none';
         rotateDeg = 0;
         applyModalProofRotation();
       }
 
-      function getModalProofTarget() {
-        const img = document.getElementById('fullImg');
-        const err = document.getElementById('imgErr');
-        if (img.style.display !== 'none' && img.getBoundingClientRect().width > 0) return img;
-        if (err.style.display !== 'none' && err.getBoundingClientRect().width > 0) return err;
-        return null;
-      }
-
-      function positionModalProofActions() {
-        const modal = document.getElementById('modalImg');
-        const stage = document.getElementById('modalImgStage');
-        const actions = document.getElementById('modalImgActions');
-        if (!modal.classList.contains('show')) {
-          actions.style.visibility = 'hidden';
-          stage.style.width = '';
-          stage.style.height = '';
-          return;
-        }
-        const target = getModalProofTarget();
-        if (!target) {
-          actions.style.visibility = 'hidden';
-          stage.style.width = '';
-          stage.style.height = '';
-          return;
-        }
-        const rect = target.getBoundingClientRect();
-        stage.style.width = `${Math.ceil(rect.width)}px`;
-        stage.style.height = `${Math.ceil(rect.height)}px`;
-        actions.style.visibility = 'visible';
+      function handleProofError() {
+        document.getElementById('fullImg').style.display = 'none';
+        document.getElementById('imgErr').style.display = 'block';
       }
 
       function rotateImg() {
@@ -436,42 +598,58 @@
       function openPic(src) {
         if (!isAllowedProofImageUrl(src)) return false;
         try {
-          const actions = document.getElementById('modalImgActions');
           const modalEl = document.getElementById('modalImg');
           const img = document.getElementById('fullImg');
           const errEl = document.getElementById('imgErr');
-          actions.style.visibility = 'hidden';
-          document.getElementById('modalImgStage').style.width = '';
-          document.getElementById('modalImgStage').style.height = '';
-          img.style.display = '';
+          modalEl.classList.add('show');
+          modalEl.setAttribute('aria-hidden', 'false');
+          document.body.style.overflow = 'hidden';
+          img.style.display = 'none';
           img.style.transform = '';
-          img.style.maxWidth = '100%';
-          img.style.maxHeight = '80vh';
+          const bounds = getModalProofBounds(false);
+          img.style.maxWidth = bounds.maxWidth;
+          img.style.maxHeight = bounds.maxHeight;
           rotateDeg = 0;
           errEl.style.display = 'none';
           img.src = src;
-          new bootstrap.Modal(modalEl).show();
           return false;
         } catch {
-          return true;
+          return false;
         }
       }
 
-      document.getElementById('modalImg').addEventListener('shown.bs.modal', scheduleModalProofActionsPosition);
-      document.getElementById('modalImg').addEventListener('hidden.bs.modal', () => {
-        window.clearTimeout(modalProofPositionTimer);
-        document.getElementById('modalImgStage').style.width = '';
-        document.getElementById('modalImgStage').style.height = '';
-        document.getElementById('modalImgActions').style.visibility = 'hidden';
+      function closeProofModal() {
+        const modalEl = document.getElementById('modalImg');
+        const img = document.getElementById('fullImg');
+        const errEl = document.getElementById('imgErr');
+        modalEl.classList.remove('show');
+        modalEl.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        img.removeAttribute('src');
+        img.style.display = 'none';
+        img.style.transform = '';
+        errEl.style.display = 'none';
+      }
+
+      document.getElementById('modalImg').addEventListener('click', event => {
+        if (event.target && event.target.id === 'modalImg') closeProofModal();
       });
-      document.getElementById('fullImg').addEventListener('transitionend', scheduleModalProofActionsPosition);
-      window.addEventListener('resize', scheduleModalProofActionsPosition);
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && document.getElementById('modalImg').classList.contains('show')) {
+          closeProofModal();
+        }
+      });
+      window.addEventListener('resize', () => {
+        if (document.getElementById('modalImg').classList.contains('show') && document.getElementById('fullImg').src) {
+          applyModalProofRotation();
+        }
+      });
 
       function getMaukirimStatusClass(status) {
         const text = String(status || '').toLowerCase();
         if (text.includes('diterima') || text.includes('selesai')) return 'diterima';
         if (text.includes('antar')) return 'diantar';
-        if (text.includes('retur') || text.includes('batal')) return 'retur';
+        if (text.includes('retur') || text.includes('batal') || text.includes('void')) return 'retur';
         return 'proses';
       }
 
@@ -488,7 +666,7 @@
         if (btn) btn.disabled = true;
         try {
           const cabangParam = encodeURIComponent(selectedCabang);
-          const r = await fetch(`/api/maukirim?cabang=${cabangParam}`);
+          const r = await fetch(`/api/dashboard?maukirim=1&cabang=${cabangParam}`);
           const d = await r.json();
           if (!d.ok) throw new Error(d.error || 'Gagal memuat');
           if (!d.orders.length) {

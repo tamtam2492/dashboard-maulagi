@@ -3,3 +3,6 @@ node_modules/
 .env.local
 .vercel
 maukirim-account-*.txt
+tmp/aws-ocr-worker-package/
+tmp/aws-ocr-worker-package.zip
+tmp/vercel-env-pull

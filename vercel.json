@@ -1,22 +1,17 @@
 {
   "rewrites": [
-    { "source": "/api/visit", "destination": "/api/visit.js" },
     { "source": "/api/dashboard", "destination": "/api/dashboard.js" },
-    { "source": "/api/check-update", "destination": "/api/check-update.js" },
-    { "source": "/api/check-dupe", "destination": "/api/check-dupe.js" },
     { "source": "/api/cabang", "destination": "/api/cabang.js" },
     { "source": "/api/input", "destination": "/api/input.js" },
     { "source": "/api/auth", "destination": "/api/auth.js" },
     { "source": "/api/transfer", "destination": "/api/transfer.js" },
+    { "source": "/api/noncod-sync", "destination": "/api/noncod?pipeline=1" },
     { "source": "/api/noncod-status", "destination": "/api/noncod?manual_status=1" },
-    { "source": "/api/noncod", "destination": "/api/noncod.js" },
-    { "source": "/api/logs", "destination": "/api/logs.js" },
-    { "source": "/api/ocr", "destination": "/api/ocr.js" },
-    { "source": "/api/maukirim", "destination": "/api/check-update.js" }
+    { "source": "/api/noncod", "destination": "/api/noncod.js" }
   ],
   "functions": {
-    "api/ocr.js": { "maxDuration": 10 },
-    "api/check-update.js": { "maxDuration": 30 }
+    "api/input.js": { "maxDuration": 30 },
+    "api/noncod.js": { "maxDuration": 30 }
   },
   "headers": [
     {
@@ -40,6 +35,36 @@
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
         { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' blob: data: https://*.supabase.co; connect-src 'self' https://*.supabase.co https://cdn.jsdelivr.net" }
+      ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' blob: data: https://*.supabase.co; connect-src 'self' https://*.supabase.co" }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' blob: data: https://*.supabase.co; connect-src 'self' https://*.supabase.co" }
+      ]
+    },
+    {
+      "source": "/dashboard.html",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'sha256-54MpLSXDJmgIEc87ErizJdx7fUwGGhYfDNgbl3GRza0='; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' blob: data: https://*.supabase.co; connect-src 'self' https://*.supabase.co" }
+      ]
+    },
+    {
+      "source": "/noncod.html",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'sha256-bxem+tkMG2Tpkl/+JIlLZBYQ7RBYSIqO0YE0tCAwuro='; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' blob: data: https://*.supabase.co; connect-src 'self' https://*.supabase.co" }
+      ]
+    },
+    {
+      "source": "/admin.html",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'sha256-E0VdbEQ5eDPKrDInzwDLM+qka0R4eIfNZXiEV8R4znc=' 'sha256-aaQFtgSokN2oRDR0evoaSnGum+K7/67w4Z832/tIYYQ='; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' blob: data: https://*.supabase.co; connect-src 'self' https://*.supabase.co" }
       ]
     }
   ]

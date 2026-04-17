@@ -227,6 +227,81 @@
         box-shadow: 0 24px 48px rgba(15,23,42,0.18);
         overflow: hidden;
       }
+      .quick-panel.proof-viewer {
+        width: min(100%, 520px);
+        max-width: 520px;
+        max-height: min(86dvh, 620px);
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -14px 34px rgba(15,23,42,0.18);
+        display: flex;
+        flex-direction: column;
+      }
+      .quick-panel.proof-viewer .quick-head {
+        gap: 10px;
+        padding: 12px 12px 10px;
+        flex-shrink: 0;
+      }
+      .quick-panel.proof-viewer .quick-head-left {
+        gap: 8px;
+        min-width: 0;
+        flex: 1;
+      }
+      .quick-panel.proof-viewer .quick-head-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        font-size: 0.88rem;
+      }
+      .quick-panel.proof-viewer .quick-head-title {
+        font-size: 0.82rem;
+      }
+      .quick-panel.proof-viewer .quick-head-sub {
+        font-size: 0.66rem;
+      }
+      .quick-panel.proof-viewer .quick-close {
+        width: 30px;
+        height: 30px;
+      }
+      .quick-panel.proof-viewer .quick-body {
+        padding: 10px;
+        gap: 10px;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto;
+      }
+      .quick-panel.proof-viewer .quick-proof {
+        min-height: 0;
+      }
+      .quick-panel.proof-viewer .quick-proof-label {
+        font-size: 0.64rem;
+      }
+      .quick-panel.proof-viewer .quick-proof-badge {
+        font-size: 0.58rem;
+        padding: 3px 8px;
+      }
+      .quick-panel.proof-viewer .quick-proof-box.viewer {
+        border-radius: 14px;
+      }
+      .quick-panel.proof-viewer .quick-proof-box.viewer img {
+        max-height: min(46vh, 340px);
+      }
+      .quick-panel.proof-viewer .quick-proof-empty {
+        padding: 12px 14px;
+        font-size: 0.74rem;
+      }
+      .quick-panel.proof-viewer .quick-btn {
+        height: 38px;
+        border-radius: 10px;
+        font-size: 0.74rem;
+        gap: 5px;
+      }
+      .quick-panel.proof-viewer .quick-actions {
+        position: sticky;
+        bottom: 0;
+        margin-top: auto;
+        padding-top: 8px;
+        background: linear-gradient(180deg, rgba(248,251,255,0) 0%, rgba(248,251,255,0.92) 32%, #f8fbff 100%);
+      }
       .quick-head {
         display: flex;
         align-items: center;
@@ -265,6 +340,7 @@
       .quick-close {
         width: 32px;
         height: 32px;
+        margin-left: auto;
         border: 1px solid var(--border);
         border-radius: 50%;
         background: #f8fafc;
@@ -387,6 +463,9 @@
         max-height: 220px;
         object-fit: contain;
         background: linear-gradient(180deg, #e2e8f0 0%, #f8fafc 100%);
+      }
+      .quick-proof-box.viewer img {
+        max-height: min(72vh, 560px);
       }
       .quick-proof-empty {
         padding: 14px 16px;
@@ -1329,6 +1408,368 @@
         border-radius: 14px;
         background: transparent;
       }
+      .audit-workspace {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .audit-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .audit-period-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 36px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.92);
+        border: 1px solid rgba(226,232,240,0.95);
+        box-shadow: 0 10px 20px rgba(15,23,42,0.06);
+        color: var(--dark);
+        font-size: 0.72rem;
+        font-weight: 800;
+      }
+      .audit-shell {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+      }
+      .audit-side {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-width: 0;
+      }
+      .audit-side-card,
+      .audit-detail-card {
+        background: rgba(255,255,255,0.9);
+        border: 1px solid rgba(226,232,240,0.95);
+        border-radius: 18px;
+        box-shadow: 0 14px 30px rgba(15,23,42,0.08);
+        backdrop-filter: blur(12px);
+      }
+      .audit-side-card {
+        padding: 12px;
+      }
+      .audit-filter-label {
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--gray2);
+      }
+      .audit-search {
+        position: relative;
+        margin-top: 10px;
+      }
+      .audit-search i {
+        position: absolute;
+        top: 50%;
+        left: 12px;
+        transform: translateY(-50%);
+        color: var(--gray2);
+        font-size: 0.82rem;
+        pointer-events: none;
+      }
+      .audit-search input {
+        width: 100%;
+        height: 40px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: #f8fafc;
+        padding: 0 12px 0 36px;
+        color: var(--dark);
+        font-size: 0.82rem;
+        font-weight: 600;
+        font-family: 'Inter', sans-serif;
+        outline: none;
+        transition: 0.15s;
+      }
+      .audit-search input:focus {
+        border-color: rgba(37,99,235,0.4);
+        box-shadow: 0 0 0 4px rgba(37,99,235,0.08);
+        background: #ffffff;
+      }
+      .audit-filter-meta {
+        margin-top: 10px;
+        font-size: 0.72rem;
+        color: var(--gray);
+        line-height: 1.45;
+      }
+      .audit-list-wrap {
+        min-width: 0;
+      }
+      .audit-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: calc(100vh - 290px);
+        overflow-y: auto;
+        padding-right: 2px;
+      }
+      .audit-list::-webkit-scrollbar {
+        width: 4px;
+      }
+      .audit-list::-webkit-scrollbar-thumb {
+        background: rgba(148,163,184,0.7);
+        border-radius: 999px;
+      }
+      .audit-cabang-btn {
+        width: 100%;
+        text-align: left;
+        border: 1px solid rgba(226,232,240,0.95);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        border-radius: 16px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        cursor: pointer;
+        transition: 0.15s;
+      }
+      .audit-cabang-btn:hover {
+        border-color: rgba(148,163,184,0.8);
+        background: linear-gradient(180deg, #f8fbff 0%, #f1f5f9 100%);
+      }
+      .audit-cabang-btn.active {
+        border-color: rgba(37,99,235,0.25);
+        background:
+          radial-gradient(circle at top right, rgba(96,165,250,0.16), transparent 34%),
+          linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+        box-shadow: inset 0 0 0 1px rgba(147,197,253,0.7), 0 12px 24px rgba(37,99,235,0.08);
+      }
+      .audit-cabang-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .audit-cabang-name {
+        font-size: 0.82rem;
+        font-weight: 800;
+        color: var(--dark);
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .audit-cabang-area {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: rgba(19,27,46,0.08);
+        color: var(--dark);
+        font-size: 0.58rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .audit-cabang-meta {
+        font-size: 0.68rem;
+        color: var(--gray);
+        line-height: 1.45;
+      }
+      .audit-cabang-alert {
+        color: #b91c1c;
+        font-weight: 800;
+      }
+      .audit-detail {
+        min-width: 0;
+      }
+      .audit-detail-card {
+        overflow: hidden;
+      }
+      .audit-detail-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 16px 12px;
+        border-bottom: 1px solid rgba(226,232,240,0.88);
+      }
+      .audit-detail-title {
+        font-size: 1rem;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+        color: var(--dark);
+      }
+      .audit-detail-sub {
+        margin-top: 4px;
+        font-size: 0.72rem;
+        color: var(--gray);
+        line-height: 1.5;
+      }
+      .audit-stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        padding: 0 16px 14px;
+      }
+      .audit-stat {
+        background: #f8fafc;
+        border: 1px solid rgba(226,232,240,0.95);
+        border-radius: 14px;
+        padding: 10px 10px 9px;
+        text-align: center;
+      }
+      .audit-stat-val {
+        font-size: 0.9rem;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+      }
+      .audit-stat-label {
+        margin-top: 3px;
+        font-size: 0.6rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--gray2);
+      }
+      .audit-stat.safe .audit-stat-val { color: #15803d; }
+      .audit-stat.pending .audit-stat-val { color: #b91c1c; }
+      .audit-stat.warn .audit-stat-val { color: #c2410c; }
+      .audit-stat.proof .audit-stat-val { color: #1d4ed8; }
+      .audit-gallery-wrap {
+        padding: 0 16px 14px;
+      }
+      .audit-gallery-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .audit-gallery-title {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--gray2);
+      }
+      .audit-gallery-meta {
+        font-size: 0.68rem;
+        color: var(--gray);
+      }
+      .audit-gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .audit-gallery-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        text-decoration: none;
+        color: inherit;
+      }
+      .audit-gallery-item:hover .audit-gallery-caption {
+        color: var(--dark);
+      }
+      .audit-gallery-thumb {
+        width: 100%;
+        aspect-ratio: 4 / 3;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid rgba(226,232,240,0.95);
+        background: linear-gradient(180deg, #e2e8f0 0%, #f8fafc 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+      }
+      .audit-gallery-thumb img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        image-orientation: from-image;
+      }
+      .audit-gallery-caption {
+        font-size: 0.67rem;
+        font-weight: 700;
+        color: var(--gray);
+        line-height: 1.45;
+      }
+      .audit-rows {
+        display: flex;
+        flex-direction: column;
+      }
+      .audit-row {
+        padding: 10px 16px 10px 13px;
+        border-top: 1px solid rgba(226,232,240,0.88);
+        border-left: 3px solid transparent;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+      }
+      .audit-row:first-child {
+        border-top: none;
+      }
+      .audit-row.safe {
+        background: #f0fdf4;
+        border-left-color: #86efac;
+      }
+      .audit-row.pending {
+        background: #fef2f2;
+        border-left-color: #fca5a5;
+      }
+      .audit-row.warn {
+        background: #fff7ed;
+        border-left-color: #fdba74;
+      }
+      .audit-line {
+        font-size: 0.79rem;
+        font-weight: 800;
+        line-height: 1.55;
+      }
+      .audit-line.safe { color: #166534; }
+      .audit-line.pending { color: #b91c1c; }
+      .audit-line.warn { color: #9a3412; }
+      .audit-row-meta {
+        font-size: 0.66rem;
+        color: var(--gray);
+        line-height: 1.5;
+      }
+      .audit-proof-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .audit-proof-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        min-height: 28px;
+        padding: 4px 8px;
+        border-radius: 10px;
+        border: 1px solid rgba(226,232,240,0.95);
+        background: rgba(255,255,255,0.88);
+        color: var(--dark);
+        font-size: 0.62rem;
+        font-weight: 700;
+        text-decoration: none;
+        transition: 0.15s;
+      }
+      .audit-proof-link:hover {
+        background: #ffffff;
+        border-color: rgba(148,163,184,0.85);
+        color: var(--dark);
+      }
+      .audit-empty-note {
+        padding: 11px 16px;
+        border-top: 1px dashed rgba(226,232,240,0.95);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.7rem;
+        color: var(--gray);
+        font-style: italic;
+      }
       @media (max-width: 1200px) {
         .chart-grid { grid-template-columns: 1fr; }
       }
@@ -1339,6 +1780,23 @@
         .trend-period-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .compare-shell { min-width: 860px; }
         .daily-compare-grid { min-width: 900px; }
+        .audit-shell { grid-template-columns: 1fr; }
+        .audit-list { max-height: 320px; }
+      }
+      @media (min-width: 720px) {
+        .quick-panel.proof-viewer {
+          width: min(100%, 680px);
+          max-width: 680px;
+          max-height: min(88vh, 760px);
+          border-radius: 22px;
+          box-shadow: 0 20px 44px rgba(15,23,42,0.18);
+        }
+        .quick-panel.proof-viewer .quick-body {
+          padding: 14px;
+        }
+        .quick-panel.proof-viewer .quick-proof-box.viewer img {
+          max-height: min(64vh, 520px);
+        }
       }
       @media (max-width: 640px) {
         .shell-header { padding: 14px 14px 12px; }
@@ -1357,6 +1815,8 @@
         .trend-period-grid { grid-template-columns: 1fr; }
         .compare-shell { min-width: 780px; }
         .daily-compare-grid { min-width: 820px; }
+        .audit-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .audit-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
       @keyframes spin { to { transform: rotate(360deg); } }
     </style>
@@ -1370,7 +1830,7 @@
 
     <div class="app" id="app">
       <header class="shell-header">
-        <a href="/" class="back-btn" onclick="logoutWorkspace(event)"><i class="bi bi-arrow-left"></i></a>
+        <a href="/" class="back-btn" id="dashboardBackBtn"><i class="bi bi-arrow-left"></i></a>
         <div class="sh-info">
           <div class="sh-title">Maulagi Workspace</div>
           <div class="sh-sub" id="workspaceStatus">Memuat ringkasan...</div>
@@ -1385,13 +1845,13 @@
           </div>
         </div>
         <div class="shell-header-actions">
-          <button class="status-chip" id="statusChip" type="button" onclick="openLatestTransferModal()" disabled>Aktif</button>
-          <button class="shell-tool upload" id="shellUploadBtn" onclick="openWorkspaceUpload()" title="Upload file shipment"><i class="bi bi-file-earmark-arrow-up"></i><span>Upload</span></button>
-          <button class="shell-tool download" id="shellDownloadBtn" onclick="downloadWorkspaceFile()" title="Download rekap shipment"><i class="bi bi-download"></i><span>Download</span></button>
+          <button class="status-chip" id="statusChip" type="button" disabled>Aktif</button>
+          <button class="shell-tool upload" id="shellUploadBtn" type="button" title="Upload file shipment"><i class="bi bi-file-earmark-arrow-up"></i><span>Upload</span></button>
+          <button class="shell-tool download" id="shellDownloadBtn" type="button" title="Download rekap shipment"><i class="bi bi-download"></i><span>Download</span></button>
         </div>
       </header>
 
-      <div class="quick-modal" id="latestTransferModal" onclick="handleLatestTransferOverlay(event)">
+      <div class="quick-modal" id="latestTransferModal">
         <div class="quick-panel">
           <div class="quick-head">
             <div class="quick-head-left">
@@ -1429,17 +1889,48 @@
               </div>
             </div>
             <div class="quick-actions">
-              <button class="quick-btn ghost" type="button" onclick="closeLatestTransferModal()">Tutup</button>
+              <button class="quick-btn ghost" id="latestTransferCloseBtn" type="button">Tutup</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="quick-modal" id="auditProofModal">
+        <div class="quick-panel proof-viewer">
+          <div class="quick-head">
+            <div class="quick-head-left">
+              <div class="quick-head-icon"><i class="bi bi-image"></i></div>
+              <div>
+                <div class="quick-head-title">Bukti Transfer</div>
+                <div class="quick-head-sub" id="auditProofSub">Preview bukti pembayaran di popup.</div>
+              </div>
+            </div>
+            <button class="quick-close" id="auditProofCloseBtn" type="button" aria-label="Tutup popup bukti transfer"><i class="bi bi-x-lg"></i></button>
+          </div>
+          <div class="quick-body">
+            <div class="quick-proof">
+              <div class="quick-proof-head">
+                <div class="quick-proof-label" id="auditProofLabel">Preview Bukti</div>
+                <div class="quick-proof-badge" id="auditProofBadge">Popup</div>
+              </div>
+              <div class="quick-proof-box viewer">
+                <img id="auditProofImg" src="" alt="Bukti transfer audit" style="display:none">
+                <div class="quick-proof-empty" id="auditProofEmpty">Memuat bukti transfer...</div>
+              </div>
+            </div>
+            <div class="quick-actions">
+              <button class="quick-btn ghost" id="auditProofCloseFooterBtn" type="button">Tutup</button>
             </div>
           </div>
         </div>
       </div>
 
       <div class="tab-row">
-        <button class="tab-btn active" id="tab-dashboard" onclick="setTab('dashboard')"><i class="bi bi-bar-chart-line me-1"></i>DASHBOARD</button>
-        <button class="tab-btn" id="tab-noncod" onclick="setTab('noncod')"><i class="bi bi-table me-1"></i>NONCOD</button>
-        <button class="tab-btn" id="tab-dfod" onclick="setTab('dfod')"><i class="bi bi-grid-1x2 me-1"></i>DFOD</button>
-        <button class="tab-btn" id="tab-admin" onclick="setTab('admin')"><i class="bi bi-sliders me-1"></i>ADMIN</button>
+        <button class="tab-btn active" id="tab-dashboard" type="button" data-tab="dashboard"><i class="bi bi-bar-chart-line me-1"></i>DASHBOARD</button>
+        <button class="tab-btn" id="tab-noncod" type="button" data-tab="noncod"><i class="bi bi-table me-1"></i>NONCOD</button>
+        <button class="tab-btn" id="tab-dfod" type="button" data-tab="dfod"><i class="bi bi-grid-1x2 me-1"></i>DFOD</button>
+        <button class="tab-btn" id="tab-audit" type="button" data-tab="audit"><i class="bi bi-clipboard-data me-1"></i>AUDIT</button>
+        <button class="tab-btn" id="tab-admin" type="button" data-tab="admin"><i class="bi bi-sliders me-1"></i>ADMIN</button>
       </div>
 
       <main class="workspace">
@@ -1450,7 +1941,7 @@
               <h2>Grafik Operasional</h2>
               <p class="section-sub">Ringkasan periode aktif &amp; tren perbandingan.</p>
             </div>
-            <button class="refresh-btn" id="refreshOverviewBtn" onclick="loadOverview(true)" title="Refresh grafik"><i class="bi bi-arrow-clockwise"></i></button>
+            <button class="refresh-btn" id="refreshOverviewBtn" type="button" title="Refresh grafik"><i class="bi bi-arrow-clockwise"></i></button>
           </div>
 
           <div class="overview-grid">
@@ -1516,6 +2007,42 @@
           </div>
         </section>
 
+        <section class="tab-panel" id="panel-audit">
+          <div class="audit-workspace">
+            <div class="section-head">
+              <div>
+                <div class="section-kicker">Read Only Audit</div>
+                <h2>Audit Cabang</h2>
+                <p>Bandingkan NONCOD harian dengan transfer tersimpan tanpa membuka mode admin.</p>
+              </div>
+              <div class="audit-toolbar">
+                <div class="audit-period-pill" id="auditDashboardPeriodBadge"><i class="bi bi-calendar-month"></i>Periode aktif</div>
+                <button class="refresh-btn" id="auditDashboardRefreshBtn" type="button" title="Refresh audit cabang"><i class="bi bi-arrow-clockwise"></i></button>
+              </div>
+            </div>
+
+            <div class="audit-shell">
+              <aside class="audit-side">
+                <div class="audit-side-card">
+                  <div class="audit-filter-label">Cari Cabang</div>
+                  <div class="audit-search">
+                    <i class="bi bi-search"></i>
+                    <input id="auditDashboardSearch" type="search" placeholder="Ketik nama cabang">
+                  </div>
+                  <div class="audit-filter-meta" id="auditDashboardCount">Memuat audit periode aktif...</div>
+                </div>
+                <div class="audit-list-wrap" id="auditDashboardList">
+                  <div class="empty-note"><span class="spinner-border spinner-border-sm"></span></div>
+                </div>
+              </aside>
+
+              <div class="audit-detail" id="auditDashboardDetail">
+                <div class="empty-note"><span class="spinner-border spinner-border-sm"></span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="tab-panel" id="panel-admin">
           <div class="frame-wrap">
             <div class="embed-shell-head">
@@ -1539,10 +2066,108 @@
       let refreshTimer = null;
       let lastShipmentTab = 'noncod';
       let pendingShellAction = null;
+      let dashboardAuditState = null;
+      let bootStarted = false;
+      let workspaceHeaderObserved = false;
+      let dashboardAuditSelectedCabang = '';
+      let dashboardAuditCache = null;
+
+      function initDashboardEventBindings() {
+        const backBtn = document.getElementById('dashboardBackBtn');
+        const statusChip = document.getElementById('statusChip');
+        const uploadBtn = document.getElementById('shellUploadBtn');
+        const downloadBtn = document.getElementById('shellDownloadBtn');
+        const auditDetail = document.getElementById('auditDashboardDetail');
+        const latestTransferModal = document.getElementById('latestTransferModal');
+        const latestTransferCloseBtn = document.getElementById('latestTransferCloseBtn');
+        const auditProofModal = document.getElementById('auditProofModal');
+        const auditProofCloseBtn = document.getElementById('auditProofCloseBtn');
+        const auditProofCloseFooterBtn = document.getElementById('auditProofCloseFooterBtn');
+        const auditProofImg = document.getElementById('auditProofImg');
+        const refreshOverviewBtn = document.getElementById('refreshOverviewBtn');
+        const auditRefreshBtn = document.getElementById('auditDashboardRefreshBtn');
+        const auditSearch = document.getElementById('auditDashboardSearch');
+        const auditList = document.getElementById('auditDashboardList');
+
+        if (backBtn) {
+          backBtn.addEventListener('click', logoutWorkspace);
+        }
+        if (statusChip) {
+          statusChip.addEventListener('click', openLatestTransferModal);
+        }
+        if (uploadBtn) {
+          uploadBtn.addEventListener('click', openWorkspaceUpload);
+        }
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', downloadWorkspaceFile);
+        }
+        if (latestTransferModal) {
+          latestTransferModal.addEventListener('click', handleLatestTransferOverlay);
+        }
+        if (latestTransferCloseBtn) {
+          latestTransferCloseBtn.addEventListener('click', closeLatestTransferModal);
+        }
+        if (auditProofModal) {
+          auditProofModal.addEventListener('click', handleAuditProofOverlay);
+        }
+        if (auditProofCloseBtn) {
+          auditProofCloseBtn.addEventListener('click', closeAuditProofModal);
+        }
+        if (auditProofCloseFooterBtn) {
+          auditProofCloseFooterBtn.addEventListener('click', closeAuditProofModal);
+        }
+        if (auditProofImg) {
+          auditProofImg.addEventListener('load', handleAuditProofLoad);
+          auditProofImg.addEventListener('error', handleAuditProofError);
+        }
+        document.querySelectorAll('.tab-btn[data-tab]').forEach(button => {
+          button.addEventListener('click', () => setTab(button.dataset.tab || 'dashboard'));
+        });
+        if (refreshOverviewBtn) {
+          refreshOverviewBtn.addEventListener('click', () => loadOverview(true));
+        }
+        if (auditRefreshBtn) {
+          auditRefreshBtn.addEventListener('click', () => loadDashboardAudit(true));
+        }
+        if (auditSearch) {
+          auditSearch.addEventListener('input', renderDashboardAuditList);
+        }
+        if (auditList) {
+          auditList.addEventListener('click', event => {
+            const button = event.target.closest('.audit-cabang-btn[data-cabang]');
+            if (!button) return;
+            selectDashboardAuditCabang(button.dataset.cabang || '');
+          });
+        }
+        if (auditDetail) {
+          auditDetail.addEventListener('click', event => {
+            const proofLink = event.target.closest('.audit-proof-link[data-proof-url]');
+            if (!proofLink) return;
+            event.preventDefault();
+            openAuditProofModal({
+              src: proofLink.dataset.proofUrl || proofLink.getAttribute('href') || '',
+              label: proofLink.dataset.proofLabel || proofLink.textContent || 'Bukti Transfer',
+              context: proofLink.dataset.proofContext || ''
+            });
+          });
+        }
+      }
 
       function hasActiveSession(prefix) {
         const ts = parseInt(sessionStorage.getItem(prefix + 'AuthTs') || '0');
         return !!sessionStorage.getItem(prefix + 'Auth') && ts && (Date.now() - ts <= SESSION_TIMEOUT);
+      }
+
+      async function hasWorkspaceServerSession(prefix = getActiveSessionPrefix()) {
+        const role = prefix === 'admin' ? 'admin' : 'dashboard';
+        try {
+          const res = await fetch('/api/auth?session=1&role=' + encodeURIComponent(role), {
+            credentials: 'same-origin'
+          });
+          return res.ok;
+        } catch {
+          return null;
+        }
       }
 
       function getActiveSessionPrefix() {
@@ -1582,6 +2207,18 @@
         sessionStorage.removeItem('adminToken');
       }
 
+      async function invalidateServerSession() {
+        try {
+          await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            keepalive: true,
+            body: JSON.stringify({ action: 'logout' })
+          });
+        } catch {}
+      }
+
       function syncWorkspaceStickyOffset() {
         const header = document.querySelector('.shell-header');
         if (!header) return;
@@ -1591,6 +2228,8 @@
       }
 
       function observeWorkspaceHeader() {
+        if (workspaceHeaderObserved) return;
+        workspaceHeaderObserved = true;
         const header = document.querySelector('.shell-header');
         if (!header) return;
         syncWorkspaceStickyOffset();
@@ -1601,14 +2240,15 @@
         window.addEventListener('resize', syncWorkspaceStickyOffset);
       }
 
-      function doLogout() {
+      async function doLogout() {
         clearWorkspaceSessions();
+        await invalidateServerSession();
         location.replace('/');
       }
 
-      function logoutWorkspace(event) {
+      async function logoutWorkspace(event) {
         event.preventDefault();
-        doLogout();
+        await doLogout();
       }
 
       setInterval(() => {
@@ -1795,6 +2435,15 @@
         chip.title = 'Klik untuk lihat detail transfer terakhir';
       }
 
+      function isQuickModalOpen(id) {
+        const modal = document.getElementById(id);
+        return !!(modal && modal.classList.contains('show'));
+      }
+
+      function syncWorkspaceModalOverflow() {
+        document.body.style.overflow = isQuickModalOpen('latestTransferModal') || isQuickModalOpen('auditProofModal') ? 'hidden' : '';
+      }
+
       function openLatestTransferModal() {
         if (!latestTransferDetail) return;
         document.getElementById('latestTransferTime').textContent = latestTransferDetail.jam || '-';
@@ -1814,17 +2463,77 @@
           proofEmpty.style.display = 'block';
         }
         document.getElementById('latestTransferModal').classList.add('show');
-        document.body.style.overflow = 'hidden';
+        syncWorkspaceModalOverflow();
       }
 
       function closeLatestTransferModal() {
         document.getElementById('latestTransferModal').classList.remove('show');
         document.getElementById('latestTransferProofImg').removeAttribute('src');
-        document.body.style.overflow = '';
+        document.getElementById('latestTransferProofImg').style.display = 'none';
+        document.getElementById('latestTransferProofEmpty').style.display = 'block';
+        syncWorkspaceModalOverflow();
       }
 
       function handleLatestTransferOverlay(event) {
         if (event.target && event.target.id === 'latestTransferModal') closeLatestTransferModal();
+      }
+
+      function openAuditProofModal(detail) {
+        const src = detail && detail.src ? String(detail.src) : '';
+        if (!src) return;
+        const labelEl = document.getElementById('auditProofLabel');
+        const badgeEl = document.getElementById('auditProofBadge');
+        const subEl = document.getElementById('auditProofSub');
+        const img = document.getElementById('auditProofImg');
+        const empty = document.getElementById('auditProofEmpty');
+        if (!img || !empty) return;
+
+        if (labelEl) labelEl.textContent = detail.label || 'Bukti Transfer';
+        if (badgeEl) badgeEl.textContent = 'Popup';
+        if (subEl) subEl.textContent = detail.context || 'Preview bukti pembayaran pada popup ini.';
+        empty.textContent = 'Memuat bukti transfer...';
+        empty.style.display = 'block';
+        img.style.display = 'none';
+        img.src = src;
+        document.getElementById('auditProofModal').classList.add('show');
+        syncWorkspaceModalOverflow();
+      }
+
+      function closeAuditProofModal() {
+        const modal = document.getElementById('auditProofModal');
+        const img = document.getElementById('auditProofImg');
+        const empty = document.getElementById('auditProofEmpty');
+        if (modal) modal.classList.remove('show');
+        if (img) {
+          img.removeAttribute('src');
+          img.style.display = 'none';
+        }
+        if (empty) {
+          empty.textContent = 'Memuat bukti transfer...';
+          empty.style.display = 'block';
+        }
+        syncWorkspaceModalOverflow();
+      }
+
+      function handleAuditProofOverlay(event) {
+        if (event.target && event.target.id === 'auditProofModal') closeAuditProofModal();
+      }
+
+      function handleAuditProofLoad() {
+        const img = document.getElementById('auditProofImg');
+        const empty = document.getElementById('auditProofEmpty');
+        if (img) img.style.display = 'block';
+        if (empty) empty.style.display = 'none';
+      }
+
+      function handleAuditProofError() {
+        const img = document.getElementById('auditProofImg');
+        const empty = document.getElementById('auditProofEmpty');
+        if (img) img.style.display = 'none';
+        if (empty) {
+          empty.textContent = 'Gambar bukti tidak dapat ditampilkan.';
+          empty.style.display = 'block';
+        }
       }
 
       function setDefaultTrendHeading() {
@@ -1948,6 +2657,370 @@
           return { periode, mode, byDay: json.byDay || {}, monthSummary: json.monthSummary || createSummaryGroup(), syncInfo: json.syncInfo || null };
         } catch (err) {
           return { periode, mode, byDay: {}, monthSummary: createSummaryGroup(), syncInfo: { error: err.message }, error: err.message };
+        }
+      }
+
+      function toAuditNominal(value) {
+        const number = Number(value || 0);
+        return Number.isFinite(number) ? number : 0;
+      }
+
+      function normalizeAuditDate(value) {
+        return String(value || '').slice(0, 10);
+      }
+
+      function getDashboardAuditDates(periode) {
+        const parts = String(periode || '').split('-');
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        if (!year || !month) return [];
+        const maxDay = new Date(year, month, 0).getDate();
+        return Array.from({ length: maxDay }, (_, index) => {
+          return periode + '-' + String(index + 1).padStart(2, '0');
+        });
+      }
+
+      function formatAuditNominal(value) {
+        return toAuditNominal(value).toLocaleString('id-ID');
+      }
+
+      function formatAuditDateShort(ymd) {
+        if (!ymd) return '-';
+        const parts = String(ymd).split('-');
+        if (parts.length < 3) return ymd;
+        return parts[2] + '/' + parts[1];
+      }
+
+      function formatAuditTime(timestamp) {
+        if (!timestamp) return '';
+        try {
+          return new Date(timestamp).toLocaleTimeString('id-ID', {
+            timeZone: 'Asia/Makassar',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        } catch {
+          return '';
+        }
+      }
+
+      function getDashboardAuditProofUrl(transfer) {
+        const raw = String((transfer && (transfer.bukti || transfer.bukti_url)) || '').trim();
+        if (!raw) return '';
+        if (raw.startsWith('/api/proxy-image')) return raw;
+        if (/^https?:\/\//.test(raw)) {
+          const match = raw.match(/\/bukti-transfer\/([^?]+)/);
+          if (match) return '/api/proxy-image?path=' + encodeURIComponent(match[1]);
+          return raw;
+        }
+        return '/api/proxy-image?path=' + encodeURIComponent(raw);
+      }
+
+      function buildAuditTransferBreakdown(transfers) {
+        if (!Array.isArray(transfers) || !transfers.length) return 'tidak ada transfer';
+        return transfers.map(item => formatAuditNominal(item.nominal)).join(' + ');
+      }
+
+      function buildDashboardAuditState(periode, ncData, dashData, cabangRows) {
+        const ncByDay = ncData && ncData.byDay ? ncData.byDay : {};
+        const dashByCabang = dashData && dashData.byCabang ? dashData.byCabang : {};
+        const auditDates = getDashboardAuditDates(periode);
+        const cabangMap = new Map();
+
+        function ensureCabangEntry(rawName, rawArea) {
+          const cabang = String(rawName || '').trim();
+          if (!cabang) return null;
+          const area = String(rawArea || 'LAINNYA').trim() || 'LAINNYA';
+          if (!cabangMap.has(cabang)) {
+            cabangMap.set(cabang, { cabang, area, ncByDate: {}, trByDate: {} });
+          } else if (area && cabangMap.get(cabang).area === 'LAINNYA') {
+            cabangMap.get(cabang).area = area;
+          }
+          return cabangMap.get(cabang);
+        }
+
+        (Array.isArray(cabangRows) ? cabangRows : []).forEach(row => {
+          ensureCabangEntry(row.nama, row.area);
+        });
+
+        Object.keys(ncByDay).forEach(date => {
+          if (!String(date).startsWith(periode + '-')) return;
+          const byCabang = ncByDay[date] || {};
+          Object.keys(byCabang).forEach(cabang => {
+            const nominal = toAuditNominal(byCabang[cabang] && byCabang[cabang].ongkir);
+            const entry = ensureCabangEntry(cabang, 'LAINNYA');
+            if (!entry) return;
+            entry.ncByDate[date] = nominal;
+          });
+        });
+
+        Object.keys(dashByCabang).forEach(cabang => {
+          const entry = ensureCabangEntry(cabang, 'LAINNYA');
+          if (!entry) return;
+          const transferList = Array.isArray(dashByCabang[cabang] && dashByCabang[cabang].list)
+            ? dashByCabang[cabang].list
+            : [];
+
+          transferList.forEach(item => {
+            const date = normalizeAuditDate(item.tglRaw);
+            if (!date || !String(date).startsWith(periode + '-')) return;
+            if (!entry.trByDate[date]) entry.trByDate[date] = [];
+            entry.trByDate[date].push({
+              nominal: toAuditNominal(item.nominal),
+              nama_bank: item.bank || '',
+              ket: item.ket || '',
+              timestamp: item.ts || '',
+              proofUrl: getDashboardAuditProofUrl(item),
+            });
+          });
+        });
+
+        const items = Array.from(cabangMap.values()).map(entry => {
+          const orderedDates = [...new Set([...auditDates, ...Object.keys(entry.ncByDate), ...Object.keys(entry.trByDate)])].sort();
+          const rows = orderedDates.map(date => {
+            const noncod = toAuditNominal(entry.ncByDate[date] || 0);
+            const transfers = (entry.trByDate[date] || []).slice().sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
+            const transfer = transfers.reduce((sum, item) => sum + toAuditNominal(item.nominal), 0);
+            const transferText = buildAuditTransferBreakdown(transfers);
+            const diff = noncod - transfer;
+            const isSafe = noncod > 0 && (diff === 0 || (diff < 0 && Math.abs(diff) <= 500));
+            let tone = 'safe';
+            let line = '';
+
+            if (noncod <= 0 && transfer <= 0) {
+              line = formatAuditDateShort(date) + ': tidak ada NONCOD, tidak ada transfer';
+              tone = 'safe';
+            } else if (noncod > 0 && transfer <= 0) {
+              line = formatAuditDateShort(date) + ': NONCOD ' + formatAuditNominal(noncod) + ', tidak ada transfer';
+              tone = 'pending';
+            } else if (noncod <= 0 && transfer > 0) {
+              line = formatAuditDateShort(date) + ': tidak ada NONCOD, transfer ' + transferText + ', cek';
+              tone = 'warn';
+            } else if (isSafe) {
+              line = formatAuditDateShort(date) + ': NONCOD ' + formatAuditNominal(noncod) + ', transfer ' + transferText + ', aman';
+              tone = 'safe';
+            } else if (diff > 0) {
+              line = formatAuditDateShort(date) + ': NONCOD ' + formatAuditNominal(noncod) + ', transfer ' + transferText + ', kurang ' + formatAuditNominal(diff);
+              tone = 'pending';
+            } else {
+              line = formatAuditDateShort(date) + ': NONCOD ' + formatAuditNominal(noncod) + ', transfer ' + transferText + ', lebih ' + formatAuditNominal(Math.abs(diff));
+              tone = 'warn';
+            }
+
+            const proofCount = transfers.filter(item => item.proofUrl).length;
+            const transferMeta = transfers.map(item => {
+              const bank = String(item.nama_bank || '').trim();
+              const time = formatAuditTime(item.timestamp);
+              const ket = String(item.ket || '').trim();
+              return [bank, time, ket].filter(Boolean).join(' · ');
+            }).filter(Boolean);
+
+            return { date, noncod, transfer, diff, tone, line, transfers, proofCount, transferMeta };
+          });
+
+          const summary = rows.reduce((acc, row) => {
+            if (row.noncod > 0 || row.transfer > 0) acc.activeDays += 1;
+            if (row.tone === 'safe' && (row.noncod > 0 || row.transfer > 0)) acc.safe += 1;
+            if (row.tone === 'pending') acc.pending += 1;
+            if (row.tone === 'warn') acc.warn += 1;
+            acc.proof += row.proofCount;
+            return acc;
+          }, { safe: 0, pending: 0, warn: 0, activeDays: 0, proof: 0 });
+
+          return { cabang: entry.cabang, area: entry.area, rows, summary };
+        }).sort((a, b) => a.cabang.localeCompare(b.cabang, 'id'));
+
+        return { periode, items };
+      }
+
+      function getDashboardAuditItems() {
+        return dashboardAuditState && Array.isArray(dashboardAuditState.items) ? dashboardAuditState.items : [];
+      }
+
+      function renderDashboardAuditList() {
+        const listEl = document.getElementById('auditDashboardList');
+        const detailEl = document.getElementById('auditDashboardDetail');
+        const countEl = document.getElementById('auditDashboardCount');
+        const searchEl = document.getElementById('auditDashboardSearch');
+        const items = getDashboardAuditItems();
+        const query = String(searchEl && searchEl.value || '').trim().toLowerCase();
+
+        if (!items.length) {
+          if (countEl) countEl.textContent = 'Belum ada audit cabang untuk periode aktif.';
+          if (listEl) listEl.innerHTML = '<div class="empty-note">Belum ada data audit cabang.</div>';
+          if (detailEl) detailEl.innerHTML = '<div class="empty-note">Belum ada detail audit untuk ditampilkan.</div>';
+          return;
+        }
+
+        const filtered = items.filter(item => item.cabang.toLowerCase().includes(query));
+        if (!filtered.length) {
+          if (countEl) countEl.textContent = '0 dari ' + items.length + ' cabang cocok dengan pencarian.';
+          if (listEl) listEl.innerHTML = '<div class="empty-note">Cabang tidak ditemukan. Ubah kata kunci pencarian.</div>';
+          if (detailEl) detailEl.innerHTML = '<div class="empty-note">Tidak ada cabang yang cocok dengan pencarian saat ini.</div>';
+          return;
+        }
+
+        if (!filtered.some(item => item.cabang === dashboardAuditSelectedCabang)) {
+          dashboardAuditSelectedCabang = filtered[0].cabang;
+        }
+
+        const totalIssues = filtered.reduce((sum, item) => sum + item.summary.pending + item.summary.warn, 0);
+        if (countEl) {
+          countEl.textContent = filtered.length + ' cabang · ' + totalIssues + ' titik perlu dicek · periode ' + getPeriodeLabel(dashboardAuditState.periode);
+        }
+
+        if (listEl) {
+          listEl.innerHTML = '<div class="audit-list">' + filtered.map(item => {
+            const issueText = item.summary.pending > 0 || item.summary.warn > 0
+              ? '<span class="audit-cabang-alert">' + (item.summary.pending + item.summary.warn) + ' hari perlu dicek</span>'
+              : 'Semua hari aktif aman';
+            return '<button class="audit-cabang-btn' + (item.cabang === dashboardAuditSelectedCabang ? ' active' : '') + '" type="button" data-cabang="' + escHtml(item.cabang) + '">' +
+              '<div class="audit-cabang-top">' +
+                '<div class="audit-cabang-name">' + escHtml(item.cabang) + '</div>' +
+                '<div class="audit-cabang-area">' + escHtml(item.area || 'LAINNYA') + '</div>' +
+              '</div>' +
+              '<div class="audit-cabang-meta">Aktif ' + item.summary.activeDays + ' hari · Aman ' + item.summary.safe + ' · Kurang ' + item.summary.pending + ' · Lebih ' + item.summary.warn + '</div>' +
+              '<div class="audit-cabang-meta">' + issueText + '</div>' +
+            '</button>';
+          }).join('') + '</div>';
+        }
+
+        renderDashboardAuditDetail();
+      }
+
+      function selectDashboardAuditCabang(cabang) {
+        dashboardAuditSelectedCabang = String(cabang || '');
+        renderDashboardAuditList();
+      }
+
+      function renderDashboardAuditDetail() {
+        const detailEl = document.getElementById('auditDashboardDetail');
+        const items = getDashboardAuditItems();
+        const selected = items.find(item => item.cabang === dashboardAuditSelectedCabang) || items[0];
+
+        if (!detailEl) return;
+        if (!selected) {
+          detailEl.innerHTML = '<div class="empty-note">Pilih cabang untuk melihat audit hariannya.</div>';
+          return;
+        }
+
+        dashboardAuditSelectedCabang = selected.cabang;
+        const summary = selected.summary || { safe: 0, pending: 0, warn: 0, proof: 0, activeDays: 0 };
+        const activeRows = selected.rows.filter(row => row.noncod > 0 || row.transfer > 0);
+        const hiddenCount = selected.rows.length - activeRows.length;
+
+        const rowsHtml = activeRows.map(row => {
+          const proofsHtml = row.transfers.filter(item => item.proofUrl).map((item, index) => {
+            const labelParts = ['Bukti ' + (index + 1)];
+            if (item.nama_bank) labelParts.push(item.nama_bank);
+            const timeLabel = formatAuditTime(item.timestamp);
+            if (timeLabel) labelParts.push(timeLabel);
+            const proofLabel = labelParts.join(' · ');
+            const proofContext = [selected.cabang, formatAuditDateShort(row.date)].filter(Boolean).join(' · ');
+            return '<a class="audit-proof-link" href="' + escHtml(item.proofUrl) + '" data-proof-url="' + escHtml(item.proofUrl) + '" data-proof-label="' + escHtml(proofLabel) + '" data-proof-context="' + escHtml(proofContext) + '" title="Buka bukti transfer di popup"><i class="bi bi-image"></i><span>' + escHtml(proofLabel) + '</span></a>';
+          }).join('');
+
+          const metaParts = [];
+          if (row.proofCount > 0) metaParts.push(row.proofCount + ' bukti');
+          if (row.transferMeta.length > 0) metaParts.push(row.transferMeta.join(' | '));
+
+          return '<div class="audit-row ' + row.tone + '">' +
+            '<div class="audit-line ' + row.tone + '">' + escHtml(row.line) + '</div>' +
+            (metaParts.length ? '<div class="audit-row-meta">' + escHtml(metaParts.join(' · ')) + '</div>' : '') +
+            (proofsHtml ? '<div class="audit-proof-list">' + proofsHtml + '</div>' : '') +
+          '</div>';
+        }).join('');
+
+        const noActivityHtml = !activeRows.length
+          ? '<div class="audit-empty-note"><i class="bi bi-inbox"></i>Belum ada NONCOD maupun transfer pada periode aktif.</div>'
+          : '';
+        const hiddenNote = hiddenCount > 0
+          ? '<div class="audit-empty-note"><i class="bi bi-eye-slash"></i>' + hiddenCount + ' hari tanpa aktivitas disembunyikan.</div>'
+          : '';
+
+        detailEl.innerHTML = '<div class="audit-detail-card">' +
+          '<div class="audit-detail-head">' +
+            '<div>' +
+              '<div class="audit-detail-title">' + escHtml(selected.cabang) + '</div>' +
+              '<div class="audit-detail-sub">Audit harian ' + escHtml(getPeriodeLabel(dashboardAuditState.periode)) + ' · ' + summary.activeDays + ' hari aktif · ' + summary.proof + ' bukti tersimpan</div>' +
+            '</div>' +
+            '<div class="audit-cabang-area">' + escHtml(selected.area || 'LAINNYA') + '</div>' +
+          '</div>' +
+          '<div class="audit-stats">' +
+            '<div class="audit-stat safe"><div class="audit-stat-val">' + summary.safe + '</div><div class="audit-stat-label">Aman</div></div>' +
+            '<div class="audit-stat pending"><div class="audit-stat-val">' + summary.pending + '</div><div class="audit-stat-label">Kurang</div></div>' +
+            '<div class="audit-stat warn"><div class="audit-stat-val">' + summary.warn + '</div><div class="audit-stat-label">Lebih / Cek</div></div>' +
+            '<div class="audit-stat proof"><div class="audit-stat-val">' + summary.proof + '</div><div class="audit-stat-label">Bukti</div></div>' +
+          '</div>' +
+          '<div class="audit-rows">' + noActivityHtml + rowsHtml + hiddenNote + '</div>' +
+        '</div>';
+      }
+
+      async function loadDashboardAudit(forceRefresh = false) {
+        const periode = getCurrentPeriode();
+        const listEl = document.getElementById('auditDashboardList');
+        const detailEl = document.getElementById('auditDashboardDetail');
+        const countEl = document.getElementById('auditDashboardCount');
+        const badgeEl = document.getElementById('auditDashboardPeriodBadge');
+        const refreshBtn = document.getElementById('auditDashboardRefreshBtn');
+
+        if (badgeEl) {
+          badgeEl.innerHTML = '<i class="bi bi-calendar-month"></i>' + escHtml(getPeriodeLabel(periode));
+        }
+        if (countEl) countEl.textContent = 'Memuat audit periode aktif...';
+        if (listEl) listEl.innerHTML = '<div class="empty-note"><span class="spinner-border spinner-border-sm"></span></div>';
+        if (detailEl) detailEl.innerHTML = '<div class="empty-note"><span class="spinner-border spinner-border-sm"></span></div>';
+        if (refreshBtn) refreshBtn.classList.add('spinning');
+
+        try {
+          let payload = dashboardAuditCache;
+          if (forceRefresh || !payload || payload.periode !== periode) {
+            const [ncRes, dashRes, cabangRes] = await Promise.all([
+              fetch('/api/noncod?periode=' + encodeURIComponent(periode) + '&mode=noncod'),
+              fetch('/api/dashboard'),
+              fetch('/api/cabang')
+            ]);
+            const [ncJson, dashJson, cabangJson] = await Promise.all([
+              ncRes.json(),
+              dashRes.json(),
+              cabangRes.json()
+            ]);
+
+            if (!ncRes.ok) throw new Error(ncJson.error || 'Gagal memuat data NONCOD.');
+            if (!dashRes.ok) throw new Error(dashJson.error || 'Gagal memuat data transfer dashboard.');
+            if (!cabangRes.ok) throw new Error(cabangJson.error || 'Gagal memuat daftar cabang.');
+
+            payload = {
+              periode,
+              ncData: ncJson,
+              dashData: dashJson,
+              cabangRows: Array.isArray(cabangJson.cabang) ? cabangJson.cabang : []
+            };
+            dashboardAuditCache = payload;
+          }
+
+          dashboardAuditState = buildDashboardAuditState(periode, payload.ncData, payload.dashData, payload.cabangRows);
+          const items = getDashboardAuditItems();
+          if (!items.length) {
+            dashboardAuditSelectedCabang = '';
+            if (countEl) countEl.textContent = 'Belum ada data audit untuk periode ' + getPeriodeLabel(periode) + '.';
+            if (listEl) listEl.innerHTML = '<div class="empty-note">Belum ada data cabang yang bisa diaudit.</div>';
+            if (detailEl) detailEl.innerHTML = '<div class="empty-note">Belum ada detail audit untuk periode aktif.</div>';
+            return;
+          }
+
+          if (!items.some(item => item.cabang === dashboardAuditSelectedCabang)) {
+            dashboardAuditSelectedCabang = items[0].cabang;
+          }
+
+          renderDashboardAuditList();
+        } catch (err) {
+          dashboardAuditState = null;
+          if (countEl) countEl.textContent = 'Gagal memuat audit cabang.';
+          if (listEl) listEl.innerHTML = '<div class="empty-note">' + escHtml(err.message || 'Gagal memuat data audit.') + '</div>';
+          if (detailEl) detailEl.innerHTML = '<div class="empty-note">Audit cabang belum bisa ditampilkan.</div>';
+        } finally {
+          if (refreshBtn) refreshBtn.classList.remove('spinning');
         }
       }
 
@@ -2190,7 +3263,7 @@
       document.getElementById('frameDfod').addEventListener('load', () => handleEmbeddedFrameLoad('frameDfod'));
 
       function setTab(tab, updateHash = true) {
-        const validTabs = isAdminWorkspace() ? ['dashboard', 'noncod', 'dfod', 'admin'] : ['dashboard', 'noncod', 'dfod'];
+        const validTabs = isAdminWorkspace() ? ['dashboard', 'noncod', 'dfod', 'audit', 'admin'] : ['dashboard', 'noncod', 'dfod', 'audit'];
         currentTab = validTabs.includes(tab) ? tab : 'dashboard';
         if (currentTab === 'noncod' || currentTab === 'dfod') lastShipmentTab = currentTab;
         validTabs.forEach(name => {
@@ -2200,6 +3273,7 @@
         if (updateHash) history.replaceState(null, '', '#' + currentTab);
         if (currentTab === 'noncod') loadFrame('frameNoncod');
         if (currentTab === 'dfod') loadFrame('frameDfod');
+        if (currentTab === 'audit') loadDashboardAudit(false);
         if (currentTab === 'admin' && isAdminWorkspace()) loadFrame('frameAdmin');
         if (currentTab === 'dashboard') loadOverview(false);
       }
@@ -2341,7 +3415,15 @@
       }
 
       async function boot() {
-        const activePrefix = getActiveSessionPrefix();
+        let activePrefix = getActiveSessionPrefix();
+        if (activePrefix && !isSessionExpired(activePrefix)) {
+          const serverSession = await hasWorkspaceServerSession(activePrefix);
+          if (serverSession === false) {
+            clearWorkspaceSessions();
+            activePrefix = '';
+          }
+        }
+
         if (!activePrefix || isSessionExpired(activePrefix)) {
           clearWorkspaceSessions();
           try {
@@ -2377,14 +3459,46 @@
         if (refreshTimer) clearInterval(refreshTimer);
         refreshTimer = setInterval(() => {
           if (currentTab === 'dashboard') loadOverview(false);
+          if (currentTab === 'audit') loadDashboardAudit(true);
         }, 180000);
       }
 
+      initDashboardEventBindings();
+
       window.addEventListener('keydown', event => {
-        if (event.key === 'Escape') closeLatestTransferModal();
+        if (event.key !== 'Escape') return;
+        if (isQuickModalOpen('auditProofModal')) {
+          closeAuditProofModal();
+          return;
+        }
+        if (isQuickModalOpen('latestTransferModal')) closeLatestTransferModal();
       });
       window.addEventListener('hashchange', applyHashTab);
-      window.onload = boot;
+      window.addEventListener('pageshow', event => {
+        if (!event.persisted) return;
+        bootStarted = false;
+        if (refreshTimer) {
+          clearInterval(refreshTimer);
+          refreshTimer = null;
+        }
+        startDashboardBoot();
+      });
+
+      function startDashboardBoot() {
+        if (bootStarted) return;
+        bootStarted = true;
+        boot().catch(err => {
+          console.error('Dashboard boot failed', err);
+          clearWorkspaceSessions();
+          location.replace('/');
+        });
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startDashboardBoot, { once: true });
+      } else {
+        startDashboardBoot();
+      }
     </script>
   </body>
 </html>

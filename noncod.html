@@ -278,15 +278,15 @@
 
     <div class="page" id="mainPage">
       <div class="page-header">
-        <a href="/" class="hdr-btn" onclick="clearWorkspaceSessions()"><i class="bi bi-arrow-left"></i></a>
+        <a href="/" class="hdr-btn" id="noncodBackBtn"><i class="bi bi-arrow-left"></i></a>
         <div class="hd-info">
           <div class="hd-kicker">Maulagi &middot; Monitoring</div>
           <div class="hd-name" id="hdName">NON-COD</div>
           <div class="hd-status" id="hdStatus">Memuat...</div>
         </div>
         <div class="hdr-action-group">
-          <div class="hdr-action" id="btnScreenshot" onclick="captureScreenshot()" title="Screenshot ke Clipboard"><i class="bi bi-camera"></i><span class="ha-label">Capture</span></div>
-          <div class="hdr-action download-btn" id="btnDownload" onclick="downloadXlsx()" title="Download XLSX"><i class="bi bi-download"></i><span class="ha-label">Download</span></div>
+          <div class="hdr-action" id="btnScreenshot" title="Screenshot ke Clipboard"><i class="bi bi-camera"></i><span class="ha-label">Capture</span></div>
+          <div class="hdr-action download-btn" id="btnDownload" title="Download XLSX"><i class="bi bi-download"></i><span class="ha-label">Download</span></div>
         </div>
       </div>
 
@@ -297,8 +297,8 @@
 
         <div id="mainContent" style="display:none">
           <div class="tab-bar">
-            <button class="tab-btn active" id="tab-today" onclick="setTab('today')"><i class="bi bi-calendar-day me-1"></i>Hari Ini</button>
-            <button class="tab-btn" id="tab-monthly" onclick="setTab('monthly')"><i class="bi bi-calendar-month me-1"></i>Bulanan</button>
+            <button class="tab-btn active" id="tab-today" type="button" data-tab="today"><i class="bi bi-calendar-day me-1"></i>Hari Ini</button>
+            <button class="tab-btn" id="tab-monthly" type="button" data-tab="monthly"><i class="bi bi-calendar-month me-1"></i>Bulanan</button>
           </div>
 
           <div class="stat-row" id="statsRow">
@@ -321,15 +321,15 @@
 
           <div id="tableSection">
           <div class="ctrl-row">
-            <div class="date-wrap" id="dateWrap" onclick="toggleCal()">
+            <div class="date-wrap" id="dateWrap">
               <i class="bi bi-calendar-event dw-icon"></i>
               <span class="dw-label" id="dateLabel">Hari ini</span>
               <i class="bi bi-chevron-down dw-arrow"></i>
-              <div class="cal-popup" id="calPopup" onclick="event.stopPropagation()">
+              <div class="cal-popup" id="calPopup">
                 <div class="cal-header">
-                  <div class="cal-nav" onclick="calNav(-1)"><i class="bi bi-chevron-left"></i></div>
+                  <div class="cal-nav" data-cal-nav="-1"><i class="bi bi-chevron-left"></i></div>
                   <div class="cal-title" id="calTitle">April 2026</div>
-                  <div class="cal-nav" onclick="calNav(1)"><i class="bi bi-chevron-right"></i></div>
+                  <div class="cal-nav" data-cal-nav="1"><i class="bi bi-chevron-right"></i></div>
                 </div>
                 <div class="cal-range-info" id="calRangeInfo">
                   <span class="cr-date" id="crStart">-</span>
@@ -338,28 +338,28 @@
                 </div>
                 <div class="cal-days" id="calDays"></div>
                 <div class="cal-btns">
-                  <button class="cal-btn secondary" onclick="calSelectToday()">Hari Ini</button>
-                  <button class="cal-btn primary" onclick="calApply()">Terapkan</button>
+                  <button class="cal-btn secondary" id="calTodayBtn" type="button">Hari Ini</button>
+                  <button class="cal-btn primary" id="calApplyBtn" type="button">Terapkan</button>
                 </div>
               </div>
             </div>
-            <select class="filter-select" id="periodeSelect" onchange="loadDashboard()"></select>
-            <select class="filter-select" id="modeSelect" onchange="setMode(this.value)">
+            <select class="filter-select" id="periodeSelect"></select>
+            <select class="filter-select" id="modeSelect">
               <option value="noncod">NONCOD Rekon</option>
               <option value="dfod">DFOD Omset</option>
             </select>
-            <select class="filter-select" id="areaSelect" onchange="setArea(this.value)"><option value="semua">Semua Area</option></select>
-            <select class="filter-select" id="statusSelect" onchange="setStatus(this.value)">
+            <select class="filter-select" id="areaSelect"><option value="semua">Semua Area</option></select>
+            <select class="filter-select" id="statusSelect">
               <option value="semua">Semua Status</option>
               <option value="sudah">&#x2705; Sudah Transfer</option>
               <option value="belum">&#x274C; Belum Transfer</option>
             </select>
-            <div class="cal-overlay" id="calOverlay" onclick="closeCal()"></div>
+            <div class="cal-overlay" id="calOverlay"></div>
           </div>
 
           <div class="search-bar">
             <i class="bi bi-search"></i>
-            <input type="text" id="searchCabang" placeholder="Cari cabang..." oninput="renderCurrentTab()">
+            <input type="text" id="searchCabang" placeholder="Cari cabang...">
           </div>
 
           <div class="sum-table">
@@ -385,7 +385,7 @@
         <div class="tn-title" id="trNotifTitle">Transfer Baru Masuk!</div>
         <div class="tn-sub" id="trNotifSub">Data diperbarui otomatis</div>
       </div>
-      <button class="tn-close" onclick="closeTransferNotif()" title="Tutup">✕</button>
+      <button class="tn-close" id="trNotifCloseBtn" type="button" title="Tutup">✕</button>
     </div>
     <div class="toast-box" id="toast"></div>
 
@@ -415,6 +415,50 @@
       let _prevTransferCount = -1;
       let _notifTimer = null;
       const noncodAggregation = window.NoncodAggregation;
+
+      function initNoncodEventBindings() {
+        const backBtn = document.getElementById('noncodBackBtn');
+        const screenshotBtn = document.getElementById('btnScreenshot');
+        const downloadBtn = document.getElementById('btnDownload');
+        const dateWrap = document.getElementById('dateWrap');
+        const calPopup = document.getElementById('calPopup');
+        const calDays = document.getElementById('calDays');
+        const calOverlay = document.getElementById('calOverlay');
+        const periodeSelect = document.getElementById('periodeSelect');
+        const modeSelect = document.getElementById('modeSelect');
+        const areaSelect = document.getElementById('areaSelect');
+        const statusSelect = document.getElementById('statusSelect');
+        const searchCabang = document.getElementById('searchCabang');
+        const trNotifCloseBtn = document.getElementById('trNotifCloseBtn');
+
+        if (backBtn) backBtn.addEventListener('click', logoutWorkspace);
+        if (screenshotBtn) screenshotBtn.addEventListener('click', captureScreenshot);
+        if (downloadBtn) downloadBtn.addEventListener('click', downloadXlsx);
+        document.querySelectorAll('.tab-btn[data-tab]').forEach(button => {
+          button.addEventListener('click', () => setTab(button.dataset.tab || 'today'));
+        });
+        if (dateWrap) dateWrap.addEventListener('click', toggleCal);
+        if (calPopup) calPopup.addEventListener('click', event => event.stopPropagation());
+        document.querySelectorAll('[data-cal-nav]').forEach(button => {
+          button.addEventListener('click', () => calNav(parseInt(button.dataset.calNav || '0', 10)));
+        });
+        if (document.getElementById('calTodayBtn')) document.getElementById('calTodayBtn').addEventListener('click', calSelectToday);
+        if (document.getElementById('calApplyBtn')) document.getElementById('calApplyBtn').addEventListener('click', calApply);
+        if (periodeSelect) periodeSelect.addEventListener('change', loadDashboard);
+        if (modeSelect) modeSelect.addEventListener('change', event => setMode(event.target.value));
+        if (areaSelect) areaSelect.addEventListener('change', event => setArea(event.target.value));
+        if (statusSelect) statusSelect.addEventListener('change', event => setStatus(event.target.value));
+        if (calOverlay) calOverlay.addEventListener('click', closeCal);
+        if (searchCabang) searchCabang.addEventListener('input', renderCurrentTab);
+        if (trNotifCloseBtn) trNotifCloseBtn.addEventListener('click', closeTransferNotif);
+        if (calDays) {
+          calDays.addEventListener('click', event => {
+            const dayCell = event.target.closest('.cal-d[data-date]');
+            if (!dayCell) return;
+            calPick(dayCell.dataset.date || '');
+          });
+        }
+      }
 
       if (!noncodAggregation) {
         throw new Error('Noncod aggregation module gagal dimuat.');
@@ -537,8 +581,22 @@
         sessionStorage.removeItem('adminAuthTs');
         sessionStorage.removeItem('adminToken');
       }
-      function doLogout() {
+
+      async function invalidateServerSession() {
+        try {
+          await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            keepalive: true,
+            body: JSON.stringify({ action: 'logout' })
+          });
+        } catch {}
+      }
+
+      async function doLogout() {
         clearWorkspaceSessions();
+        await invalidateServerSession();
         try {
           if (window.top && window.top !== window.self) {
             window.top.location.replace('/');
@@ -546,6 +604,11 @@
           }
         } catch {}
         location.replace('/');
+      }
+
+      async function logoutWorkspace(event) {
+        event.preventDefault();
+        await doLogout();
       }
 
       // Auto-logout check every few seconds to match server token expiry
@@ -577,6 +640,8 @@
       let calViewYear, calViewMonth;
       let calPickStep = 0; // 0 = picking start, 1 = picking end
       let calTempFrom = '', calTempTo = '';
+
+      initNoncodEventBindings();
 
       window.onload = () => {
         initPeriode();
@@ -723,7 +788,7 @@
           } else if (calTempFrom && ds === calTempFrom) {
             cls += ' range-start range-end';
           }
-          html += '<div class="' + cls + '" onclick="calPick(\'' + ds + '\')">' + d + '</div>';
+          html += '<div class="' + cls + '" data-date="' + ds + '">' + d + '</div>';
         }
         const total = startDay + daysInMonth;
         const remaining = (7 - (total % 7)) % 7;

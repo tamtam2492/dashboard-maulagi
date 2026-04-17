@@ -8,6 +8,11 @@ function normalizeStatusOverride(value) {
   return String(value || '').trim().toUpperCase().slice(0, 50);
 }
 
+function normalizeStoredOverrideStatus(value) {
+  const normalizedStatus = normalizeStatusOverride(value);
+  return normalizedStatus === 'BATAL' ? 'VOID' : normalizedStatus;
+}
+
 function normalizeSearchQuery(value) {
   return String(value || '').trim().toUpperCase().slice(0, 50);
 }
@@ -22,7 +27,7 @@ function parseStatusOverrideValue(value) {
   try {
     const parsed = JSON.parse(value);
     const nomorResi = normalizeResi(parsed && (parsed.nomor_resi || parsed.nomorResi));
-    const statusTerakhir = normalizeStatusOverride(parsed && (parsed.status_terakhir || parsed.statusTerakhir || parsed.status));
+    const statusTerakhir = normalizeStoredOverrideStatus(parsed && (parsed.status_terakhir || parsed.statusTerakhir || parsed.status));
     if (!nomorResi || !statusTerakhir) return null;
     return {
       nomor_resi: nomorResi,
@@ -40,7 +45,7 @@ function parseStatusOverrideValue(value) {
 
 function createStatusOverrideRecord(input) {
   const nomorResi = normalizeResi(input && input.nomor_resi);
-  const statusTerakhir = normalizeStatusOverride(input && input.status_terakhir);
+  const statusTerakhir = normalizeStoredOverrideStatus(input && input.status_terakhir);
   if (!nomorResi || !statusTerakhir) return null;
 
   return {

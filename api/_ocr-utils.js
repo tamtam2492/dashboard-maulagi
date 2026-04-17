@@ -52,7 +52,9 @@ function extractLooseOcrFields(content) {
     is_receipt: extractLooseField(content, 'is_receipt'),
     Channel: extractLooseField(content, 'Channel'),
     Total_Bayar: extractLooseField(content, 'Total_Bayar'),
+    Jumlah_Kirim_Uang: extractLooseField(content, 'Jumlah_Kirim_Uang') ?? extractLooseField(content, 'Jumlah Kirim Uang'),
     Admin: extractLooseField(content, 'Admin'),
+    Admin_Dibayar: extractLooseField(content, 'Admin_Dibayar') ?? extractLooseField(content, 'Admin Dibayar'),
   };
 }
 
@@ -99,15 +101,38 @@ function parseOcrResponseContent(content) {
     is_receipt: pickDefined(parsed.is_receipt, looseFields.is_receipt),
     Channel: pickDefined(parsed.Channel, looseFields.Channel),
     Total_Bayar: pickDefined(parsed.Total_Bayar, looseFields.Total_Bayar),
+    Jumlah_Kirim_Uang: pickDefined(parsed.Jumlah_Kirim_Uang, looseFields.Jumlah_Kirim_Uang),
     Admin: pickDefined(parsed.Admin, looseFields.Admin),
+    Admin_Dibayar: pickDefined(parsed.Admin_Dibayar, looseFields.Admin_Dibayar),
   };
 
   return {
     isReceipt: coerceBooleanOrNull(parsed.is_receipt),
     channel: coerceNullableString(parsed.Channel),
     totalBayar: coerceNullableInteger(parsed.Total_Bayar),
+    jumlahKirimUang: coerceNullableInteger(parsed.Jumlah_Kirim_Uang),
     admin: coerceNullableInteger(parsed.Admin),
+    adminDibayar: coerceBooleanOrNull(parsed.Admin_Dibayar),
     raw: parsed,
+  };
+}
+
+function resolveOcrNominal(parsed) {
+  const totalBayar = coerceNullableInteger(parsed && parsed.totalBayar);
+  const jumlahKirimUang = coerceNullableInteger(parsed && parsed.jumlahKirimUang);
+  const admin = coerceNullableInteger(parsed && parsed.admin);
+  const adminDibayar = coerceBooleanOrNull(parsed && parsed.adminDibayar);
+  const effectiveAdmin = adminDibayar === false ? 0 : (admin !== null ? admin : 0);
+
+  return {
+    totalBayar,
+    jumlahKirimUang,
+    admin,
+    adminDibayar,
+    effectiveAdmin,
+    nominal: jumlahKirimUang !== null
+      ? jumlahKirimUang
+      : (totalBayar !== null ? Math.max(totalBayar - effectiveAdmin, 0) : null),
   };
 }
 
@@ -121,5 +146,6 @@ module.exports = {
   parseGroqOcrContent,
   parseOcrResponseContent,
   pickDefined,
+  resolveOcrNominal,
   sanitizeLooseJson,
 };

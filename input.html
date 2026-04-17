@@ -410,9 +410,69 @@
       let cabangSummaryTimer = null;
       let lastSummaryKey = '';
       let lastSummaryRequestId = 0;
+      let lastCabangContextRequestId = 0;
       let lastDupeContext = null;
       let detailStageUnlocked = false;
       let cabangSummaryAbortController = null;
+      let cabangContextAbortController = null;
+      const inputAsyncState = {
+        uploadRevision: 0,
+        ocrStatus: 'idle',
+        cabangHoldStatus: 'idle',
+        cabangHoldKey: '',
+        noncodContextKey: '',
+        cabangHoldHasData: false,
+        cabangHoldMessage: '',
+      };
+
+      function setOcrFlowStatus(status) {
+        inputAsyncState.ocrStatus = status;
+      }
+
+      function hasReadyOcrResult() {
+        return inputAsyncState.ocrStatus === 'success' &&
+          parseNominal() > 0 &&
+          document.getElementById('namaBank').value.trim();
+      }
+
+      function setCabangHoldState(status, options = {}) {
+        inputAsyncState.cabangHoldStatus = status;
+        inputAsyncState.cabangHoldKey = Object.prototype.hasOwnProperty.call(options, 'holdKey')
+          ? options.holdKey
+          : inputAsyncState.cabangHoldKey;
+        inputAsyncState.noncodContextKey = options.contextKey || '';
+        inputAsyncState.cabangHoldHasData = !!options.hasData;
+        inputAsyncState.cabangHoldMessage = options.message || '';
+      }
+
+      function resetCabangHoldState() {
+        if (cabangContextAbortController) {
+          cabangContextAbortController.abort();
+          cabangContextAbortController = null;
+        }
+        lastCabangContextRequestId = 0;
+        setCabangHoldState('idle', {
+          holdKey: '',
+          contextKey: '',
+          hasData: false,
+          message: '',
+        });
+      }
+
+      function getCabangHoldKey() {
+        const selectedCabang = getSelectedCabangRecord();
+        if (!selectedCabang) return '';
+        const vals = getFormValues();
+        return [selectedCabang.nama, vals.periode].join('|');
+      }
+
+      function hasReadyCabangHold() {
+        return inputAsyncState.cabangHoldStatus === 'ready' && !!inputAsyncState.cabangHoldKey;
+      }
+
+      function canResolveNoncodMatch() {
+        return hasSelectedCabang() && hasReadyCabangHold() && hasReadyOcrResult();
+      }
 
       async function loadCabang() {
         try {
@@ -502,15 +562,81 @@
         const scopeLabel = selectedCabang.area ? 'Area ' + selectedCabang.area : 'Cabang ini';
 
         if (!context) {
-          if (vals.nominal <= 0) {
+          if (inputAsyncState.cabangHoldStatus === 'loading') {
             setCabangSummaryView({
               tone: 'pending',
-              badge: 'Lengkapi data',
-              meta: 'Isi nominal agar sistem bisa mencocokkan dengan data NONCOD.',
+              badge: 'Menyiapkan NONCOD',
+              meta: selectedCabang.nama + ' · Menarik konteks cabang',
+              dateValue: '...',
+              ongkirValue: '...',
+              diffValue: '...',
+              note: hasReadyOcrResult()
+                ? 'Hasil OCR sudah siap. Sistem sedang menyiapkan data NONCOD cabang sebelum mencocokkan hasil akhirnya.'
+                : 'Cabang sedang menyiapkan konteks NONCOD. OCR bisa berjalan paralel dan hasil akhir akan keluar saat dua-duanya siap.',
+            });
+          } else if (inputAsyncState.cabangHoldStatus === 'failed') {
+            setCabangSummaryView({
+              tone: 'warn',
+              badge: 'Gagal Ambil NONCOD',
+              meta: selectedCabang.nama,
               dateValue: '-',
               ongkirValue: '-',
               diffValue: '-',
-              note: 'Setelah nominal terisi, sistem otomatis mencocokkan dengan data NONCOD cabang ini.',
+              note: inputAsyncState.cabangHoldMessage || 'Data NONCOD cabang belum berhasil dimuat. Pilih ulang cabang atau coba lagi.',
+            });
+          } else if (hasReadyCabangHold() && !inputAsyncState.cabangHoldHasData) {
+            setCabangSummaryView({
+              tone: 'info',
+              badge: 'Context Kosong',
+              meta: selectedCabang.nama,
+              dateValue: '-',
+              ongkirValue: '-',
+              diffValue: '-',
+              note: inputAsyncState.cabangHoldMessage || 'Cabang sudah siap, tetapi belum ada data NONCOD yang bisa dipakai untuk pencocokan.',
+            });
+          } else if (hasReadyCabangHold() && inputAsyncState.ocrStatus === 'processing') {
+            setCabangSummaryView({
+              tone: 'pending',
+              badge: 'NONCOD Siap',
+              meta: selectedCabang.nama + ' · Konteks cabang sudah siap',
+              dateValue: '...',
+              ongkirValue: '...',
+              diffValue: '...',
+              note: 'Konteks NONCOD untuk cabang ini sudah siap. Sistem tinggal menunggu OCR selesai untuk mencocokkan hasil akhirnya.',
+            });
+          } else if (inputAsyncState.ocrStatus === 'failed') {
+            setCabangSummaryView({
+              tone: 'warn',
+              badge: 'OCR Gagal',
+              meta: selectedCabang.nama,
+              dateValue: '-',
+              ongkirValue: '-',
+              diffValue: '-',
+              note: hasReadyCabangHold()
+                ? 'Konteks cabang sudah siap, tetapi OCR belum menghasilkan data valid. Upload ulang bukti transfer untuk melanjutkan pencocokan.'
+                : 'OCR belum menghasilkan data yang valid. Upload ulang bukti transfer untuk melanjutkan pencocokan.',
+            });
+          } else if (inputAsyncState.ocrStatus === 'partial' || vals.nominal <= 0) {
+            setCabangSummaryView({
+              tone: 'pending',
+              badge: hasReadyCabangHold() ? 'NONCOD Siap' : 'Menunggu hasil OCR',
+              meta: selectedCabang.nama,
+              dateValue: '-',
+              ongkirValue: '-',
+              diffValue: '-',
+              note: hasReadyCabangHold()
+                ? 'Konteks NONCOD cabang sudah siap. Sistem menunggu OCR lengkap untuk menjalankan pencocokan akhir.'
+                : 'Sistem menahan pilihan cabang ini sampai hasil OCR lengkap, lalu pencocokan NONCOD dijalankan otomatis.',
+            });
+          } else if (hasReadyCabangHold() && !hasReadyOcrResult()) {
+            setCabangSummaryView({
+              tone: 'pending',
+              badge: 'Cabang Siap',
+              meta: selectedCabang.nama,
+              dateValue: '-',
+              ongkirValue: '-',
+              diffValue: '-',
+              note: 'Konteks NONCOD cabang sudah siap. Upload bukti atau tunggu OCR selesai agar hasil akhir bisa keluar.',
             });
           } else {
             setCabangSummaryView({
@@ -602,7 +728,7 @@
         }
       }
 
-      function resetCabangSummary() {
+      function resetCabangSummaryRequestState() {
         clearTimeout(cabangSummaryTimer);
         if (cabangSummaryAbortController) {
           cabangSummaryAbortController.abort();
@@ -611,18 +737,96 @@
         lastSummaryKey = '';
         lastSummaryRequestId = 0;
         lastDupeContext = null;
+        document.getElementById('tglInput').value = '';
+      }
+
+      function resetCabangSummary() {
+        resetCabangSummaryRequestState();
         document.getElementById('cabangSummaryCard').classList.remove('show');
       }
 
-      function beginCabangSyncFlow() {
-        lastDupeContext = null;
-        lastSummaryKey = '';
-        document.getElementById('tglInput').value = '';
+      async function prefetchCabangContext(force = false) {
+        const selectedCabang = getSelectedCabangRecord();
+        if (!selectedCabang) {
+          resetCabangHoldState();
+          return { ok: false, reason: 'missing_cabang' };
+        }
+
+        const vals = getFormValues();
+        const holdKey = getCabangHoldKey();
+
+        if (!force && hasReadyCabangHold() && inputAsyncState.cabangHoldKey === holdKey) {
+          return { ok: true, reason: 'cached' };
+        }
+
+        if (!force && inputAsyncState.cabangHoldStatus === 'loading' && inputAsyncState.cabangHoldKey === holdKey) {
+          return { ok: false, reason: 'loading' };
+        }
+
+        setCabangHoldState('loading', {
+          holdKey,
+          contextKey: '',
+          hasData: false,
+          message: '',
+        });
+
+        const requestId = ++lastCabangContextRequestId;
+        if (cabangContextAbortController) cabangContextAbortController.abort();
+        cabangContextAbortController = new AbortController();
+
+        try {
+          const { res, json } = await fetchJsonWithTimeout('/api/input?dupe=1', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nama_cabang: vals.nama_cabang,
+              periode: vals.periode,
+              prefetch: true,
+            }),
+          }, 15000, cabangContextAbortController);
+
+          if (requestId !== lastCabangContextRequestId) return { ok: false, reason: 'stale' };
+          if (!res.ok) throw new Error(json.error || 'Gagal menyiapkan konteks NONCOD.');
+
+          setCabangHoldState('ready', {
+            holdKey,
+            contextKey: json.contextKey || '',
+            hasData: !!json.hasData,
+            message: json.message || '',
+          });
+          return { ok: true, reason: 'ready' };
+        } catch (err) {
+          if (requestId !== lastCabangContextRequestId) return { ok: false, reason: 'stale' };
+          const message = err && err.name === 'AbortError'
+            ? 'Menyiapkan data NONCOD terlalu lama. Coba pilih ulang cabang.'
+            : 'Gagal menyiapkan data NONCOD untuk cabang ini. Coba lagi.';
+          setCabangHoldState('failed', {
+            holdKey,
+            contextKey: '',
+            hasData: false,
+            message,
+          });
+          return { ok: false, reason: 'error' };
+        } finally {
+          if (cabangContextAbortController && requestId === lastCabangContextRequestId) {
+            cabangContextAbortController = null;
+          }
+        }
+      }
+
+      async function beginCabangSyncFlow() {
+        resetCabangSummaryRequestState();
         resetPeriodePreference();
         detailStageUnlocked = true;
         renderCabangSummary(null);
         updateCabangStepState();
-        refreshCabangSummary(true);
+
+        const prefetched = await prefetchCabangContext(true);
+        renderCabangSummary(null);
+        checkReady();
+        if (prefetched.ok && hasReadyOcrResult()) {
+          refreshCabangSummary(true);
+        }
       }
 
       async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 15000, existingController = null) {
@@ -647,8 +851,10 @@
       async function refreshCabangSummary(force = false) {
         const vals = getFormValues();
         const selectedCabang = getSelectedCabangRecord();
+        const holdKey = getCabangHoldKey();
 
         if (!selectedCabang) {
+          resetCabangHoldState();
           resetCabangSummary();
           detailStageUnlocked = false;
           updateCabangStepState();
@@ -658,16 +864,28 @@
         detailStageUnlocked = true;
         updateCabangStepState();
 
-        if (vals.nominal <= 0) {
-          lastDupeContext = null;
-          lastSummaryKey = '';
-          document.getElementById('tglInput').value = '';
+        if (
+          force ||
+          inputAsyncState.cabangHoldKey !== holdKey ||
+          inputAsyncState.cabangHoldStatus === 'idle' ||
+          inputAsyncState.cabangHoldStatus === 'failed'
+        ) {
+          const prefetched = await prefetchCabangContext(force);
+          renderCabangSummary(null);
+          checkReady();
+          if (!prefetched.ok) {
+            return;
+          }
+        }
+
+        if (!canResolveNoncodMatch()) {
+          resetCabangSummaryRequestState();
           renderCabangSummary(null);
           checkReady();
           return;
         }
 
-        const summaryKey = [vals.nama_cabang, vals.nominal, vals.periode].join('|');
+        const summaryKey = [inputAsyncState.uploadRevision, vals.nama_cabang, vals.nominal, vals.periode, inputAsyncState.noncodContextKey].join('|');
         if (!force && summaryKey === lastSummaryKey && lastDupeContext) {
           renderCabangSummary(lastDupeContext);
           checkReady();
@@ -683,13 +901,14 @@
         cabangSummaryAbortController = new AbortController();
 
         try {
-          const { res, json } = await fetchJsonWithTimeout('/api/check-dupe', {
+          const { res, json } = await fetchJsonWithTimeout('/api/input?dupe=1', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               nama_cabang: vals.nama_cabang,
               periode: vals.periode,
               nominal: vals.nominal,
+              context_key: inputAsyncState.noncodContextKey,
             }),
           }, 15000, cabangSummaryAbortController);
           if (requestId !== lastSummaryRequestId) return;
@@ -736,6 +955,7 @@
           dd.classList.add('open');
           hidden.value = ''; // clear selection when typing
           detailStageUnlocked = false;
+          resetCabangHoldState();
           lastDupeContext = null;
           lastSummaryKey = '';
           renderCabangList(input.value);
@@ -826,34 +1046,17 @@
         });
       }
 
-      document.getElementById('fileBukti').addEventListener('change', function() {
-        const file = this.files[0];
-        if (!file) return;
-        if (file.size > MAX_FILE_SIZE) {
-          alert('File terlalu besar. Maksimal 5MB.');
-          this.value = '';
-          checkReady();
-          return;
-        }
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = document.getElementById('previewImg');
-          const placeholder = document.getElementById('uploadPlaceholder');
-          resetPeriodePreference();
-          img.src = e.target.result;
-          img.style.display = 'block';
-          placeholder.style.display = 'none';
-          document.getElementById('uploadArea').classList.add('has-preview');
-          document.getElementById('previewChangeHint').style.display = 'block';
-          showFields();
-          // Auto-scan with OCR
-          runOCR(e.target.result);
-        };
-        reader.readAsDataURL(file);
-        checkReady();
-      });
-
       function setOcrStatus(type, text) {
+        if (type === 'scanning') {
+          setOcrFlowStatus('processing');
+        } else if (type === 'success') {
+          setOcrFlowStatus('success');
+        } else if (type === 'info') {
+          setOcrFlowStatus('partial');
+        } else {
+          setOcrFlowStatus('failed');
+        }
+
         const el = document.getElementById('ocrStatus');
         el.className = 'ocr-status ' + type;
         if (type === 'scanning') {
@@ -865,6 +1068,9 @@
         } else {
           el.innerHTML = '<i class="bi bi-x-circle-fill"></i>' + text;
         }
+
+        if (hasSelectedCabang()) scheduleCabangSummaryRefresh();
+        checkReady();
       }
 
       function showFields() {
@@ -876,6 +1082,49 @@
         const badge = document.getElementById(badgeId);
         if (badge) badge.style.display = show ? 'inline-flex' : 'none';
       }
+
+      function prepareProofAsyncFlow() {
+        inputAsyncState.uploadRevision += 1;
+        setOcrFlowStatus('processing');
+        if (ocrController) ocrController.resetState();
+        document.getElementById('namaBank').value = '';
+        document.getElementById('nominal').value = '';
+        document.getElementById('tglInput').value = '';
+        setBadge('bankBadge', false);
+        setBadge('nominalBadge', false);
+        resetPeriodePreference();
+        resetCabangSummaryRequestState();
+        if (hasSelectedCabang()) renderCabangSummary(null);
+        checkReady();
+      }
+
+      document.getElementById('fileBukti').addEventListener('change', function() {
+        const file = this.files[0];
+        if (!file) return;
+        if (file.size > MAX_FILE_SIZE) {
+          alert('File terlalu besar. Maksimal 5MB.');
+          this.value = '';
+          checkReady();
+          return;
+        }
+
+        prepareProofAsyncFlow();
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = document.getElementById('previewImg');
+          const placeholder = document.getElementById('uploadPlaceholder');
+          img.src = e.target.result;
+          img.style.display = 'block';
+          placeholder.style.display = 'none';
+          document.getElementById('uploadArea').classList.add('has-preview');
+          document.getElementById('previewChangeHint').style.display = 'block';
+          showFields();
+          runOCR(e.target.result, { force: true });
+        };
+        reader.readAsDataURL(file);
+        checkReady();
+      });
 
       function normalizeBankNameInput(value) {
         return inputOcrModule.normalizeBankNameInput(value);
@@ -892,9 +1141,9 @@
         return inputOcrModule.matchBank(channel);
       }
 
-      async function runOCR(base64DataUrl) {
+      async function runOCR(base64DataUrl, options) {
         if (!ocrController) return;
-        await ocrController.runOCR(base64DataUrl);
+        await ocrController.runOCR(base64DataUrl, options);
       }
 
       function setInputStep(n) {
@@ -911,7 +1160,7 @@
 
       function checkReady() {
         updateCabangStepState();
-        const ok = document.getElementById('namaBank').value.trim() &&
+        const ok = hasReadyOcrResult() &&
           parseNominal() > 0 &&
           document.getElementById('tglInput').value &&
           document.getElementById('namaCabang').value &&
@@ -1005,6 +1254,7 @@
         const formVisible = document.getElementById('formFields').classList.contains('show');
         const hasBukti = document.getElementById('fileBukti').files.length > 0;
         const cabangSelected = hasSelectedCabang();
+        const hasMatchedDate = !!document.getElementById('tglInput').value;
         const cabangInput = document.getElementById('cabangSearch');
         const cabangDropdown = document.getElementById('cabangDD');
         const detailFields = document.getElementById('detailAfterCabang');
@@ -1012,37 +1262,69 @@
         const cabangStageNoteText = document.getElementById('cabangStageNoteText');
         const submitBtn = document.getElementById('btnSubmit');
 
-        cabangInput.disabled = !hasBukti;
-        cabangInput.placeholder = hasBukti ? 'Cari cabang...' : 'Upload bukti dulu untuk pilih cabang';
-        if (!hasBukti) cabangDropdown.classList.remove('open');
+        cabangInput.disabled = false;
+        cabangInput.placeholder = 'Cari cabang...';
 
         detailFields.classList.toggle('show', formVisible && hasBukti && detailStageUnlocked);
 
         if (!formVisible) {
           cabangStageNote.style.display = 'none';
-        } else if (!hasBukti) {
+        } else if (!hasBukti && !cabangSelected) {
           cabangStageNote.style.display = 'flex';
-          cabangStageNoteText.textContent = 'Upload bukti bayar dulu. Setelah file dipilih, kolom cabang langsung aktif di bawah ini.';
+          cabangStageNoteText.textContent = 'Pilih cabang atau upload bukti dulu. Sistem akan menahan bagian yang sudah siap sampai dua-duanya lengkap.';
+        } else if (!hasBukti && cabangSelected) {
+          cabangStageNote.style.display = 'flex';
+          if (inputAsyncState.cabangHoldStatus === 'loading') {
+            cabangStageNoteText.textContent = 'Cabang sudah tersimpan. Sistem sedang menyiapkan konteks NONCOD, dan Anda bisa lanjut upload bukti kapan saja.';
+          } else if (inputAsyncState.cabangHoldStatus === 'failed') {
+            cabangStageNoteText.textContent = 'Cabang sudah dipilih, tetapi konteks NONCOD belum berhasil dimuat. Coba pilih ulang cabang atau lanjut upload bukti setelah retry.';
+          } else if (hasReadyCabangHold()) {
+            cabangStageNoteText.textContent = 'Konteks NONCOD cabang sudah siap. Upload bukti untuk menjalankan OCR dan menyelesaikan pencocokan.';
+          } else {
+            cabangStageNoteText.textContent = 'Cabang sudah dipilih. Sistem akan menyiapkan konteks NONCOD sambil menunggu bukti transfer.';
+          }
         } else if (!cabangSelected) {
           cabangStageNote.style.display = 'flex';
-          cabangStageNoteText.textContent = 'Pilih cabang dulu. Sistem akan otomatis mencocokkan nominal transfer dengan data NONCOD.';
-        } else if (!detailStageUnlocked) {
+          cabangStageNoteText.textContent = 'Pilih cabang dulu. Sistem akan menyiapkan konteks NONCOD sambil OCR berjalan.';
+        } else if (inputAsyncState.cabangHoldStatus === 'loading') {
+          cabangStageNote.style.display = 'flex';
+          cabangStageNoteText.textContent = hasReadyOcrResult()
+            ? 'Hasil OCR sudah siap. Sistem sedang menyiapkan data NONCOD cabang sebelum mengeluarkan hasil akhir.'
+            : 'Cabang sudah tersimpan. Sistem sedang menyiapkan data NONCOD, OCR tetap bisa berjalan paralel.';
+        } else if (inputAsyncState.cabangHoldStatus === 'failed') {
+          cabangStageNote.style.display = 'flex';
+          cabangStageNoteText.textContent = 'Gagal menyiapkan data NONCOD untuk cabang ini. Coba pilih ulang cabang.';
+        } else if (inputAsyncState.ocrStatus === 'processing') {
+          cabangStageNote.style.display = 'flex';
+          cabangStageNoteText.textContent = hasReadyCabangHold()
+            ? 'Konteks NONCOD cabang sudah siap. OCR sedang membaca bukti, lalu hasil akhirnya akan keluar otomatis.'
+            : 'OCR sedang membaca bukti. Sistem akan melanjutkan pencocokan setelah konteks cabang siap.';
+        } else if (inputAsyncState.ocrStatus === 'failed' || inputAsyncState.ocrStatus === 'partial') {
+          cabangStageNote.style.display = 'flex';
+          cabangStageNoteText.textContent = hasReadyCabangHold()
+            ? 'Konteks cabang sudah siap, tetapi hasil OCR belum lengkap. Upload ulang bukti agar pencocokan bisa dilanjutkan.'
+            : 'Hasil OCR belum lengkap. Upload ulang bukti agar sistem bisa lanjut mencocokkan dengan NONCOD.';
+        } else if (!lastDupeContext) {
           cabangStageNote.style.display = 'flex';
           cabangStageNoteText.textContent = 'Sedang mencocokkan dengan data NONCOD...';
+        } else if (!hasMatchedDate) {
+          cabangStageNote.style.display = 'flex';
+          cabangStageNoteText.textContent = 'Belum ada data NONCOD yang cocok untuk kombinasi bukti dan cabang ini.';
         } else {
           cabangStageNote.style.display = 'none';
         }
 
         submitBtn.style.display = formVisible && hasBukti && detailStageUnlocked ? '' : 'none';
 
-        if (!hasBukti || !cabangSelected) {
+        if (!cabangSelected) {
           detailStageUnlocked = false;
+          resetCabangHoldState();
           resetCabangSummary();
         }
 
         // Update step indicator
-        if (!hasBukti) setInputStep(1);
-        else if (!cabangSelected) setInputStep(2);
+        if (!hasBukti && !cabangSelected) setInputStep(1);
+        else if (!hasBukti || !cabangSelected) setInputStep(2);
         else if (!detailStageUnlocked) setInputStep(3);
         // step 4 set by checkReady() when form fully valid
       }
@@ -1068,13 +1350,14 @@
 
         try {
           const selectedCabang = getSelectedCabangRecord();
-          const { res: chkRes, json: chkJson } = await fetchJsonWithTimeout('/api/check-dupe', {
+          const { res: chkRes, json: chkJson } = await fetchJsonWithTimeout('/api/input?dupe=1', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               nama_cabang: vals.nama_cabang,
               periode: vals.periode,
               nominal: vals.nominal,
+              context_key: inputAsyncState.noncodContextKey,
             }),
           }, 15000);
 
@@ -1162,6 +1445,8 @@
 
       function resetForm() {
         detailStageUnlocked = false;
+        inputAsyncState.uploadRevision += 1;
+        setOcrFlowStatus('idle');
         document.getElementById('formWrap').style.display = 'flex';
         document.getElementById('successScreen').style.display = 'none';
         document.getElementById('successMessage').innerHTML = 'Data transfer Anda sudah masuk.<br>Terima kasih!';

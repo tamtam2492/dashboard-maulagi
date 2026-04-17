@@ -4,7 +4,7 @@ let cachedClient = null;
 let cachedKey = null;
 
 function getSupabaseKey() {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  return (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
 }
 
 function getSupabase() {
@@ -12,7 +12,7 @@ function getSupabase() {
   const key = getSupabaseKey();
 
   if (!url || !key) {
-    throw new Error('SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY wajib diisi.');
+    throw new Error('SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY wajib diisi.');
   }
 
   if (!cachedClient || cachedKey !== key) {

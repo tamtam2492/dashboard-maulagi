@@ -1,7 +1,18 @@
 const { requireAdmin } = require('./_auth');
+const { normalizeBankName } = require('./_bank');
 const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { loginMaukirim, downloadOrdersWorkbook } = require('./_maukirim');
+const {
+  aggregateOngkirByDate,
+  findSequentialAllocationDates,
+  getRecentPeriodes,
+} = require('./_noncod-match');
+const {
+  deletePendingAllocation,
+  listPendingAllocationRows,
+  upsertPendingAllocation,
+} = require('./_noncod-pending-allocations');
 const {
   applyStatusOverrides,
   deleteStatusOverride,
@@ -9,8 +20,19 @@ const {
   readStatusOverridesByResi,
   upsertStatusOverride,
 } = require('./_noncod-status-overrides');
+const {
+  isNoncodPipelineTriggerEnabled,
+  markNoncodSyncBuilding,
+  markNoncodSyncFailed,
+  markNoncodSyncPublished,
+  normalizePeriodeList,
+  queueNoncodPipelineTrigger,
+  readNoncodSyncPipelineState,
+  timingSafeSecretEqual,
+} = require('./_noncod-sync-pipeline');
 const { getSupabase } = require('./_supabase');
 const { excelSerialToDate, loadWorkbookFromBuffer, worksheetToObjects } = require('./_excel');
+const { getPeriodeFromDate, normalizeTransferKet } = require('./_transfer-utils');
 
 const PERIODE_RE = /^\d{4}-\d{2}$/;
 
@@ -27,6 +49,10 @@ function createMetric() {
 const MAUKIRIM_SYNC_KEY_PREFIX = 'maukirim_sync_';
 const MAUKIRIM_AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 const syncPendingByPeriode = new Map();
+
+function isExcludedNoncodStatus(value) {
+  return String(value || '').trim().toUpperCase() === 'VOID';
+}
 
 function canAutoSyncMaukirim() {
   return !!(process.env.MAUKIRIM_WA && process.env.MAUKIRIM_PASS);
@@ -76,6 +102,25 @@ function isSyncMetaStale(meta, now = Date.now()) {
   const syncedAtMs = Date.parse(meta.syncedAt);
   if (!Number.isFinite(syncedAtMs)) return true;
   return now - syncedAtMs >= MAUKIRIM_AUTO_SYNC_INTERVAL_MS;
+}
+
+async function authorizeSyncRequest(req, res) {
+  const expectedSecret = String(process.env.NONCOD_SYNC_SECRET || '').trim();
+  const providedSecret = String(req.headers['x-sync-secret'] || '').trim();
+  if (expectedSecret && providedSecret) {
+    if (timingSafeSecretEqual(providedSecret, expectedSecret)) return true;
+    res.status(401).json({ error: 'Unauthorized.' });
+    return false;
+  }
+  if (!expectedSecret && providedSecret) {
+    res.status(401).json({ error: 'Unauthorized.' });
+    return false;
+  }
+  if (await requireAdmin(req, res)) return true;
+  if (!res.body && !res.ended) {
+    res.status(401).json({ error: 'Unauthorized.' });
+  }
+  return false;
 }
 
 function normalizeSheetDate(val) {
@@ -156,7 +201,6 @@ function sanitizeNoncodRows(periode, rows) {
   }).filter(r => {
     if (!r.metode_pembayaran) return false;
     if (!r.nomor_resi && r.ongkir <= 0 && r.total_pengiriman <= 0) return false;
-    if (String(r.status_terakhir || '').trim().toUpperCase() === 'BATAL') return false;
     if (r.nomor_resi && seen.has(r.nomor_resi)) return false;
     if (r.nomor_resi) seen.add(r.nomor_resi);
     return true;
@@ -187,6 +231,135 @@ async function replacePeriodeRows(supabase, periode, rows) {
   await deduplicateNoncodPeriode(supabase, periode);
 
   return inserted;
+}
+
+async function buildPendingResolutionContext(supabase, cabang, periodes) {
+  const { data: noncodRows, error: noncodError } = await supabase
+    .from('noncod')
+    .select('tanggal_buat, ongkir, metode_pembayaran, nomor_resi, status_terakhir')
+    .in('periode', periodes)
+    .eq('cabang', cabang);
+  if (noncodError) throw noncodError;
+
+  const overrideMap = await readStatusOverridesByResi(supabase, (noncodRows || []).map((row) => row.nomor_resi));
+  const effectiveRows = applyStatusOverrides(noncodRows, overrideMap);
+  const byDate = aggregateOngkirByDate(effectiveRows);
+  const candidateDates = Object.keys(byDate);
+
+  let existingTransfers = [];
+  if (candidateDates.length) {
+    const { data: transferRows, error: transferError } = await supabase
+      .from('transfers')
+      .select('id, tgl_inputan, nominal')
+      .eq('nama_cabang', cabang)
+      .in('tgl_inputan', candidateDates);
+    if (transferError) throw transferError;
+    existingTransfers = Array.isArray(transferRows) ? transferRows : [];
+  }
+
+  return { byDate, existingTransfers };
+}
+
+async function resolvePendingAllocations(supabase, options = {}) {
+  const periodes = Array.isArray(options.periodes) && options.periodes.length
+    ? [...new Set(options.periodes.map((periode) => String(periode || '').trim()).filter((periode) => PERIODE_RE.test(periode)))]
+    : getRecentPeriodes();
+  const { rows: pendingRows } = await listPendingAllocationRows(supabase);
+  if (!pendingRows.length) return [];
+
+  const contextCache = new Map();
+  const results = [];
+  const orderedRows = pendingRows
+    .slice()
+    .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')) || a.cabang.localeCompare(b.cabang));
+
+  for (const row of orderedRows) {
+    const cacheKey = row.cabang + '|' + periodes.join(',');
+    try {
+      let context = contextCache.get(cacheKey);
+      if (!context) {
+        context = await buildPendingResolutionContext(supabase, row.cabang, periodes);
+        contextCache.set(cacheKey, context);
+      }
+
+      const plan = findSequentialAllocationDates(
+        context.byDate,
+        context.existingTransfers,
+        row.nominal,
+        row.after_date,
+        { includeStartDate: true },
+      );
+      if (!plan.dates.length) {
+        results.push({
+          root_transfer_id: row.root_transfer_id,
+          resolvedNominal: 0,
+          pendingNominal: row.nominal,
+          inserted: [],
+        });
+        continue;
+      }
+
+      const insertRows = plan.dates.map((dateRow) => ({
+        timestamp: row.timestamp || new Date().toISOString(),
+        tgl_inputan: dateRow.tanggal_buat,
+        periode: getPeriodeFromDate(dateRow.tanggal_buat),
+        nama_bank: normalizeBankName(row.transfer_bank),
+        nama_cabang: row.cabang,
+        nominal: dateRow.plannedNominal,
+        ket: normalizeTransferKet(row.ket) || null,
+        bukti_url: row.bukti_url,
+      }));
+
+      const { data: insertedRows, error: insertError } = await supabase
+        .from('transfers')
+        .insert(insertRows)
+        .select('id, tgl_inputan, nominal');
+      if (insertError) throw insertError;
+
+      const inserted = Array.isArray(insertedRows) ? insertedRows : [];
+
+      try {
+        if (plan.pendingNominal > 0) {
+          await upsertPendingAllocation(supabase, {
+            ...row,
+            nominal: plan.pendingNominal,
+            after_date: plan.lastDate || row.after_date,
+            updated_at: new Date().toISOString(),
+          });
+        } else {
+          await deletePendingAllocation(supabase, row.root_transfer_id);
+        }
+      } catch (pendingError) {
+        if (inserted.length) {
+          await supabase.from('transfers').delete().in('id', inserted.map((item) => item.id)).catch(() => {});
+        }
+        throw pendingError;
+      }
+
+      inserted.forEach((item) => {
+        context.existingTransfers.push({
+          id: item.id,
+          tgl_inputan: item.tgl_inputan,
+          nominal: item.nominal,
+        });
+      });
+
+      results.push({
+        root_transfer_id: row.root_transfer_id,
+        resolvedNominal: plan.allocatedTotal,
+        pendingNominal: plan.pendingNominal,
+        inserted,
+      });
+    } catch (err) {
+      logError('noncod-pending-allocation', err.message, {
+        method: 'RESOLVE',
+        cabang: row.cabang,
+        transferId: row.root_transfer_id,
+      });
+    }
+  }
+
+  return results;
 }
 
 async function deduplicateNoncodPeriode(supabase, periode) {
@@ -300,6 +473,7 @@ async function maybeSyncMaukirimPeriod(supabase, periode, options = {}) {
     const cleanRows = sanitizeNoncodRows(periode, importedRows);
     const inserted = await replacePeriodeRows(supabase, periode, cleanRows);
     const stats = summarizeInsertedRows(cleanRows);
+    await resolvePendingAllocations(supabase, { periodes: getRecentPeriodes() });
     const meta = {
       source: 'maukirim_auto',
       syncedAt: new Date().toISOString(),
@@ -374,8 +548,9 @@ async function fetchAllRowsByPeriode(supabase, periode) {
   return allRows;
 }
 
-async function handleManualStatusRoute(req, res, supabase) {
+async function handleManualStatusRoute(req, res) {
   if (!(await requireAdmin(req, res))) return true;
+  const supabase = getSupabase();
 
   if (req.method === 'GET') {
     try {
@@ -430,24 +605,110 @@ async function handleManualStatusRoute(req, res, supabase) {
   return true;
 }
 
+async function handlePipelineRoute(req, res) {
+  if (req.method === 'GET') {
+    if (!(await requireAdmin(req, res))) return true;
+    const supabase = getSupabase();
+    const state = await readNoncodSyncPipelineState(supabase);
+    res.json({
+      state,
+      triggerEnabled: isNoncodPipelineTriggerEnabled(),
+    });
+    return true;
+  }
+
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed.' });
+    return true;
+  }
+
+  const authorized = await authorizeSyncRequest(req, res);
+  if (!authorized) return true;
+
+  const supabase = getSupabase();
+
+  const reason = String(req.body?.reason || 'background_sync').trim() || 'background_sync';
+  const requestedPeriodes = normalizePeriodeList(req.body?.periodes);
+  const force = req.body?.force !== false;
+
+  try {
+    const started = await markNoncodSyncBuilding(supabase, {
+      reason,
+      periodes: requestedPeriodes,
+    });
+
+    if (started.alreadyBuilding) {
+      res.status(202).json({
+        success: true,
+        status: 'building',
+        state: started.state,
+      });
+      return true;
+    }
+
+    const periodesToSync = started.state.buildPeriodes.length
+      ? started.state.buildPeriodes
+      : getAutoSyncPeriods();
+
+    const results = await syncMaukirimPeriodes(supabase, periodesToSync, { force });
+    const nextState = await markNoncodSyncPublished(supabase, {
+      periodes: periodesToSync,
+      reason,
+    });
+
+    if (nextState.dirty && nextState.pendingPeriodes.length) {
+      queueNoncodPipelineTrigger({
+        reason: 'coalesced_rebuild',
+        periodes: nextState.pendingPeriodes,
+        source: 'noncod-sync',
+      });
+    }
+
+    res.json({
+      success: true,
+      status: nextState.status,
+      results,
+      state: nextState,
+    });
+    return true;
+  } catch (err) {
+    console.error(err);
+    const failedState = await markNoncodSyncFailed(supabase, {
+      reason,
+      periodes: requestedPeriodes,
+      error: err.message,
+    }).catch(() => null);
+    logError('noncod-sync', err.message, { method: 'POST', reason, periodes: requestedPeriodes });
+    res.status(500).json({
+      error: 'Gagal menjalankan background sync NONCOD.',
+      detail: err.message,
+      state: failedState,
+    });
+    return true;
+  }
+}
+
 async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
-  if (cors(req, res, { methods: 'GET, PUT, DELETE, OPTIONS', headers: 'Content-Type, X-Admin-Token' })) return;
+  if (cors(req, res, { methods: 'GET, POST, PUT, DELETE, OPTIONS', headers: 'Content-Type, X-Admin-Token, X-Sync-Secret' })) return;
 
   // DELETE: admin only
   if (req.method === 'DELETE' && req.query.manual_status !== '1') {
     if (!(await requireAdmin(req, res))) return;
   }
 
-  const supabase = getSupabase();
-
   if (req.query.manual_status === '1') {
-    if (await handleManualStatusRoute(req, res, supabase)) return;
+    if (await handleManualStatusRoute(req, res)) return;
+  }
+
+  if (req.query.pipeline === '1') {
+    if (await handlePipelineRoute(req, res)) return;
   }
 
   // GET /api/noncod?periode=2026-04 — ambil summary per cabang
   if (req.method === 'GET') {
     try {
+      const supabase = getSupabase();
       const periode = (req.query.periode || '').trim();
       const mode = String(req.query.mode || 'noncod').trim().toLowerCase();
       const forceSync = req.query.sync === '1' || req.query.refresh === '1';
@@ -460,19 +721,34 @@ async function handler(req, res) {
       if (forceSync && !(await requireAdmin(req, res))) return;
 
       const syncMeta = await readSyncMeta(supabase, periode);
+      const pipelineState = await readNoncodSyncPipelineState(supabase);
+      const backgroundTriggerEnabled = isNoncodPipelineTriggerEnabled();
       let syncInfo = buildSyncInfo(periode, syncMeta);
+      syncInfo.pipeline = pipelineState;
+      syncInfo.triggerEnabled = backgroundTriggerEnabled;
+      syncInfo.stale = isSyncMetaStale(syncMeta);
       let data = await fetchAllRowsByPeriode(supabase, periode);
 
-      const shouldSync = syncInfo.enabled && syncInfo.eligible && (forceSync || !data.length || isSyncMetaStale(syncMeta));
+      const shouldSync = syncInfo.enabled && syncInfo.eligible && (
+        forceSync
+        || !data.length
+        || (!backgroundTriggerEnabled && syncInfo.stale)
+      );
       if (shouldSync) {
         try {
           syncInfo = await maybeSyncMaukirimPeriod(supabase, periode, { force: true });
+          syncInfo.pipeline = pipelineState;
+          syncInfo.triggerEnabled = backgroundTriggerEnabled;
+          syncInfo.stale = false;
           data = await fetchAllRowsByPeriode(supabase, periode);
         } catch (syncErr) {
           console.error('[noncod sync]', syncErr.message);
           logError('noncod', syncErr.message, { method: 'GET', action: 'sync', periode, forceSync });
           syncInfo = {
             ...buildSyncInfo(periode, syncMeta),
+            pipeline: pipelineState,
+            triggerEnabled: backgroundTriggerEnabled,
+            stale: syncInfo.stale,
             error: syncErr.message,
           };
         }
@@ -508,9 +784,9 @@ async function handler(req, res) {
       const byDay = {};
       let grandOngkir = 0, grandTotal = 0, totalResi = 0;
       for (const row of (data || [])) {
-        // Filter out cancelled shipments (BATAL)
+        // Only VOID rows are excluded from NONCOD calculations and matching.
         const statusRow = (row.status_terakhir || '').toUpperCase().trim();
-        if (statusRow === 'BATAL') continue;
+        if (isExcludedNoncodStatus(statusRow)) continue;
         const method = normalizeMethod(row.metode_pembayaran);
         if (!method) continue;
         const c = (row.cabang || '').trim();
@@ -603,6 +879,7 @@ async function handler(req, res) {
   // DELETE /api/noncod?periode=2026-04 — hapus semua data periode
   if (req.method === 'DELETE') {
     try {
+      const supabase = getSupabase();
       const periode = (req.query.periode || '').trim();
       if (!periode || !PERIODE_RE.test(periode)) {
         return res.status(400).json({ error: 'Parameter periode wajib (YYYY-MM).' });
@@ -633,4 +910,7 @@ module.exports.isAutoSyncablePeriode = isAutoSyncablePeriode;
 module.exports.isSyncMetaStale = isSyncMetaStale;
 module.exports.maybeSyncMaukirimPeriod = maybeSyncMaukirimPeriod;
 module.exports.readSyncMeta = readSyncMeta;
+module.exports.resolvePendingAllocations = resolvePendingAllocations;
 module.exports.syncMaukirimPeriodes = syncMaukirimPeriodes;
+module.exports.authorizeSyncRequest = authorizeSyncRequest;
+module.exports.timingSafeSecretEqual = timingSafeSecretEqual;

@@ -1,7 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { buildDupeSummary } = require('../api/check-dupe');
+const {
+  buildDupeSummary,
+  shouldFallbackToInternalOcrWorker,
+} = require('../api/input');
 
 test('buildDupeSummary memprioritaskan exact duplicate', () => {
   const summary = buildDupeSummary({
@@ -51,4 +54,11 @@ test('buildDupeSummary aman bila belum ada transfer tersimpan', () => {
   assert.equal(summary.branchDayCount, 0);
   assert.equal(summary.branchDayTotal, 0);
   assert.match(summary.message, /Area SULTRA belum punya transfer tersimpan/i);
+});
+
+test('shouldFallbackToInternalOcrWorker aktif untuk trigger OCR yang tidak sukses', () => {
+  assert.equal(shouldFallbackToInternalOcrWorker({ ok: false, status: 502 }), true);
+  assert.equal(shouldFallbackToInternalOcrWorker({ skipped: true, reason: 'disabled' }), true);
+  assert.equal(shouldFallbackToInternalOcrWorker({ ok: true, status: 200 }), false);
+  assert.equal(shouldFallbackToInternalOcrWorker(null), false);
 });

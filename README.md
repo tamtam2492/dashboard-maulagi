@@ -53,6 +53,8 @@ Ringkasnya:
 Tambahan penting di dalam folder scripts:
 
 - Folder [scripts/aws/telegram-notifier](scripts/aws/telegram-notifier) berisi template AWS Lambda notifier Telegram.
+- Folder [scripts/aws/noncod-sync-trigger](scripts/aws/noncod-sync-trigger) berisi template AWS Lambda trigger untuk pipeline sync NONCOD background.
+- Folder [scripts/aws/ocr-worker](scripts/aws/ocr-worker) berisi template dan artifact builder untuk worker OCR terpisah.
 
 ## Halaman Utama
 
@@ -71,10 +73,14 @@ Tambahan penting di dalam folder scripts:
 - `/api/cabang` untuk list dan CRUD data cabang.
 - `/api/transfer` untuk list, edit, hapus, dan split transfer.
 - `/api/noncod` untuk ringkasan NONCOD/DFOD dan sinkronisasi data MauKirim.
-- `/api/check-update` untuk ringkasan update transfer.
-- `/api/check-dupe` untuk cek duplikasi sebelum input.
-- `/api/ocr` untuk ekstraksi data bukti transfer.
-- `/api/logs`, `/api/visit`, dan `/api/proxy-image` untuk kebutuhan operasional.
+- `/api/noncod-sync` untuk worker background sync NONCOD terautentikasi. Route ini di-rewrite ke handler [api/noncod.js](api/noncod.js) agar tetap muat di limit Vercel Hobby.
+- Mode ringkasan update transfer sekarang dijalankan lewat [api/dashboard.js](api/dashboard.js) pada route internal `/api/dashboard?update=1`.
+- Mode cek duplikasi sekarang dijalankan lewat [api/input.js](api/input.js) pada route internal `/api/input?dupe=1`.
+- Mode OCR sekarang dijalankan lewat [api/input.js](api/input.js) pada route internal `/api/input?ocr=1` dengan pola async job: `POST` untuk enqueue job, `GET` untuk status job, dan `POST /api/input?ocr=1&worker=1` sebagai worker internal fallback.
+- Mode logs operasional sekarang dijalankan lewat [api/auth.js](api/auth.js) pada route internal `/api/auth?ops=logs`.
+- Mode visitor counter sekarang dijalankan lewat [api/dashboard.js](api/dashboard.js) pada route internal `/api/dashboard?visit=1`.
+- Mode daftar order MauKirim sekarang dijalankan lewat [api/dashboard.js](api/dashboard.js) pada route internal `/api/dashboard?maukirim=1&cabang=...`.
+- `/api/proxy-image` tetap untuk kebutuhan operasional.
 
 ## Persiapan Lokal
 
@@ -114,9 +120,16 @@ ALLOWED_ORIGIN=https://your-domain.vercel.app
 MAUKIRIM_WA=628xxxxxxxxxx
 MAUKIRIM_PASS=your-maukirim-password
 GROQ_API_KEY=your-groq-api-key
+OCR_SYNC_SECRET=your-vercel-ocr-worker-secret
+OCR_PIPELINE_TRIGGER_URL=https://your-ocr-worker-url.lambda-url.ap-southeast-1.on.aws/
+OCR_PIPELINE_TRIGGER_SECRET=your-ocr-trigger-secret
+OCR_PIPELINE_TRIGGER_TIMEOUT_MS=15000
 UPSTASH_REDIS_REST_URL=https://your-upstash-instance.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your-upstash-token
 EXCEL_PATH=C:/path/to/source.xlsx
+NONCOD_SYNC_SECRET=your-vercel-sync-endpoint-secret
+NONCOD_PIPELINE_TRIGGER_URL=https://your-lambda-or-worker-url
+NONCOD_PIPELINE_TRIGGER_SECRET=your-trigger-secret
 ```
 
 Kebutuhan utama:
@@ -125,9 +138,14 @@ Kebutuhan utama:
 - `SUPABASE_ANON_KEY` opsional, dan tidak dipakai backend repo ini.
 - `SUPABASE_SERVICE_ROLE_KEY` juga dipakai script maintenance lokal yang menulis/menghapus data.
 - `MAUKIRIM_WA` dan `MAUKIRIM_PASS` dipakai untuk sinkronisasi NONCOD/DFOD.
-- `GROQ_API_KEY` dipakai fitur OCR.
+- `GROQ_API_KEY` dipakai worker OCR. Jika production OCR diarahkan ke AWS Lambda, isi env ini di Lambda OCR worker. Jika masih memakai self-trigger fallback ke Vercel, isi juga di Vercel.
+- `OCR_SYNC_SECRET` mengamankan worker internal `/api/input?ocr=1&worker=1`. Jika belum diisi, backend akan fallback ke `NONCOD_SYNC_SECRET` bila tersedia.
+- `OCR_PIPELINE_TRIGGER_URL` dan `OCR_PIPELINE_TRIGGER_SECRET` mengarahkan enqueue OCR dari Vercel ke worker Lambda/background endpoint.
 - `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN` dipakai rate limiter lintas instance.
 - `EXCEL_PATH` hanya dipakai script migrasi lokal.
+- `NONCOD_SYNC_SECRET` mengamankan endpoint worker internal `/api/noncod-sync`.
+- Jika app berjalan di Vercel, `NONCOD_SYNC_SECRET` juga cukup untuk mode self-trigger langsung ke deployment aktif lewat `VERCEL_URL`.
+- `NONCOD_PIPELINE_TRIGGER_URL` dan `NONCOD_PIPELINE_TRIGGER_SECRET` hanya perlu diisi bila trigger background harus diarahkan ke Lambda atau endpoint lain di luar self-trigger langsung.
 
 ## Sumber Daya Supabase
 
@@ -166,6 +184,85 @@ Skrip migrasi dan integrasi lama yang sifatnya one-off diarsipkan di folder [scr
 4. Pastikan backend memakai `SUPABASE_SERVICE_ROLE_KEY`, bukan fallback ke anon key.
 5. Deploy branch main.
 
+## Background Sync NONCOD
+
+Pipeline background NONCOD sekarang mendukung pola berikut:
+
+- Input transfer menandai pipeline NONCOD sebagai `dirty` lalu memicu worker secara fire-and-forget.
+- Worker internal route `/api/noncod-sync` dijalankan oleh handler [api/noncod.js](api/noncod.js) dan memperbarui state pipeline di tabel `settings`.
+- GET [api/noncod](api/noncod.js) tidak lagi menjadi pemicu stale refresh utama jika trigger background aktif; endpoint ini membaca data published terakhir dan mengembalikan status pipeline di `syncInfo.pipeline`.
+
+Konfigurasi paling fleksibel:
+
+1. `NONCOD_PIPELINE_TRIGGER_URL` boleh diarahkan ke AWS Lambda Function URL.
+2. Lambda tersebut lalu meneruskan request ke route Vercel `/api/noncod-sync`.
+3. Jika ingin lebih sederhana, `NONCOD_PIPELINE_TRIGGER_URL` juga boleh langsung diarahkan ke endpoint Vercel tadi.
+4. Untuk deploy Vercel biasa tanpa Lambda, cukup isi `NONCOD_SYNC_SECRET`; backend akan memakai self-trigger ke deployment aktif lewat `VERCEL_URL`.
+
+State pipeline disimpan di key `noncod_sync_pipeline_state` pada tabel `settings`, dengan status utama `idle`, `dirty`, `building`, `published`, atau `failed`.
+
+## OCR Async Worker
+
+Pipeline OCR sekarang memakai pola job async agar request upload bukti tidak menunggu Groq selesai di Vercel:
+
+- Frontend mengirim gambar ke `POST /api/input?ocr=1` untuk membuat job OCR.
+- Backend menyimpan file sementara ke bucket `bukti-transfer` dengan prefix `ocr-jobs/` lalu memicu worker OCR di background.
+- Frontend memantau hasil lewat `GET /api/input?ocr=1&job_id=...`.
+- Worker Lambda menulis hasil OCR kembali ke tabel `settings`, lalu frontend mengisi bank dan nominal seperti sebelumnya.
+
+Komponen yang dipakai:
+
+- Helper pipeline job: [api/_ocr-job-pipeline.js](api/_ocr-job-pipeline.js)
+- Worker processor bersama: [api/_ocr-job-runner.js](api/_ocr-job-runner.js)
+- Template Lambda: [scripts/aws/ocr-worker/index.js](scripts/aws/ocr-worker/index.js)
+- Template Lambda untuk editor AWS default index.mjs: [scripts/aws/ocr-worker/index.mjs](scripts/aws/ocr-worker/index.mjs)
+
+Langkah singkat:
+
+1. Cara paling aman: jalankan satu command ini supaya folder worker, dependency runtime, dan zip upload-ready dibuat otomatis:
+
+```bash
+npm run package:ocr-worker
+```
+
+2. Jika ingin manual, jalankan build package worker:
+
+```bash
+npm run build:ocr-worker
+```
+
+3. Masuk ke folder artifact hasil build di `tmp/aws-ocr-worker-package`, lalu install dependency runtime:
+
+```bash
+cd tmp/aws-ocr-worker-package
+npm install --omit=dev
+```
+
+4. Zip isi folder tersebut lalu upload ke Lambda Node.js baru.
+5. Set handler Lambda ke `index.handler`.
+6. Isi env Lambda berikut:
+	- `SUPABASE_URL`
+	- `SUPABASE_SERVICE_ROLE_KEY`
+	- `GROQ_API_KEY`
+	- `OCR_PIPELINE_TRIGGER_SECRET`
+7. Aktifkan Function URL atau API Gateway untuk Lambda tersebut.
+8. Isi env Vercel/app:
+	- `OCR_PIPELINE_TRIGGER_URL`
+	- `OCR_PIPELINE_TRIGGER_SECRET`
+	- `OCR_PIPELINE_TRIGGER_TIMEOUT_MS=15000`
+9. Redeploy Vercel.
+
+Catatan operasional:
+
+- Untuk traffic production paralel, arahkan `OCR_PIPELINE_TRIGGER_URL` ke Lambda agar OCR tidak berbagi concurrency dengan handler input utama di Vercel.
+- `OCR_SYNC_SECRET` tetap berguna sebagai fallback internal untuk preview/dev atau emergency rollback.
+- Jika trigger Lambda OCR gagal tetapi request masih berjalan di Vercel, app akan fallback ke worker internal `waitUntil(...)` agar user tidak langsung mentok di error trigger.
+- Artifact build Lambda disiapkan oleh [scripts/aws/build-ocr-worker-package.js](scripts/aws/build-ocr-worker-package.js).
+- Upload artifact dari file zip hasil `npm run package:ocr-worker`, bukan hanya copy `index.js` ke editor AWS Lambda.
+- Jika upload zip dilakukan tanpa `node_modules` runtime, Lambda Function URL akan balas `502 Internal Server Error` untuk semua job, termasuk job palsu.
+- Jika Lambda Test menampilkan `Module worker OCR tidak ditemukan`, biasanya artifact aktif tidak membawa folder `api/` atau dependency runtime di `node_modules/`.
+- Jika sebelumnya sudah upload artifact lama, upload ulang zip terbaru karena entrypoint worker standalone sudah diperbaiki.
+
 ## AWS Telegram Notifier
 
 Repositori ini sekarang bisa meneruskan error terpilih ke AWS Lambda notifier Telegram tanpa memindahkan backend utama dari Vercel. Secara implementasi, ini berarti repo ini memang sudah memakai AWS Lambda di alur production untuk notifikasi operasional.
@@ -200,6 +297,21 @@ Catatan:
 - Shared secret diverifikasi di Lambda lewat header `X-Ops-Secret`.
 - Sumber notifikasi dikontrol oleh `TELEGRAM_NOTIFY_SOURCES`, misalnya `noncod,auth`.
 - Pendekatan ini sengaja memakai pola hybrid agar repo tetap ringan di Vercel, tetapi tetap punya jejak integrasi AWS yang nyata dan siap dikembangkan.
+
+## AWS NONCOD Sync Trigger
+
+Template Lambda ada di:
+
+- [scripts/aws/noncod-sync-trigger/index.js](scripts/aws/noncod-sync-trigger/index.js)
+- [scripts/aws/noncod-sync-trigger/index.mjs](scripts/aws/noncod-sync-trigger/index.mjs)
+
+Env Lambda yang dipakai:
+
+- `NONCOD_PIPELINE_TRIGGER_SECRET` untuk memverifikasi trigger dari backend/app.
+- `NONCOD_SYNC_ENDPOINT_URL` untuk URL target Vercel, misalnya `/api/noncod-sync`.
+- `NONCOD_SYNC_ENDPOINT_SECRET` untuk header `X-Sync-Secret` ke endpoint target.
+- Opsional: `NONCOD_SYNC_PERIODES` untuk override daftar periode sinkron.
+- Opsional: `NONCOD_SYNC_FORCE` untuk memaksa refresh saat Lambda dipanggil scheduler.
 
 ## Pengembangan
 

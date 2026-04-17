@@ -49,3 +49,13 @@ test('buildTransferUpdate selalu menurunkan periode dari tgl_inputan', () => {
   });
   assert.equal(buildTransferUpdate('11/04/2026', 'x'), null);
 });
+
+test('buildTransferUpdate bisa sekaligus membulatkan nominal manual dari admin', () => {
+  assert.deepEqual(buildTransferUpdate('2026-04-11', '  koreksi OCR  ', '36000.4'), {
+    tgl_inputan: '2026-04-11',
+    periode: '2026-04',
+    ket: 'koreksi OCR',
+    nominal: 36000,
+  });
+  assert.equal(buildTransferUpdate('2026-04-11', 'x', '0'), null);
+});

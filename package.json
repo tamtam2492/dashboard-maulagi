@@ -6,12 +6,15 @@
     "lint": "node scripts/check-syntax.js",
     "test": "node --test",
     "check": "npm run lint && npm run test",
+    "build:ocr-worker": "node scripts/aws/build-ocr-worker-package.js",
+    "package:ocr-worker": "node scripts/aws/package-ocr-worker.js",
     "local:cleanup": "node -r dotenv/config scripts/local/cleanup.js",
     "local:cleanup:dry": "node -r dotenv/config scripts/local/cleanup.js --dry-run",
     "local:seed-cabang": "node -r dotenv/config scripts/local/seed-cabang.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.102.1",
+    "@vercel/functions": "^3.4.3",
     "bcryptjs": "^3.0.3",
     "busboy": "^1.6.0",
     "dotenv": "^17.4.1",

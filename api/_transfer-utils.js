@@ -35,12 +35,17 @@ function normalizeTransferKet(value) {
   return normalized || null;
 }
 
-function buildTransferUpdate(tgl_inputan, ket) {
+function buildTransferUpdate(tgl_inputan, ket, nominal) {
   const normalizedDate = normalizeText(tgl_inputan);
   const periode = getPeriodeFromDate(normalizedDate);
   if (!periode) return null;
   const update = { tgl_inputan: normalizedDate, periode };
   if (ket !== undefined) update.ket = normalizeTransferKet(ket);
+  if (nominal !== undefined) {
+    const roundedNominal = roundTransferNominal(nominal);
+    if (!Number.isFinite(roundedNominal) || !(roundedNominal > 0)) return null;
+    update.nominal = roundedNominal;
+  }
   return update;
 }
 
