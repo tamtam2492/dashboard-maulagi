@@ -13,7 +13,7 @@
     "local:seed-cabang": "node -r dotenv/config scripts/local/seed-cabang.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.102.1",
+    "@supabase/supabase-js": "^2.103.3",
     "@vercel/functions": "^3.4.3",
     "bcryptjs": "^3.0.3",
     "busboy": "^1.6.0",
