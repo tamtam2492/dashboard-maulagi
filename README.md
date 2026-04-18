@@ -1,6 +1,6 @@
 # Dashboard Maulagi
 
-Dashboard internal untuk input bukti transfer, rekap transfer cabang, monitoring NONCOD/DFOD, dan operasi admin. Aplikasi memakai halaman HTML statis di root proyek dan API serverless di folder api/, dengan penyimpanan data dan file di Supabase. Notifikasi operasional berjalan dengan arsitektur hybrid Vercel -> AWS Lambda -> Telegram.
+Dashboard internal untuk input bukti transfer, rekap transfer cabang, monitoring NONCOD/DFOD, dan operasi admin. Aplikasi memakai halaman HTML statis di root proyek, API serverless di folder `api/`, serta penyimpanan data dan file di Supabase. Notifikasi operasional berjalan dengan arsitektur hybrid Vercel -> AWS Lambda -> Telegram.
 
 ## Ringkasan
 
@@ -22,7 +22,7 @@ flowchart LR
 	D --> E[Telegram Bot]
 ```
 
-Ringkasnya:
+Alur utamanya:
 
 - Frontend dan API utama tetap jalan di Vercel.
 - Data transaksi, master cabang, log, dan file bukti tetap disimpan di Supabase.
@@ -50,11 +50,12 @@ Ringkasnya:
 |-- vercel.json    # Konfigurasi deployment Vercel
 ```
 
-Tambahan penting di dalam folder scripts:
+Tambahan penting di dalam folder `scripts/`:
 
 - Folder [scripts/aws/telegram-notifier](scripts/aws/telegram-notifier) berisi template AWS Lambda notifier Telegram.
 - Folder [scripts/aws/noncod-sync-trigger](scripts/aws/noncod-sync-trigger) berisi template AWS Lambda trigger untuk pipeline sync NONCOD background.
 - Folder [scripts/aws/ocr-worker](scripts/aws/ocr-worker) berisi template dan artifact builder untuk worker OCR terpisah.
+- Dokumen aturan bisnis operasional dirangkum di [ATURAN-BISNIS-APLIKASI.md](ATURAN-BISNIS-APLIKASI.md).
 
 ## Halaman Utama
 
@@ -74,12 +75,13 @@ Tambahan penting di dalam folder scripts:
 - `/api/transfer` untuk list, edit, hapus, dan split transfer.
 - `/api/noncod` untuk ringkasan NONCOD/DFOD dan sinkronisasi data MauKirim.
 - `/api/noncod-sync` untuk worker background sync NONCOD terautentikasi. Route ini di-rewrite ke handler [api/noncod.js](api/noncod.js) agar tetap muat di limit Vercel Hobby.
-- Mode ringkasan update transfer sekarang dijalankan lewat [api/dashboard.js](api/dashboard.js) pada route internal `/api/dashboard?update=1`.
-- Mode cek duplikasi sekarang dijalankan lewat [api/input.js](api/input.js) pada route internal `/api/input?dupe=1`.
-- Mode OCR sekarang dijalankan lewat [api/input.js](api/input.js) pada route internal `/api/input?ocr=1` dengan pola async job: `POST` untuk enqueue job, `GET` untuk status job, dan `POST /api/input?ocr=1&worker=1` sebagai worker internal fallback.
-- Mode logs operasional sekarang dijalankan lewat [api/auth.js](api/auth.js) pada route internal `/api/auth?ops=logs`.
-- Mode visitor counter sekarang dijalankan lewat [api/dashboard.js](api/dashboard.js) pada route internal `/api/dashboard?visit=1`.
-- Mode daftar order MauKirim sekarang dijalankan lewat [api/dashboard.js](api/dashboard.js) pada route internal `/api/dashboard?maukirim=1&cabang=...`.
+- Route internal penting yang dipakai frontend:
+- `GET /api/dashboard?update=1` untuk cek ringkasan update transfer lewat [api/dashboard.js](api/dashboard.js).
+- `POST /api/input?dupe=1` untuk cek duplikasi dan konteks NONCOD lewat [api/input.js](api/input.js).
+- `POST` dan `GET /api/input?ocr=1` untuk enqueue dan polling job OCR, serta `POST /api/input?ocr=1&worker=1` sebagai worker internal fallback, semuanya lewat [api/input.js](api/input.js).
+- `GET /api/auth?ops=logs` untuk log operasional lewat [api/auth.js](api/auth.js).
+- `GET /api/dashboard?visit=1` untuk visitor counter lewat [api/dashboard.js](api/dashboard.js).
+- `GET /api/dashboard?maukirim=1&cabang=...` untuk daftar order MauKirim lewat [api/dashboard.js](api/dashboard.js).
 - `/api/proxy-image` tetap untuk kebutuhan operasional.
 
 ## Persiapan Lokal
@@ -192,7 +194,7 @@ Pipeline background NONCOD sekarang mendukung pola berikut:
 - Worker internal route `/api/noncod-sync` dijalankan oleh handler [api/noncod.js](api/noncod.js) dan memperbarui state pipeline di tabel `settings`.
 - GET [api/noncod](api/noncod.js) tidak lagi menjadi pemicu stale refresh utama jika trigger background aktif; endpoint ini membaca data published terakhir dan mengembalikan status pipeline di `syncInfo.pipeline`.
 
-Konfigurasi paling fleksibel:
+Konfigurasi yang paling fleksibel:
 
 1. `NONCOD_PIPELINE_TRIGGER_URL` boleh diarahkan ke AWS Lambda Function URL.
 2. Lambda tersebut lalu meneruskan request ke route Vercel `/api/noncod-sync`.
@@ -265,7 +267,7 @@ Catatan operasional:
 
 ## AWS Telegram Notifier
 
-Repositori ini sekarang bisa meneruskan error terpilih ke AWS Lambda notifier Telegram tanpa memindahkan backend utama dari Vercel. Secara implementasi, ini berarti repo ini memang sudah memakai AWS Lambda di alur production untuk notifikasi operasional.
+Repositori ini dapat meneruskan error backend terpilih ke AWS Lambda notifier Telegram tanpa memindahkan backend utama dari Vercel. Dengan pola ini, aplikasi utama tetap berjalan di Vercel, sementara Lambda dipakai khusus untuk relay notifikasi operasional.
 
 Komponen yang dipakai:
 
@@ -277,7 +279,7 @@ Komponen yang dipakai:
 Langkah singkat:
 
 1. Buat Lambda Node.js baru di AWS.
-2. Paste isi [scripts/aws/telegram-notifier/index.js](scripts/aws/telegram-notifier/index.js) ke editor Lambda.
+2. Gunakan [scripts/aws/telegram-notifier/index.js](scripts/aws/telegram-notifier/index.js) sebagai entrypoint, atau [scripts/aws/telegram-notifier/index.mjs](scripts/aws/telegram-notifier/index.mjs) jika ingin menyesuaikan editor default ESM di AWS Lambda.
 3. Isi env Lambda berikut:
 	- `TELEGRAM_BOT_TOKEN`
 	- `TELEGRAM_CHAT_ID`
@@ -319,4 +321,5 @@ Env Lambda yang dipakai:
 - Helper backend ada di `api/_*.js`.
 - Logika frontend bersama ada di `lib/`.
 - Test memakai `node --test` tanpa framework tambahan.
+- Aturan bisnis operasional tambahan dirangkum di [ATURAN-BISNIS-APLIKASI.md](ATURAN-BISNIS-APLIKASI.md).
 - File HTML utama tetap menjadi titik masuk tiap modul halaman.
