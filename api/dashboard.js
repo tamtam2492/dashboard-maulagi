@@ -1,4 +1,9 @@
 const { cors } = require('./_cors');
+const {
+  CLEANUP_LAST_RUN_KEY,
+  getCleanupRunDate,
+  runMaintenanceCleanup,
+} = require('./_cleanup-maintenance');
 const { logError } = require('./_logger');
 const { rateLimit } = require('./_ratelimit');
 const { normalizeBankName } = require('./_bank');
@@ -14,6 +19,13 @@ const maukirimCache = {
   orders: null,
   pending: null,
 };
+
+let vercelWaitUntil = null;
+try {
+  ({ waitUntil: vercelWaitUntil } = require('@vercel/functions'));
+} catch {
+  vercelWaitUntil = null;
+}
 
 function isVisitRequest(req) {
   return String(req.query.visit || '').trim() === '1';
@@ -41,28 +53,16 @@ function getBatchSize(req) {
   return Math.min(Math.max(requested, 100), MAX_BATCH_SIZE);
 }
 
-// Auto-cleanup: runs at most once per day, persisted in DB to avoid multi-instance double-run
-function getOldestPeriode() {
-  const now = new Date();
-  const d = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-  return d.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit' }).slice(0, 7);
-}
-
 async function runCleanup(supabase) {
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+  const today = getCleanupRunDate();
   const { data: setting } = await supabase
-    .from('settings').select('value').eq('key', 'cleanup_last_run').maybeSingle();
+    .from('settings').select('value').eq('key', CLEANUP_LAST_RUN_KEY).maybeSingle();
   if (setting && setting.value === today) return;
-  await supabase.from('settings').upsert({ key: 'cleanup_last_run', value: today });
+  await supabase.from('settings').upsert({ key: CLEANUP_LAST_RUN_KEY, value: today });
   try {
-    const oldest = getOldestPeriode();
-    await supabase.from('transfers').delete().lt('periode', oldest);
-    await supabase.from('noncod').delete().lt('periode', oldest);
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 90);
-    await supabase.from('visitors').delete().lt('tgl', cutoffDate.toLocaleDateString('en-CA'));
+    await runMaintenanceCleanup(supabase);
   } catch (err) {
-    await supabase.from('settings').delete().eq('key', 'cleanup_last_run');
+    await supabase.from('settings').delete().eq('key', CLEANUP_LAST_RUN_KEY);
     console.error('Cleanup error:', err.message);
     logError('dashboard', err.message, { action: 'cleanup' });
   }
@@ -357,7 +357,8 @@ module.exports = async (req, res) => {
     const batchSize = getBatchSize(req);
 
     // Run daily cleanup (non-blocking)
-    runCleanup(supabase).catch(() => {});
+    const cleanupTask = runCleanup(supabase).catch(() => {});
+    if (typeof vercelWaitUntil === 'function') vercelWaitUntil(cleanupTask);
 
     return res.json(await buildDashboardPayload(supabase, batchSize));
   } catch (err) {

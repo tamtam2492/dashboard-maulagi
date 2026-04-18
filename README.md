@@ -202,7 +202,7 @@ Tambahan SQL di repo:
 - `npm run lint` untuk pemeriksaan sintaks file JavaScript.
 - `npm run test` untuk menjalankan seluruh test.
 - `npm run check` untuk menjalankan lint dan test sekaligus.
-- `npm run local:cleanup` untuk cleanup manual data transfer lama.
+- `npm run local:cleanup` untuk cleanup manual data transfer, NONCOD, visitor lama, dan state OCR sementara.
 - `npm run local:cleanup:dry` untuk simulasi cleanup tanpa hapus data.
 - `npm run local:seed-cabang` untuk isi ulang master data cabang.
 
