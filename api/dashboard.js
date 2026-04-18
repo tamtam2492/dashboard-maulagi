@@ -1,4 +1,5 @@
 const { cors } = require('./_cors');
+const { readAdminWriteMarker } = require('./_admin-write-marker');
 const {
   BUSINESS_CLEANUP_LAST_RUN_KEY,
   getCleanupRunDate,
@@ -39,6 +40,10 @@ function isUpdateCountRequest(req) {
 
 function isMaukirimRequest(req) {
   return String(req.query.maukirim || '').trim() === '1';
+}
+
+function isWatchRequest(req) {
+  return String(req.query.watch || '').trim() === '1';
 }
 
 function normalizeCabangName(value) {
@@ -240,6 +245,18 @@ async function handleMaukirimRoute(req, res) {
   }
 }
 
+async function handleWatchRoute(res) {
+  try {
+    const supabase = getSupabase();
+    const marker = await readAdminWriteMarker(supabase);
+    return res.json({ marker });
+  } catch (err) {
+    console.error(err);
+    logError('dashboard-watch', err.message, { method: 'GET' });
+    return res.status(500).json({ error: 'Gagal memuat marker workspace.' });
+  }
+}
+
 async function buildDashboardPayload(supabase, batchSize) {
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
   const rekapCabang = {};
@@ -371,6 +388,10 @@ module.exports = async (req, res) => {
 
   if (isMaukirimRequest(req)) {
     return handleMaukirimRoute(req, res);
+  }
+
+  if (isWatchRequest(req)) {
+    return handleWatchRoute(res);
   }
 
   if (await dashboardLimiter(req, res)) return;

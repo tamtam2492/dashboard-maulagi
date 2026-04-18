@@ -28,6 +28,20 @@ Catatan ini merangkum aturan bisnis yang harus diikuti aplikasi agar hasil rekon
   - resi yang sudah tidak ada di MauKirim -> delete
 - Karena `tanggal_buat` dianggap immutable oleh bisnis, aplikasi tidak boleh mengubah logika periode di luar nilai yang datang dari MauKirim.
 
+## Aturan Snapshot Admin dan Refresh UI
+
+- Loader penuh workspace admin hanya boleh muncul saat bootstrap login pertama ketika snapshot lokal belum tersedia.
+- Setelah bootstrap selesai, workspace admin, NONCOD, DFOD, audit, transfer, cabang, dan panel lain harus tetap menampilkan snapshot terakhir yang valid sambil mengambil snapshot baru di background.
+- Refresh sesudah bootstrap tidak boleh mengosongkan panel atau menampilkan UI `Memuat data...` selama snapshot lama masih tersedia.
+- Semua perubahan data bisnis, baik dari input public maupun aksi manual admin, harus memicu marker global perubahan di server.
+- Marker global perubahan harus ditulis server-side secara atomic, memakai `version` monotonic, dan menyimpan `changed_at`, `scopes`, serta `periodes` terdampak.
+- Marker global adalah invalidation cursor, bukan event log penuh. Client hanya membaca marker; client tidak boleh mereset marker setelah membaca.
+- `scopes` dan `periodes` pada marker global harus memakai compaction window server-side agar tidak terus menumpuk tanpa batas.
+- Nilai awal yang dipakai adalah polling parent 10 detik dan compaction window 60 detik. Jika diubah setelah observasi production, window tetap harus minimal 4-6x interval polling.
+- Parent workspace menjadi satu-satunya watcher marker global. Child panel tidak boleh melakukan polling penuh sendiri-sendiri hanya untuk mendeteksi perubahan.
+- Jika marker berubah, hanya panel yang relevan yang boleh mengambil snapshot baru, dan pengambilan itu harus berupa silent snapshot swap.
+- Jika panel sedang dalam mode edit atau split, snapshot baru tidak boleh langsung menimpa form aktif; refresh boleh ditunda sampai save atau cancel.
+
 ## Aturan Rekonsiliasi Transfer
 
 - Hanya data dengan `metode_pembayaran = noncod` yang masuk jalur rekonsiliasi transfer.
@@ -98,3 +112,4 @@ Catatan ini merangkum aturan bisnis yang harus diikuti aplikasi agar hasil rekon
 - hold cabang = saldo lebih yang mengurangi total harian berikutnya, bukan transfer bertanggal baru
 - MauKirim = sumber data NONCOD mentah
 - Override admin = lapisan efektif setelah sync mentah masuk
+- workspace admin = berbasis snapshot terakhir yang valid, update silent via marker global server-side

@@ -1,7 +1,24 @@
 const { requireAdmin } = require('./_auth');
+const { publishAdminWriteMarker } = require('./_admin-write-marker');
 const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { getSupabase } = require('./_supabase');
+
+async function publishCabangMarkerSafe(supabase, source, context) {
+  try {
+    await publishAdminWriteMarker(supabase, {
+      source,
+      scopes: ['admin_cabang', 'audit'],
+    });
+  } catch (err) {
+    logError('admin-marker', err.message, {
+      method: context,
+      action: 'publish_admin_write_marker',
+      source,
+      scopes: ['admin_cabang', 'audit'],
+    });
+  }
+}
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
@@ -57,6 +74,7 @@ module.exports = async (req, res) => {
         .select()
         .single();
       if (error) throw error;
+      await publishCabangMarkerSafe(supabase, 'cabang_create', 'POST');
       return res.status(201).json({ cabang: data });
     } catch (err) {
       console.error(err);
@@ -93,6 +111,7 @@ module.exports = async (req, res) => {
         .select()
         .single();
       if (error) throw error;
+      await publishCabangMarkerSafe(supabase, 'cabang_update', 'PUT');
       return res.json({ cabang: data });
     } catch (err) {
       console.error(err);
@@ -119,6 +138,7 @@ module.exports = async (req, res) => {
 
       const { error } = await supabase.from('cabang').delete().eq('id', id);
       if (error) throw error;
+      await publishCabangMarkerSafe(supabase, 'cabang_delete', 'DELETE');
       return res.json({ success: true });
     } catch (err) {
       console.error(err);

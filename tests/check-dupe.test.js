@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 
 const {
   buildDupeSummary,
+  getInputErrorStatusCode,
+  normalizeUploadFields,
   shouldFallbackToInternalOcrWorker,
 } = require('../api/input');
 
@@ -61,4 +63,29 @@ test('shouldFallbackToInternalOcrWorker aktif untuk trigger OCR yang tidak sukse
   assert.equal(shouldFallbackToInternalOcrWorker({ skipped: true, reason: 'disabled' }), true);
   assert.equal(shouldFallbackToInternalOcrWorker({ ok: true, status: 200 }), false);
   assert.equal(shouldFallbackToInternalOcrWorker(null), false);
+});
+
+test('normalizeUploadFields menerima alias field lama tanpa mengubah field utama', () => {
+  assert.deepEqual(normalizeUploadFields({
+    cabang: 'Cabang Palopo',
+    tanggal: '2026-04-04',
+    bank_pengirim: 'BRI',
+    nominal: '10000',
+  }), {
+    cabang: 'Cabang Palopo',
+    tanggal: '2026-04-04',
+    bank_pengirim: 'BRI',
+    nominal: '10000',
+    tgl_inputan: '2026-04-04',
+    nama_bank: 'BRI',
+    nama_cabang: 'Cabang Palopo',
+    periode: '',
+    context_key: '',
+  });
+});
+
+test('getInputErrorStatusCode mengklasifikasikan parse multipart sebagai 400', () => {
+  assert.equal(getInputErrorStatusCode(new Error('Unexpected end of form')), 400);
+  assert.equal(getInputErrorStatusCode(new Error('Content-Type upload harus multipart/form-data.')), 400);
+  assert.equal(getInputErrorStatusCode(new Error('Hal lain dari database')), 500);
 });

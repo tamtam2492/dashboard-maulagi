@@ -77,6 +77,7 @@ Tambahan penting di dalam folder `scripts/`:
 - `/api/noncod-sync` untuk worker background sync NONCOD terautentikasi. Route ini di-rewrite ke handler [api/noncod.js](api/noncod.js) agar tetap muat di limit Vercel Hobby.
 - Route internal penting yang dipakai frontend:
 - `GET /api/dashboard?update=1` untuk cek ringkasan update transfer lewat [api/dashboard.js](api/dashboard.js).
+- `GET /api/dashboard?watch=1` untuk membaca marker global perubahan workspace agar refresh panel bisa silent dan selektif lewat [api/dashboard.js](api/dashboard.js).
 - `POST /api/input?dupe=1` untuk cek duplikasi dan konteks NONCOD lewat [api/input.js](api/input.js).
 - `POST` dan `GET /api/input?ocr=1` untuk enqueue dan polling job OCR, serta `POST /api/input?ocr=1&worker=1` sebagai worker internal fallback, semuanya lewat [api/input.js](api/input.js).
 - `GET /api/auth?ops=logs` untuk log operasional lewat [api/auth.js](api/auth.js).
@@ -147,6 +148,31 @@ Kebutuhan utama:
 - Jika app berjalan di Vercel, `NONCOD_SYNC_SECRET` juga cukup untuk mode self-trigger langsung ke deployment aktif lewat `VERCEL_URL`.
 - `NONCOD_PIPELINE_TRIGGER_URL` dan `NONCOD_PIPELINE_TRIGGER_SECRET` hanya perlu diisi bila trigger background harus diarahkan ke Lambda atau endpoint lain di luar self-trigger langsung.
 
+## Higiene Repo GitHub
+
+File yang aman disimpan di GitHub:
+
+- Source code aplikasi di folder `api/`, `lib/`, `scripts/`, dan `tests/`.
+- File HTML, CSS, SQL, dan konfigurasi deploy seperti `vercel.json`, [sql-security.sql](sql-security.sql), dan [sql-admin-write-marker.sql](sql-admin-write-marker.sql).
+- [.env.example](.env.example) karena hanya berisi placeholder, bukan kredensial aktif.
+
+File yang tidak boleh masuk GitHub:
+
+- Semua file env lokal yang berisi secret aktif seperti `.env`, `.env.local`, dan `.env.production.notifier`.
+- Folder atau file generated lokal seperti `.vercel/`, `tmp/`, `testsprite_tests/`, dan `TESTSPRITE-PRD.md`.
+- Dump kredensial, keypair, proxy URL bertanam user:password, dan file one-off hasil export operasional.
+
+Guardrail repo saat ini:
+
+- `.gitignore` sudah menahan `.env`, `.env*.local`, `.env*.notifier`, `.vercel`, `testsprite_tests/`, `TESTSPRITE-PRD.md`, dan beberapa artifact lokal lain.
+- `.vercelignore` juga menahan file test, tmp, dan artifact generated agar tidak ikut terdeploy.
+
+Aturan praktis sebelum push:
+
+1. Pastikan `git status --short` tidak menampilkan file env lokal, file credential, atau artifact generated.
+2. Kalau secret pernah terlanjur committed, jangan hanya hapus dari working tree; rotate secret tersebut di provider terkait.
+3. Anggap semua token, private key, cookie session, dan URL yang memuat kredensial sebagai data tidak aman untuk repo.
+
 ## Model Keamanan dan Batas Trust
 
 Model keamanan aplikasi ini sengaja dibuat **backend-only untuk akses data utama**.
@@ -195,6 +221,7 @@ Proyek ini mengandalkan resource berikut:
 Tambahan SQL di repo:
 
 - [sql-indexes.sql](sql-indexes.sql) untuk indeks tambahan.
+- [sql-admin-write-marker.sql](sql-admin-write-marker.sql) untuk RPC atomic `touch_admin_write_marker` yang dipakai watcher refresh workspace. Jika belum dijalankan, helper JS tetap fallback ke marker broad-scope agar refresh panel tidak miss meski scope write berbarengan, tetapi RPC tetap direkomendasikan untuk compaction yang presisi dan race yang lebih aman.
 - [sql-security.sql](sql-security.sql) untuk enable RLS + revoke akses langsung pada tabel settings, cabang, transfers, noncod, visitors, dan error_logs.
 
 ## Skrip
@@ -244,9 +271,10 @@ Section ini sengaja ditulis eksplisit agar pembaca GitHub tidak salah mengira ba
 
 1. Hubungkan repository ke project Vercel.
 2. Isi semua environment variable di Vercel Project Settings.
-3. Jalankan [sql-security.sql](sql-security.sql) di Supabase SQL Editor agar semua tabel aplikasi memakai RLS.
-4. Pastikan backend memakai `SUPABASE_SERVICE_ROLE_KEY`, bukan fallback ke anon key.
-5. Deploy branch main.
+3. Jalankan [sql-admin-write-marker.sql](sql-admin-write-marker.sql) di Supabase SQL Editor agar helper marker global bisa update row `admin_write_marker` secara atomic. Tanpa langkah ini, aplikasi tetap memakai fallback broad-scope non-atomic yang aman untuk refresh fungsional, tetapi kurang presisi saat write bersamaan.
+4. Jalankan [sql-security.sql](sql-security.sql) di Supabase SQL Editor agar semua tabel aplikasi memakai RLS.
+5. Pastikan backend memakai `SUPABASE_SERVICE_ROLE_KEY`, bukan fallback ke anon key.
+6. Deploy branch main.
 
 ## Background Sync NONCOD
 

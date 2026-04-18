@@ -195,6 +195,18 @@ async function markNoncodSyncDirty(supabase, options = {}) {
   });
 }
 
+async function markNoncodSyncQueued(supabase, options = {}) {
+  const currentState = await readNoncodSyncPipelineState(supabase);
+  return writeNoncodSyncPipelineState(supabase, {
+    ...currentState,
+    status: currentState.status === 'building' ? 'building' : 'dirty',
+    dirty: true,
+    pendingPeriodes: mergePeriodeLists(currentState.pendingPeriodes, options.periodes),
+    lastReason: normalizeText(options.reason || currentState.lastReason || 'background_sync', 80),
+    lastTriggeredAt: options.timestamp || new Date().toISOString(),
+  });
+}
+
 async function markNoncodSyncBuilding(supabase, options = {}) {
   const currentState = await readNoncodSyncPipelineState(supabase);
   if (currentState.status === 'building') {
@@ -256,6 +268,7 @@ module.exports = {
   isNoncodPipelineTriggerEnabled,
   markNoncodSyncBuilding,
   markNoncodSyncDirty,
+  markNoncodSyncQueued,
   markNoncodSyncFailed,
   markNoncodSyncPublished,
   mergePeriodeLists,

@@ -26,6 +26,7 @@ const {
   queueNoncodPipelineTrigger,
 } = require('./_noncod-sync-pipeline');
 const { getSupabase } = require('./_supabase');
+const { publishAdminWriteMarker, readAdminWriteMarker } = require('./_admin-write-marker');
 const {
   buildTransferUpdate,
   getAffectedTransferPeriodes,
@@ -122,6 +123,20 @@ async function queuePipelineRefreshSafe(supabase, periodes, reason, context) {
   }
 }
 
+async function publishAdminWriteMarkerSafe(supabase, options, context) {
+  try {
+    await publishAdminWriteMarker(supabase, options || {});
+  } catch (err) {
+    logError('admin-marker', err.message, {
+      method: context,
+      action: 'publish_admin_write_marker',
+      source: options && options.source,
+      scopes: options && options.scopes,
+      periodes: options && options.periodes,
+    });
+  }
+}
+
 async function handleCarryoverRoute(req, res, supabase) {
   if (req.method === 'GET') {
     try {
@@ -194,6 +209,12 @@ async function handleCarryoverRoute(req, res, supabase) {
         transfer_bank: transfer.nama_bank,
       });
 
+      await publishAdminWriteMarkerSafe(supabase, {
+        source: 'carryover_put',
+        scopes: ['admin_monitor', 'carryover'],
+        periodes: [override.target_periode, override.transfer_periode],
+      }, 'PUT');
+
       res.json({ success: true, override });
       return true;
     } catch (err) {
@@ -213,7 +234,14 @@ async function handleCarryoverRoute(req, res, supabase) {
         return true;
       }
 
+      const existingRows = await listCarryoverOverrideRows(supabase, {});
+      const existingOverride = (existingRows.rows || []).find((row) => row.transfer_id === transferId) || null;
       await deleteCarryoverOverride(supabase, transferId);
+      await publishAdminWriteMarkerSafe(supabase, {
+        source: 'carryover_delete',
+        scopes: ['admin_monitor', 'carryover'],
+        periodes: existingOverride ? [existingOverride.target_periode, existingOverride.transfer_periode] : [],
+      }, 'DELETE');
       res.json({ success: true });
       return true;
     } catch (err) {
@@ -253,7 +281,14 @@ async function handlePendingAllocationRoute(req, res, supabase) {
         return true;
       }
 
+      const existingRows = await listPendingAllocationRows(supabase, {});
+      const existingPending = (existingRows.rows || []).find((row) => row.root_transfer_id === transferId) || null;
       await deletePendingAllocation(supabase, transferId);
+      await publishAdminWriteMarkerSafe(supabase, {
+        source: 'pending_allocation_delete',
+        scopes: ['admin_monitor', 'pending_allocation'],
+        periodes: existingPending ? [existingPending.after_periode] : [],
+      }, 'DELETE');
       res.json({ success: true });
       return true;
     } catch (err) {
@@ -287,6 +322,14 @@ module.exports = async (req, res) => {
 
   if (req.query.pending_allocation === '1') {
     if (await handlePendingAllocationRoute(req, res, supabase)) return;
+  }
+
+  if (req.query.watch === '1') {
+    if (req.method !== 'GET') {
+      return res.status(405).json({ error: 'Method not allowed.' });
+    }
+    const marker = await readAdminWriteMarker(supabase);
+    return res.json({ marker });
   }
 
   // GET ?periode=2026-04
@@ -396,6 +439,11 @@ module.exports = async (req, res) => {
     await clearCarryoverOverrideSafe(supabase, id, 'POST');
     await clearPendingAllocationSafe(supabase, id, 'POST');
     await clearCabangHoldSafe(supabase, id, 'POST');
+    await publishAdminWriteMarkerSafe(supabase, {
+      source: 'transfer_split',
+      scopes: ['overview', 'noncod', 'transfer', 'audit', 'admin_monitor'],
+      periodes: getAffectedTransferPeriodes([orig.tgl_inputan, ...newRows.map((row) => row.tgl_inputan)]),
+    }, 'POST');
     await queuePipelineRefreshSafe(
       supabase,
       getAffectedTransferPeriodes([orig.tgl_inputan, ...newRows.map((row) => row.tgl_inputan)]),
@@ -436,6 +484,11 @@ module.exports = async (req, res) => {
     await clearCarryoverOverrideSafe(supabase, id, 'PUT');
     await clearPendingAllocationSafe(supabase, id, 'PUT');
     await clearCabangHoldSafe(supabase, id, 'PUT');
+    await publishAdminWriteMarkerSafe(supabase, {
+      source: 'transfer_update',
+      scopes: ['overview', 'noncod', 'transfer', 'audit', 'admin_monitor'],
+      periodes: getAffectedTransferPeriodes([existing.tgl_inputan, update.tgl_inputan]),
+    }, 'PUT');
     await queuePipelineRefreshSafe(
       supabase,
       getAffectedTransferPeriodes([existing.tgl_inputan, update.tgl_inputan]),
@@ -464,6 +517,11 @@ module.exports = async (req, res) => {
     await clearCarryoverOverrideSafe(supabase, id, 'DELETE');
     await clearPendingAllocationSafe(supabase, id, 'DELETE');
     await clearCabangHoldSafe(supabase, id, 'DELETE');
+    await publishAdminWriteMarkerSafe(supabase, {
+      source: 'transfer_delete',
+      scopes: ['overview', 'noncod', 'transfer', 'audit', 'admin_monitor'],
+      periodes: [getPeriodeFromDate(existing.tgl_inputan)],
+    }, 'DELETE');
     await queuePipelineRefreshSafe(
       supabase,
       [getPeriodeFromDate(existing.tgl_inputan)],

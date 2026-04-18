@@ -26,11 +26,13 @@ const {
   markNoncodSyncBuilding,
   markNoncodSyncFailed,
   markNoncodSyncPublished,
+  markNoncodSyncQueued,
   normalizePeriodeList,
   queueNoncodPipelineTrigger,
   readNoncodSyncPipelineState,
   timingSafeSecretEqual,
 } = require('./_noncod-sync-pipeline');
+const { publishAdminWriteMarker } = require('./_admin-write-marker');
 const { getSupabase } = require('./_supabase');
 const { excelSerialToDate, loadWorkbookFromBuffer, worksheetToObjects } = require('./_excel');
 const { getPeriodeFromDate, normalizeTransferKet } = require('./_transfer-utils');
@@ -69,7 +71,96 @@ function createMetric() {
 
 const MAUKIRIM_SYNC_KEY_PREFIX = 'maukirim_sync_';
 const MAUKIRIM_AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
+const NONCOD_BACKGROUND_REFRESH_COOLDOWN_MS = 60 * 1000;
 const syncPendingByPeriode = new Map();
+
+function isValidPeriodeParam(periode) {
+  const normalized = String(periode || '').trim();
+  if (!PERIODE_RE.test(normalized)) return false;
+
+  const month = Number(normalized.slice(5, 7));
+  return Number.isInteger(month) && month >= 1 && month <= 12;
+}
+
+function hasPeriodeInList(periodes, periode) {
+  const normalized = String(periode || '').trim();
+  return Array.isArray(periodes) && periodes.includes(normalized);
+}
+
+function isNoncodPipelineRecentlyTriggered(pipelineState, now = Date.now()) {
+  const lastTriggeredAt = String(pipelineState && pipelineState.lastTriggeredAt || '').trim();
+  if (!lastTriggeredAt) return false;
+
+  const triggeredAtMs = Date.parse(lastTriggeredAt);
+  if (!Number.isFinite(triggeredAtMs)) return false;
+  return now - triggeredAtMs < NONCOD_BACKGROUND_REFRESH_COOLDOWN_MS;
+}
+
+function planNoncodAutoRefresh(options = {}) {
+  const periode = String(options.periode || '').trim();
+  const syncInfo = options.syncInfo || {};
+  const pipelineState = options.pipelineState || {};
+  const rowCount = Math.max(0, Number(options.rowCount) || 0);
+  const backgroundTriggerEnabled = !!options.backgroundTriggerEnabled;
+  const forceSync = !!options.forceSync;
+  const hasSyncMeta = !!options.syncMeta;
+  const canRefresh = !!(syncInfo.enabled && syncInfo.eligible);
+  const dirtyForPeriode = hasPeriodeInList(pipelineState.pendingPeriodes, periode);
+  const buildingForPeriode = pipelineState.status === 'building'
+    && (!Array.isArray(pipelineState.buildPeriodes)
+      || !pipelineState.buildPeriodes.length
+      || hasPeriodeInList(pipelineState.buildPeriodes, periode));
+
+  if (!canRefresh) {
+    return { action: 'none', status: 'idle', reason: '' };
+  }
+
+  if (forceSync) {
+    return { action: 'inline', status: 'running', reason: 'force' };
+  }
+
+  if (!hasSyncMeta && rowCount === 0) {
+    return { action: 'inline', status: 'running', reason: 'bootstrap_empty' };
+  }
+
+  if (buildingForPeriode) {
+    return {
+      action: 'none',
+      status: 'running',
+      reason: syncInfo.stale ? 'stale' : 'dirty',
+    };
+  }
+
+  const needsRefresh = !!(syncInfo.stale || dirtyForPeriode);
+  if (!needsRefresh) {
+    return { action: 'none', status: 'idle', reason: '' };
+  }
+
+  const reason = dirtyForPeriode ? 'dirty' : 'stale';
+  if (!backgroundTriggerEnabled) {
+    return { action: 'inline', status: 'running', reason };
+  }
+
+  if (isNoncodPipelineRecentlyTriggered(pipelineState, options.now)) {
+    return { action: 'none', status: 'queued', reason };
+  }
+
+  return { action: 'queue', status: 'queued', reason };
+}
+
+async function publishNoncodMarkerSafe(supabase, options, context) {
+  try {
+    await publishAdminWriteMarker(supabase, options || {});
+  } catch (err) {
+    logError('admin-marker', err.message, {
+      method: context,
+      action: 'publish_admin_write_marker',
+      source: options && options.source,
+      scopes: options && options.scopes,
+      periodes: options && options.periodes,
+    });
+  }
+}
 
 function isExcludedNoncodStatus(value) {
   return EXCLUDED_NONCOD_STATUSES.has(String(value || '').trim().toUpperCase());
@@ -399,7 +490,7 @@ async function buildPendingResolutionContext(supabase, cabang, periodes) {
 
 async function resolvePendingAllocations(supabase, options = {}) {
   const periodes = Array.isArray(options.periodes) && options.periodes.length
-    ? [...new Set(options.periodes.map((periode) => String(periode || '').trim()).filter((periode) => PERIODE_RE.test(periode)))]
+    ? [...new Set(options.periodes.map((periode) => String(periode || '').trim()).filter((periode) => isValidPeriodeParam(periode)))]
     : getRecentPeriodes();
   const { rows: pendingRows } = await listPendingAllocationRows(supabase);
   if (!pendingRows.length) return [];
@@ -648,7 +739,7 @@ async function maybeSyncMaukirimPeriod(supabase, periode, options = {}) {
 async function syncMaukirimPeriodes(supabase, periodes, options = {}) {
   const uniquePeriods = [...new Set((periodes || [])
     .map(periode => String(periode || '').trim())
-    .filter(periode => PERIODE_RE.test(periode)))];
+    .filter(periode => isValidPeriodeParam(periode)))];
   const results = [];
 
   for (const periode of uniquePeriods) {
@@ -725,6 +816,11 @@ async function handleManualStatusRoute(req, res) {
   if (req.method === 'PUT') {
     try {
       const override = await upsertStatusOverride(supabase, req.body || {});
+      await publishNoncodMarkerSafe(supabase, {
+        source: 'manual_status_put',
+        scopes: ['noncod', 'manual_status', 'audit', 'admin_monitor'],
+        periodes: override && override.periode ? [override.periode] : [],
+      }, 'PUT');
       res.json({ success: true, override });
       return true;
     } catch (err) {
@@ -743,7 +839,14 @@ async function handleManualStatusRoute(req, res) {
         res.status(400).json({ error: 'Nomor resi wajib diisi.' });
         return true;
       }
+      const existingOverrideMap = await readStatusOverridesByResi(supabase, [nomorResi]);
+      const existingOverride = Array.from(existingOverrideMap.values())[0] || null;
       await deleteStatusOverride(supabase, nomorResi);
+      await publishNoncodMarkerSafe(supabase, {
+        source: 'manual_status_delete',
+        scopes: ['noncod', 'manual_status', 'audit', 'admin_monitor'],
+        periodes: existingOverride && existingOverride.periode ? [existingOverride.periode] : [],
+      }, 'DELETE');
       res.json({ success: true });
       return true;
     } catch (err) {
@@ -785,7 +888,8 @@ async function handlePipelineRoute(req, res) {
   const supabase = getSupabase();
 
   const reason = String(req.body?.reason || 'background_sync').trim() || 'background_sync';
-  const requestedPeriodes = normalizePeriodeList(req.body?.periodes);
+  const requestedPeriodes = normalizePeriodeList(req.body?.periodes)
+    .filter((periode) => isValidPeriodeParam(periode));
   const force = req.body?.force !== false;
 
   try {
@@ -812,6 +916,11 @@ async function handlePipelineRoute(req, res) {
       periodes: periodesToSync,
       reason,
     });
+    await publishNoncodMarkerSafe(supabase, {
+      source: 'noncod_sync_published',
+      scopes: ['overview', 'noncod', 'dfod', 'transfer', 'pending_allocation', 'audit', 'admin_monitor'],
+      periodes: periodesToSync,
+    }, 'POST');
 
     if (nextState.dirty && nextState.pendingPeriodes.length) {
       queueNoncodPipelineTrigger({
@@ -869,8 +978,8 @@ async function handler(req, res) {
       const periode = (req.query.periode || '').trim();
       const mode = String(req.query.mode || 'noncod').trim().toLowerCase();
       const forceSync = req.query.sync === '1' || req.query.refresh === '1';
-      if (!periode || !PERIODE_RE.test(periode)) {
-        return res.status(400).json({ error: 'Parameter periode wajib (YYYY-MM).' });
+      if (!periode || !isValidPeriodeParam(periode)) {
+        return res.status(400).json({ error: 'Parameter periode wajib (YYYY-MM) dengan bulan 01-12.' });
       }
       if (!['noncod', 'dfod', 'all'].includes(mode)) {
         return res.status(400).json({ error: 'Mode tidak valid. Gunakan noncod, dfod, atau all.' });
@@ -887,10 +996,20 @@ async function handler(req, res) {
       syncInfo.triggerMode = triggerConfig.mode;
       syncInfo.triggerTarget = triggerConfig.url;
       syncInfo.stale = isSyncMetaStale(syncMeta);
+      syncInfo.refreshState = { action: 'none', status: 'idle', reason: '' };
       let data = await fetchAllRowsByPeriode(supabase, periode);
 
-      const shouldSync = syncInfo.enabled && syncInfo.eligible && forceSync;
-      if (shouldSync) {
+      const autoRefresh = planNoncodAutoRefresh({
+        periode,
+        syncInfo,
+        syncMeta,
+        rowCount: data.length,
+        forceSync,
+        backgroundTriggerEnabled,
+        pipelineState,
+      });
+
+      if (autoRefresh.action === 'inline') {
         try {
           syncInfo = await maybeSyncMaukirimPeriod(supabase, periode, { force: true });
           syncInfo.pipeline = pipelineState;
@@ -898,6 +1017,11 @@ async function handler(req, res) {
           syncInfo.triggerMode = triggerConfig.mode;
           syncInfo.triggerTarget = triggerConfig.url;
           syncInfo.stale = false;
+          syncInfo.refreshState = {
+            action: 'inline',
+            status: 'completed',
+            reason: autoRefresh.reason,
+          };
           data = await fetchAllRowsByPeriode(supabase, periode);
         } catch (syncErr) {
           console.error('[noncod sync]', syncErr.message);
@@ -909,9 +1033,30 @@ async function handler(req, res) {
             triggerMode: triggerConfig.mode,
             triggerTarget: triggerConfig.url,
             stale: syncInfo.stale,
+            refreshState: {
+              action: 'inline',
+              status: 'failed',
+              reason: autoRefresh.reason,
+            },
             error: syncErr.message,
           };
         }
+      } else if (autoRefresh.action === 'queue') {
+        const queuedReason = 'snapshot_' + autoRefresh.reason;
+        const queuedState = await markNoncodSyncQueued(supabase, {
+          periodes: [periode],
+          reason: queuedReason,
+        });
+        queueNoncodPipelineTrigger({
+          reason: queuedReason,
+          periodes: [periode],
+          source: 'noncod-read',
+          force: true,
+        });
+        syncInfo.pipeline = queuedState;
+        syncInfo.refreshState = autoRefresh;
+      } else if (autoRefresh.status !== 'idle') {
+        syncInfo.refreshState = autoRefresh;
       }
 
       const overrideMap = await readStatusOverridesByResi(supabase, (data || []).map((row) => row.nomor_resi));
@@ -1041,16 +1186,17 @@ async function handler(req, res) {
     try {
       const supabase = getSupabase();
       const periode = (req.query.periode || '').trim();
-      if (!periode || !PERIODE_RE.test(periode)) {
-        return res.status(400).json({ error: 'Parameter periode wajib (YYYY-MM).' });
-      }
-      const [, mmDel] = periode.split('-');
-      if (parseInt(mmDel) < 1 || parseInt(mmDel) > 12) {
-        return res.status(400).json({ error: 'Bulan tidak valid.' });
+      if (!periode || !isValidPeriodeParam(periode)) {
+        return res.status(400).json({ error: 'Parameter periode wajib (YYYY-MM) dengan bulan 01-12.' });
       }
       const { error } = await supabase.from('noncod').delete().eq('periode', periode);
       if (error) throw error;
-      return res.json({ success: true });
+      await publishNoncodMarkerSafe(supabase, {
+        source: 'noncod_delete_periode',
+        scopes: ['overview', 'noncod', 'dfod', 'audit', 'admin_monitor'],
+        periodes: [periode],
+      }, 'DELETE');
+      return res.json({ success: true, deletedPeriode: periode });
     } catch (err) {
       console.error(err);
       logError('noncod', err.message, { method: 'DELETE' });
@@ -1074,4 +1220,6 @@ module.exports.readSyncMeta = readSyncMeta;
 module.exports.resolvePendingAllocations = resolvePendingAllocations;
 module.exports.syncMaukirimPeriodes = syncMaukirimPeriodes;
 module.exports.authorizeSyncRequest = authorizeSyncRequest;
+module.exports.isValidPeriodeParam = isValidPeriodeParam;
+module.exports.planNoncodAutoRefresh = planNoncodAutoRefresh;
 module.exports.timingSafeSecretEqual = timingSafeSecretEqual;

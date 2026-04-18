@@ -7,3 +7,8 @@ maukirim-account-*.txt
 tmp/aws-ocr-worker-package/
 tmp/aws-ocr-worker-package.zip
 tmp/vercel-env-pull
+
+.vercel
+.env*.local
+testsprite_tests/
+TESTSPRITE-PRD.md

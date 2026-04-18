@@ -1,6 +1,10 @@
 scripts/local/
 scripts/legacy/
-sql-indexes.sql
+tests/
+testsprite_tests/
+tmp/
+TESTSPRITE-PRD.md
+sql-*.sql
 .env
 .env.local
 .env*.notifier

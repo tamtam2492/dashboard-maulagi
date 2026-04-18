@@ -41,6 +41,7 @@ const {
   formatProofDuplicateMessage,
   parseProofSignatureValue,
 } = require('./_proof-signature');
+const { publishAdminWriteMarker } = require('./_admin-write-marker');
 const {
   markNoncodSyncDirty,
   queueNoncodPipelineTrigger,
@@ -146,6 +147,62 @@ function getOcrBackgroundScheduleMeta() {
     triggerTarget: triggerConfig.url,
     canFallbackInternally: false,
   };
+}
+
+function normalizeUploadFields(rawFields = {}) {
+  const fields = rawFields && typeof rawFields === 'object' ? rawFields : {};
+
+  return {
+    ...fields,
+    tgl_inputan: String(fields.tgl_inputan || fields.tanggal || '').trim(),
+    nama_bank: String(fields.nama_bank || fields.bank_pengirim || '').trim(),
+    nama_cabang: String(fields.nama_cabang || fields.cabang || '').trim(),
+    nominal: fields.nominal,
+    periode: String(fields.periode || '').trim(),
+    context_key: String(fields.context_key || fields.contextKey || '').trim(),
+  };
+}
+
+function normalizeClientInputErrorMessage(message) {
+  const normalized = String(message || '').trim();
+  if (/Unexpected end of form/i.test(normalized)) {
+    return 'Upload multipart tidak lengkap atau rusak.';
+  }
+  return normalized || 'Input request tidak valid.';
+}
+
+function createClientInputError(message) {
+  const error = new Error(normalizeClientInputErrorMessage(message));
+  error.clientInputError = true;
+  return error;
+}
+
+function getMultipartSourceStream(req) {
+  if (req && typeof req.pipe === 'function' && typeof req.on === 'function') {
+    return req;
+  }
+
+  const body = req && Object.prototype.hasOwnProperty.call(req, 'body') ? req.body : null;
+  if (Buffer.isBuffer(body)) return Readable.from([body]);
+  if (typeof body === 'string') return Readable.from([body]);
+  if (body && typeof body[Symbol.asyncIterator] === 'function') return Readable.from(body);
+
+  return Readable.from([]);
+}
+
+function getInputErrorStatusCode(err) {
+  const message = String(err && err.message || '');
+  if (err && err.clientInputError) return 400;
+
+  return /wajib diisi|Nominal harus|Format tanggal|Cabang tidak terdaftar|Tanggal NONCOD|Belum ada data NONCOD|sudah lunas|belum tersedia|bukti transfer|multipart|Format file|File terlalu besar|Unexpected end of form|Content-Type upload/i.test(message)
+    ? 400
+    : 500;
+}
+
+function buildInputMarkerScopes(options = {}) {
+  const scopes = ['overview', 'noncod', 'transfer', 'audit', 'admin_monitor'];
+  if (options.adminPendingUpload || options.pendingPayload) scopes.push('pending_allocation');
+  return [...new Set(scopes)];
 }
 
 async function failQueuedOcrJob(jobState, message, logMeta = {}) {
@@ -477,6 +534,7 @@ async function handleDupeRoute(req, res) {
   if (await dupeLimiter(req, res)) return;
 
   try {
+    const normalizedFields = normalizeUploadFields(req.body || {});
     const {
       nama_cabang,
       tgl_inputan,
@@ -484,7 +542,7 @@ async function handleDupeRoute(req, res) {
       periode,
       prefetch,
       context_key: contextKey,
-    } = req.body || {};
+    } = normalizedFields;
 
     if (!nama_cabang) {
       return res.status(400).json({ error: 'Cabang wajib diisi.' });
@@ -797,50 +855,86 @@ async function handler(req, res) {
   if (await uploadLimiter(req, res)) return;
 
   try {
+    const contentType = String(req.headers['content-type'] || '').trim();
+    if (!/multipart\/form-data/i.test(contentType)) {
+      return res.status(400).json({ error: 'Content-Type upload harus multipart/form-data.' });
+    }
+
     const fields = {};
     let fileBuffer = null;
     let fileName = null;
     let fileMime = null;
 
     await new Promise((resolve, reject) => {
-      const busboy = Busboy({ headers: req.headers });
+      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+      const busboy = Busboy({
+        headers: req.headers,
+        limits: {
+          files: 1,
+          fileSize: MAX_FILE_SIZE,
+        },
+      });
+
+      let settled = false;
+      const resolveOnce = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      const rejectOnce = (error) => {
+        if (settled) return;
+        settled = true;
+        reject(error);
+      };
 
       busboy.on('field', (name, val) => {
         fields[name] = val;
       });
 
-      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
       busboy.on('file', (name, file, info) => {
         const { filename, mimeType } = info;
         fileName = filename;
         fileMime = mimeType;
         const chunks = [];
         let totalSize = 0;
+
+        file.on('limit', () => {
+          rejectOnce(createClientInputError('File terlalu besar. Maksimal 5MB.'));
+        });
         file.on('data', d => {
           totalSize += d.length;
           if (totalSize > MAX_FILE_SIZE) {
-            file.destroy(new Error('File terlalu besar. Maksimal 5MB.'));
+            rejectOnce(createClientInputError('File terlalu besar. Maksimal 5MB.'));
+            file.resume();
             return;
           }
           chunks.push(d);
         });
+        file.on('error', (error) => {
+          rejectOnce(createClientInputError(error && error.message ? error.message : 'Upload multipart tidak valid.'));
+        });
         file.on('end', () => { fileBuffer = Buffer.concat(chunks); });
       });
 
-      busboy.on('finish', resolve);
-      busboy.on('error', reject);
+      busboy.on('filesLimit', () => {
+        rejectOnce(createClientInputError('Upload hanya menerima satu file bukti transfer.'));
+      });
+      busboy.on('partsLimit', () => {
+        rejectOnce(createClientInputError('Upload multipart tidak valid.'));
+      });
+      busboy.on('finish', resolveOnce);
+      busboy.on('error', (error) => {
+        rejectOnce(createClientInputError(error && error.message ? error.message : 'Upload multipart tidak valid.'));
+      });
 
-      if (req.pipe) {
-        req.pipe(busboy);
-      } else {
-        // Vercel mungkin sudah parse body — tangani keduanya
-        const stream = Readable.from(req);
-        stream.pipe(busboy);
-      }
+      const sourceStream = getMultipartSourceStream(req);
+      sourceStream.pipe(busboy);
     });
 
+    const normalizedFields = normalizeUploadFields(fields);
+
     // Validasi fields
-    const { tgl_inputan, nama_bank, nama_cabang, nominal, periode } = fields;
+    const { tgl_inputan, nama_bank, nama_cabang, nominal, periode } = normalizedFields;
     if (!nama_bank || !nama_cabang || !nominal) {
       return res.status(400).json({ error: 'Semua field wajib diisi.' });
     }
@@ -874,7 +968,7 @@ async function handler(req, res) {
     let holdPayload = null;
     let adminAllocation = null;
     if (adminPendingUpload) {
-      const adminPlan = await buildAdminPendingPlan(supabase, fields, normalizedCabang);
+      const adminPlan = await buildAdminPendingPlan(supabase, normalizedFields, normalizedCabang);
       plannedRows = adminPlan.plannedRows;
       pendingPayload = adminPlan.pending;
       adminAllocation = adminPlan.allocation;
@@ -961,7 +1055,7 @@ async function handler(req, res) {
     buktiUrl = safeName;
 
     const ketParts = [];
-    if (fields.ket) ketParts.push(String(fields.ket || '').trim());
+    if (normalizedFields.ket) ketParts.push(String(normalizedFields.ket || '').trim());
     if (adminPendingUpload && adminAllocation) ketParts.push('ADMIN tempel NONCOD mulai ' + adminAllocation.targetDate);
     const normalizedKet = normalizeTransferKet(ketParts.join(' · '));
     const timestamp = new Date().toISOString();
@@ -1115,8 +1209,24 @@ async function handler(req, res) {
       throw proofRegistryError;
     }
 
+    const affectedPeriodes = [...new Set(plannedRows.map((row) => getPeriodeFromDate(row.tgl_inputan)).filter(Boolean))];
+
     try {
-      const affectedPeriodes = [...new Set(plannedRows.map((row) => getPeriodeFromDate(row.tgl_inputan)).filter(Boolean))];
+      await publishAdminWriteMarker(supabase, {
+        source: adminPendingUpload ? 'input_admin_pending' : 'input',
+        scopes: buildInputMarkerScopes({ adminPendingUpload, pendingPayload }),
+        periodes: affectedPeriodes,
+      });
+    } catch (markerError) {
+      logError('admin-marker', markerError.message, {
+        method: req.method,
+        action: 'publish_admin_write_marker_after_input',
+        transferIds: insertedRows.map((row) => row.id),
+        periodes: affectedPeriodes,
+      });
+    }
+
+    try {
       await markNoncodSyncDirty(supabase, {
         reason: adminPendingUpload ? 'input_admin_pending' : 'input',
         periodes: affectedPeriodes,
@@ -1150,9 +1260,7 @@ async function handler(req, res) {
   } catch (err) {
     console.error(err);
     logError('input', err.message, { method: req.method });
-    const statusCode = /wajib diisi|Nominal harus|Format tanggal|Cabang tidak terdaftar|Tanggal NONCOD|Belum ada data NONCOD|sudah lunas|belum tersedia|bukti transfer/i.test(String(err.message || ''))
-      ? 400
-      : 500;
+    const statusCode = getInputErrorStatusCode(err);
     return res.status(statusCode).json({ error: statusCode === 400 ? err.message : 'Gagal menyimpan data.' });
   }
 }
@@ -1164,4 +1272,6 @@ module.exports.getDuplicateContext = getDuplicateContext;
 module.exports.normalizeTransferRow = normalizeTransferRow;
 module.exports.getAreaScope = getAreaScope;
 module.exports.getScopeLabel = getScopeLabel;
+module.exports.getInputErrorStatusCode = getInputErrorStatusCode;
+module.exports.normalizeUploadFields = normalizeUploadFields;
 module.exports.shouldFallbackToInternalOcrWorker = shouldFallbackToInternalOcrWorker;
