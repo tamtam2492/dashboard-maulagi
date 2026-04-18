@@ -3,7 +3,8 @@ const { OCR_JOB_PREFIX, parseOcrJobState } = require('./_ocr-job-pipeline');
 const MONTHS_KEEP = 2;
 const OCR_JOB_DAYS_KEEP = 7;
 const VISITOR_DAYS_KEEP = 90;
-const CLEANUP_LAST_RUN_KEY = 'cleanup_last_run';
+const BUSINESS_CLEANUP_LAST_RUN_KEY = 'cleanup_business_last_run';
+const TEMPORARY_CLEANUP_LAST_RUN_KEY = 'cleanup_temporary_last_run';
 const BUCKET = 'bukti-transfer';
 const BATCH_SIZE = 100;
 
@@ -22,7 +23,7 @@ function formatLocalDate(date) {
   return `${date.getFullYear()}-${padNumber(date.getMonth() + 1)}-${padNumber(date.getDate())}`;
 }
 
-function getCleanupRunDate(referenceDate = new Date(), timeZone = 'Asia/Makassar') {
+function getCleanupRunParts(referenceDate = new Date(), timeZone = 'Asia/Makassar') {
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone,
     year: 'numeric',
@@ -31,10 +32,21 @@ function getCleanupRunDate(referenceDate = new Date(), timeZone = 'Asia/Makassar
   });
 
   const parts = formatter.formatToParts(referenceDate);
-  const year = parts.find((part) => part.type === 'year')?.value || '0000';
-  const month = parts.find((part) => part.type === 'month')?.value || '01';
-  const day = parts.find((part) => part.type === 'day')?.value || '01';
-  return `${year}-${month}-${day}`;
+  return {
+    year: parts.find((part) => part.type === 'year')?.value || '0000',
+    month: parts.find((part) => part.type === 'month')?.value || '01',
+    day: parts.find((part) => part.type === 'day')?.value || '01',
+  };
+}
+
+function getCleanupRunDate(referenceDate = new Date(), timeZone = 'Asia/Makassar') {
+  const parts = getCleanupRunParts(referenceDate, timeZone);
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function getCleanupRunMonth(referenceDate = new Date(), timeZone = 'Asia/Makassar') {
+  const parts = getCleanupRunParts(referenceDate, timeZone);
+  return `${parts.year}-${parts.month}`;
 }
 
 function getTransferCutoffDate(referenceDate = new Date(), monthsKeep = MONTHS_KEEP) {
@@ -274,26 +286,35 @@ async function cleanupOcrJobs(supabase, options = {}) {
 
 async function runMaintenanceCleanup(supabase, options = {}) {
   const referenceDate = options.referenceDate || new Date();
-  return {
-    transfer: await cleanupTransfers(supabase, { ...options, referenceDate }),
-    noncod: await cleanupNoncod(supabase, { ...options, referenceDate }),
-    visitors: await cleanupVisitors(supabase, { ...options, referenceDate }),
-    ocrJobs: await cleanupOcrJobs(supabase, { ...options, referenceDate }),
-  };
+  const summary = {};
+
+  if (options.includeBusinessData !== false) {
+    summary.transfer = await cleanupTransfers(supabase, { ...options, referenceDate });
+    summary.noncod = await cleanupNoncod(supabase, { ...options, referenceDate });
+  }
+
+  if (options.includeTemporaryData !== false) {
+    summary.visitors = await cleanupVisitors(supabase, { ...options, referenceDate });
+    summary.ocrJobs = await cleanupOcrJobs(supabase, { ...options, referenceDate });
+  }
+
+  return summary;
 }
 
 module.exports = {
   BATCH_SIZE,
+  BUSINESS_CLEANUP_LAST_RUN_KEY,
   BUCKET,
-  CLEANUP_LAST_RUN_KEY,
   MONTHS_KEEP,
   OCR_JOB_DAYS_KEEP,
+  TEMPORARY_CLEANUP_LAST_RUN_KEY,
   VISITOR_DAYS_KEEP,
   cleanupNoncod,
   cleanupOcrJobs,
   cleanupTransfers,
   cleanupVisitors,
   getCleanupRunDate,
+  getCleanupRunMonth,
   getOcrJobCleanupReference,
   getOcrJobCutoffDate,
   getPeriodeCutoff,

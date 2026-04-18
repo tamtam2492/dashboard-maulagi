@@ -1,7 +1,9 @@
 const { cors } = require('./_cors');
 const {
-  CLEANUP_LAST_RUN_KEY,
+  BUSINESS_CLEANUP_LAST_RUN_KEY,
   getCleanupRunDate,
+  getCleanupRunMonth,
+  TEMPORARY_CLEANUP_LAST_RUN_KEY,
   runMaintenanceCleanup,
 } = require('./_cleanup-maintenance');
 const { logError } = require('./_logger');
@@ -55,17 +57,37 @@ function getBatchSize(req) {
 
 async function runCleanup(supabase) {
   const today = getCleanupRunDate();
-  const { data: setting } = await supabase
-    .from('settings').select('value').eq('key', CLEANUP_LAST_RUN_KEY).maybeSingle();
-  if (setting && setting.value === today) return;
-  await supabase.from('settings').upsert({ key: CLEANUP_LAST_RUN_KEY, value: today });
-  try {
-    await runMaintenanceCleanup(supabase);
-  } catch (err) {
-    await supabase.from('settings').delete().eq('key', CLEANUP_LAST_RUN_KEY);
-    console.error('Cleanup error:', err.message);
-    logError('dashboard', err.message, { action: 'cleanup' });
-  }
+  const currentMonth = getCleanupRunMonth();
+
+  const runScopedCleanup = async (settingKey, markerValue, cleanupOptions, scope) => {
+    const { data: setting } = await supabase
+      .from('settings').select('value').eq('key', settingKey).maybeSingle();
+    if (setting && setting.value === markerValue) return;
+
+    await supabase.from('settings').upsert({ key: settingKey, value: markerValue });
+
+    try {
+      await runMaintenanceCleanup(supabase, cleanupOptions);
+    } catch (err) {
+      await supabase.from('settings').delete().eq('key', settingKey);
+      console.error('Cleanup error:', err.message);
+      logError('dashboard', err.message, { action: 'cleanup', scope });
+    }
+  };
+
+  await runScopedCleanup(
+    TEMPORARY_CLEANUP_LAST_RUN_KEY,
+    today,
+    { includeBusinessData: false },
+    'temporary',
+  );
+
+  await runScopedCleanup(
+    BUSINESS_CLEANUP_LAST_RUN_KEY,
+    currentMonth,
+    { includeTemporaryData: false },
+    'business',
+  );
 }
 
 function normalizeProofUrl(buktiUrl) {

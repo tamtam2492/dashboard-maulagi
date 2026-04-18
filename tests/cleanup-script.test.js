@@ -2,10 +2,13 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  BUSINESS_CLEANUP_LAST_RUN_KEY,
   getCleanupRunDate,
+  getCleanupRunMonth,
   getOcrJobCleanupReference,
   getOcrJobCutoffDate,
   getPeriodeCutoff,
+  TEMPORARY_CLEANUP_LAST_RUN_KEY,
   getTransferCutoffDate,
   getVisitorCutoffDate,
   shouldDeleteOcrJobState,
@@ -33,6 +36,16 @@ test('getVisitorCutoffDate menghitung cutoff visitor berdasarkan hari retensi', 
 test('getCleanupRunDate memakai zona waktu Asia/Makassar untuk penanda harian', () => {
   assert.equal(getCleanupRunDate(new Date('2026-04-18T15:59:59.000Z')), '2026-04-18');
   assert.equal(getCleanupRunDate(new Date('2026-04-18T16:00:00.000Z')), '2026-04-19');
+});
+
+test('getCleanupRunMonth memakai zona waktu Asia/Makassar untuk boundary bulan', () => {
+  assert.equal(getCleanupRunMonth(new Date('2026-04-30T15:59:59.000Z')), '2026-04');
+  assert.equal(getCleanupRunMonth(new Date('2026-04-30T16:00:00.000Z')), '2026-05');
+});
+
+test('cleanup run key dibedakan antara data bisnis dan data sementara', () => {
+  assert.equal(BUSINESS_CLEANUP_LAST_RUN_KEY, 'cleanup_business_last_run');
+  assert.equal(TEMPORARY_CLEANUP_LAST_RUN_KEY, 'cleanup_temporary_last_run');
 });
 
 test('getOcrJobCleanupReference memprioritaskan finishedAt lalu updatedAt lalu createdAt', () => {
