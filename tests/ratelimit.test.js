@@ -46,6 +46,8 @@ test('rateLimit memisahkan hit counter untuk bucket berbeda pada route yang sama
 
   assert.equal(await dupeLimiter(request, firstDupeResponse), false);
   assert.equal(await uploadLimiter(request, firstUploadResponse), false);
+  assert.equal(firstDupeResponse.headers['X-RateLimit-Store'], 'memory');
+  assert.equal(firstUploadResponse.headers['X-RateLimit-Store'], 'memory');
 
   assert.equal(await dupeLimiter(request, secondDupeResponse), true);
   assert.equal(secondDupeResponse.statusCode, 429);
@@ -64,6 +66,7 @@ test('rateLimit bucket default tetap membatasi route yang sama untuk IP yang sam
   const secondResponse = createResponse();
 
   assert.equal(await limiter(request, firstResponse), false);
+  assert.equal(firstResponse.headers['X-RateLimit-Store'], 'memory');
   assert.equal(await limiter(request, secondResponse), true);
   assert.equal(secondResponse.statusCode, 429);
 });

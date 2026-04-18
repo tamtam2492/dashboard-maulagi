@@ -6,6 +6,7 @@ const {
   buildSelfNoncodSyncUrl,
   createDefaultNoncodSyncPipelineState,
   getNoncodPipelineTriggerConfig,
+  getNoncodPipelineTriggerMode,
   isNoncodPipelineTriggerEnabled,
   normalizePeriodeList,
   parseNoncodSyncPipelineState,
@@ -29,9 +30,16 @@ test('getNoncodPipelineTriggerConfig membaca env trigger pipeline', () => {
   });
 
   assert.equal(config.url, 'https://example.test/trigger');
+  assert.equal(config.mode, 'external');
   assert.equal(config.secret, 'secret-123');
   assert.equal(config.service, 'dashboard-test');
   assert.equal(config.timeoutMs, 4100);
+});
+
+test('getNoncodPipelineTriggerMode membedakan external, self, dan disabled', () => {
+  assert.equal(getNoncodPipelineTriggerMode({ NONCOD_PIPELINE_TRIGGER_URL: 'https://example.test/trigger' }), 'external');
+  assert.equal(getNoncodPipelineTriggerMode({ VERCEL_URL: 'dashboard-transfer-preview.vercel.app' }), 'self');
+  assert.equal(getNoncodPipelineTriggerMode({}), 'disabled');
 });
 
 test('buildSelfNoncodSyncUrl membentuk fallback URL worker dari VERCEL_URL', () => {

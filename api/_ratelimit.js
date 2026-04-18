@@ -106,9 +106,10 @@ async function checkRedisLimit(config, key, windowMs, max) {
   return { blocked: false, retryAfter: 0, remaining: Math.max(0, max - count) };
 }
 
-function applyRateLimitHeaders(res, max, result) {
+function applyRateLimitHeaders(res, max, result, store) {
   res.setHeader('X-RateLimit-Limit', String(max));
   res.setHeader('X-RateLimit-Remaining', String(Math.max(0, result.remaining || 0)));
+  res.setHeader('X-RateLimit-Store', String(store || 'memory'));
   if (result.retryAfter > 0) {
     res.setHeader('Retry-After', String(result.retryAfter));
   }
@@ -123,17 +124,20 @@ function rateLimit({ windowMs = 60000, max = 10, bucket = 'default' } = {}) {
     const redisConfig = getRedisConfig();
 
     let result;
+    let store = 'memory';
     if (redisConfig) {
       try {
         result = await checkRedisLimit(redisConfig, limiterKey, windowMs, max);
+        store = 'redis';
       } catch (_) {
         result = checkMemoryLimit(limiterKey, windowMs, max);
+        store = 'memory-fallback';
       }
     } else {
       result = checkMemoryLimit(limiterKey, windowMs, max);
     }
 
-    applyRateLimitHeaders(res, max, result);
+    applyRateLimitHeaders(res, max, result, store);
 
     if (result.blocked) {
       res.status(429).json({ error: 'Terlalu banyak permintaan. Coba lagi nanti.' });

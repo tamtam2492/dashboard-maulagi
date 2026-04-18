@@ -6,6 +6,7 @@ const {
   buildSelfOcrWorkerUrl,
   createDefaultOcrJobState,
   getOcrPipelineTriggerConfig,
+  getOcrPipelineTriggerMode,
   isOcrJobStale,
   isOcrPipelineTriggerEnabled,
   parseOcrJobState,
@@ -26,9 +27,16 @@ test('getOcrPipelineTriggerConfig membaca env trigger OCR', () => {
   });
 
   assert.equal(config.url, 'https://example.test/ocr-trigger');
+  assert.equal(config.mode, 'external');
   assert.equal(config.secret, 'secret-ocr');
   assert.equal(config.service, 'dashboard-test');
   assert.equal(config.timeoutMs, 4200);
+});
+
+test('getOcrPipelineTriggerMode membedakan external, self, dan disabled', () => {
+  assert.equal(getOcrPipelineTriggerMode({ OCR_PIPELINE_TRIGGER_URL: 'https://example.test/ocr-trigger' }), 'external');
+  assert.equal(getOcrPipelineTriggerMode({ VERCEL_URL: 'dashboard-transfer-preview.vercel.app' }), 'self');
+  assert.equal(getOcrPipelineTriggerMode({}), 'disabled');
 });
 
 test('buildSelfOcrWorkerUrl membentuk fallback URL worker OCR dari VERCEL_URL', () => {
@@ -91,6 +99,8 @@ test('sendOcrJobTrigger menganggap response worker failed yang ter-handle sebaga
   assert.equal(result.status, 500);
   assert.equal(result.workerStatus, 'failed');
   assert.equal(result.error, 'Gambar bukan bukti transfer.');
+  assert.equal(result.mode, 'external');
+  assert.equal(result.target, 'https://example.test/ocr-trigger');
 });
 
 test('sendOcrJobTrigger tetap gagal untuk response trigger yang memang belum menemukan job', async () => {

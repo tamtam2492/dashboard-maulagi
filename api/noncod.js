@@ -21,6 +21,7 @@ const {
   upsertStatusOverride,
 } = require('./_noncod-status-overrides');
 const {
+  getNoncodPipelineTriggerConfig,
   isNoncodPipelineTriggerEnabled,
   markNoncodSyncBuilding,
   markNoncodSyncFailed,
@@ -763,9 +764,12 @@ async function handlePipelineRoute(req, res) {
     if (!(await requireAdmin(req, res))) return true;
     const supabase = getSupabase();
     const state = await readNoncodSyncPipelineState(supabase);
+    const triggerConfig = getNoncodPipelineTriggerConfig();
     res.json({
       state,
       triggerEnabled: isNoncodPipelineTriggerEnabled(),
+      triggerMode: triggerConfig.mode,
+      triggerTarget: triggerConfig.url,
     });
     return true;
   }
@@ -876,9 +880,12 @@ async function handler(req, res) {
       const syncMeta = await readSyncMeta(supabase, periode);
       const pipelineState = await readNoncodSyncPipelineState(supabase);
       const backgroundTriggerEnabled = isNoncodPipelineTriggerEnabled();
+      const triggerConfig = getNoncodPipelineTriggerConfig();
       let syncInfo = buildSyncInfo(periode, syncMeta);
       syncInfo.pipeline = pipelineState;
       syncInfo.triggerEnabled = backgroundTriggerEnabled;
+      syncInfo.triggerMode = triggerConfig.mode;
+      syncInfo.triggerTarget = triggerConfig.url;
       syncInfo.stale = isSyncMetaStale(syncMeta);
       let data = await fetchAllRowsByPeriode(supabase, periode);
 
@@ -888,6 +895,8 @@ async function handler(req, res) {
           syncInfo = await maybeSyncMaukirimPeriod(supabase, periode, { force: true });
           syncInfo.pipeline = pipelineState;
           syncInfo.triggerEnabled = backgroundTriggerEnabled;
+          syncInfo.triggerMode = triggerConfig.mode;
+          syncInfo.triggerTarget = triggerConfig.url;
           syncInfo.stale = false;
           data = await fetchAllRowsByPeriode(supabase, periode);
         } catch (syncErr) {
@@ -897,6 +906,8 @@ async function handler(req, res) {
             ...buildSyncInfo(periode, syncMeta),
             pipeline: pipelineState,
             triggerEnabled: backgroundTriggerEnabled,
+            triggerMode: triggerConfig.mode,
+            triggerTarget: triggerConfig.url,
             stale: syncInfo.stale,
             error: syncErr.message,
           };

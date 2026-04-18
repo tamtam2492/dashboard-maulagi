@@ -6,6 +6,7 @@ const { logError } = require('./_logger');
 const { normalizeBankName } = require('./_bank');
 const {
   createOcrJob,
+  getOcrPipelineTriggerConfig,
   isOcrJobStale,
   isOcrPipelineTriggerEnabled,
   markOcrJobFailed,
@@ -119,6 +120,34 @@ function hasExplicitOcrTriggerUrl() {
   return !!String(process.env.OCR_PIPELINE_TRIGGER_URL || '').trim();
 }
 
+function getOcrBackgroundScheduleMeta() {
+  const triggerConfig = getOcrPipelineTriggerConfig();
+  if (hasExplicitOcrTriggerUrl()) {
+    return {
+      backgroundStrategy: 'external_trigger',
+      triggerMode: triggerConfig.mode,
+      triggerTarget: triggerConfig.url,
+      canFallbackInternally: typeof vercelWaitUntil === 'function',
+    };
+  }
+
+  if (typeof vercelWaitUntil === 'function') {
+    return {
+      backgroundStrategy: 'internal_waituntil',
+      triggerMode: 'internal',
+      triggerTarget: '',
+      canFallbackInternally: true,
+    };
+  }
+
+  return {
+    backgroundStrategy: 'unavailable',
+    triggerMode: triggerConfig.mode,
+    triggerTarget: triggerConfig.url,
+    canFallbackInternally: false,
+  };
+}
+
 async function failQueuedOcrJob(jobState, message, logMeta = {}) {
   const supabase = getSupabase();
 
@@ -157,8 +186,9 @@ function runInternalOcrBackgroundTask(jobState) {
 }
 
 function scheduleOcrBackgroundTask(jobState) {
-  const runViaExternalTrigger = hasExplicitOcrTriggerUrl();
-  const canFallbackInternally = typeof vercelWaitUntil === 'function';
+  const scheduleMeta = getOcrBackgroundScheduleMeta();
+  const runViaExternalTrigger = scheduleMeta.backgroundStrategy === 'external_trigger';
+  const canFallbackInternally = scheduleMeta.canFallbackInternally;
   const task = runViaExternalTrigger
     ? sendOcrJobTrigger({
         jobId: jobState.jobId,
@@ -167,6 +197,17 @@ function scheduleOcrBackgroundTask(jobState) {
         if (result && result.ok) return result;
 
         if (canFallbackInternally && shouldFallbackToInternalOcrWorker(result)) {
+          logError('ocr-trigger', 'OCR external trigger gagal; fallback ke worker internal.', {
+            method: 'POST',
+            action: 'trigger_fallback',
+            jobId: jobState.jobId,
+            triggerStatus: result && result.status ? result.status : 0,
+            triggerMode: result && result.mode ? result.mode : 'external',
+            triggerTarget: result && result.target ? result.target : scheduleMeta.triggerTarget,
+            workerStatus: result && result.workerStatus ? result.workerStatus : '',
+            reason: result && result.reason ? result.reason : '',
+            fallback: 'internal_waituntil',
+          });
           return runInternalOcrBackgroundTask(jobState);
         }
 
@@ -178,6 +219,14 @@ function scheduleOcrBackgroundTask(jobState) {
         return result;
       }).catch(async (err) => {
         if (canFallbackInternally) {
+          logError('ocr-trigger', err && err.message ? err.message : 'OCR external trigger gagal; fallback ke worker internal.', {
+            method: 'POST',
+            action: 'trigger_fallback',
+            jobId: jobState.jobId,
+            triggerMode: scheduleMeta.triggerMode,
+            triggerTarget: scheduleMeta.triggerTarget,
+            fallback: 'internal_waituntil',
+          });
           return runInternalOcrBackgroundTask(jobState);
         }
 
@@ -573,6 +622,7 @@ async function handleOcrRoute(req, res) {
       accepted: true,
       jobId: jobState.jobId,
       status: jobState.status,
+      backgroundStrategy: getOcrBackgroundScheduleMeta().backgroundStrategy,
     });
   } catch (err) {
     console.error(err);

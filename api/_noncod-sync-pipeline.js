@@ -85,9 +85,17 @@ function buildSelfNoncodSyncUrl(env = process.env) {
   return `https://${vercelUrl}/api/noncod-sync`;
 }
 
+function getNoncodPipelineTriggerMode(env = process.env) {
+  const explicitUrl = normalizeText(env.NONCOD_PIPELINE_TRIGGER_URL, 500);
+  if (explicitUrl) return 'external';
+  return buildSelfNoncodSyncUrl(env) ? 'self' : 'disabled';
+}
+
 function getNoncodPipelineTriggerConfig(env = process.env) {
+  const url = buildSelfNoncodSyncUrl(env);
   return {
-    url: buildSelfNoncodSyncUrl(env),
+    url,
+    mode: getNoncodPipelineTriggerMode(env),
     secret: normalizeText(env.NONCOD_PIPELINE_TRIGGER_SECRET, 500)
       || normalizeText(env.NONCOD_SYNC_SECRET, 500),
     service: normalizeText(env.NONCOD_PIPELINE_SERVICE, 120) || 'dashboard-maulagi',
@@ -114,8 +122,8 @@ function buildNoncodPipelineTriggerPayload(options = {}, env = process.env) {
 
 async function sendNoncodPipelineTrigger(options = {}, env = process.env, fetchImpl = globalThis.fetch) {
   const config = getNoncodPipelineTriggerConfig(env);
-  if (!config.url || !config.secret) return { skipped: true, reason: 'disabled' };
-  if (typeof fetchImpl !== 'function') return { skipped: true, reason: 'fetch_unavailable' };
+  if (!config.url || !config.secret) return { skipped: true, reason: 'disabled', mode: config.mode, target: config.url || '' };
+  if (typeof fetchImpl !== 'function') return { skipped: true, reason: 'fetch_unavailable', mode: config.mode, target: config.url };
 
   const payload = buildNoncodPipelineTriggerPayload(options, env);
   const controller = typeof AbortController === 'function' ? new AbortController() : null;
@@ -136,6 +144,8 @@ async function sendNoncodPipelineTrigger(options = {}, env = process.env, fetchI
       skipped: false,
       ok: response.ok,
       status: response.status,
+      mode: config.mode,
+      target: config.url,
     };
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
@@ -242,6 +252,7 @@ module.exports = {
   buildNoncodPipelineTriggerPayload,
   createDefaultNoncodSyncPipelineState,
   getNoncodPipelineTriggerConfig,
+  getNoncodPipelineTriggerMode,
   isNoncodPipelineTriggerEnabled,
   markNoncodSyncBuilding,
   markNoncodSyncDirty,

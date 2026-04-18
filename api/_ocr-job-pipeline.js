@@ -81,9 +81,17 @@ function buildSelfOcrWorkerUrl(env = process.env) {
   return `https://${vercelUrl}/api/input?ocr=1&worker=1`;
 }
 
+function getOcrPipelineTriggerMode(env = process.env) {
+  const explicitUrl = normalizeText(env.OCR_PIPELINE_TRIGGER_URL, 500);
+  if (explicitUrl) return 'external';
+  return buildSelfOcrWorkerUrl(env) ? 'self' : 'disabled';
+}
+
 function getOcrPipelineTriggerConfig(env = process.env) {
+  const url = buildSelfOcrWorkerUrl(env);
   return {
-    url: buildSelfOcrWorkerUrl(env),
+    url,
+    mode: getOcrPipelineTriggerMode(env),
     secret: normalizeText(env.OCR_PIPELINE_TRIGGER_SECRET, 500)
       || normalizeText(env.OCR_SYNC_SECRET, 500)
       || normalizeText(env.NONCOD_SYNC_SECRET, 500),
@@ -109,11 +117,11 @@ function buildOcrJobTriggerPayload(options = {}, env = process.env) {
 
 async function sendOcrJobTrigger(options = {}, env = process.env, fetchImpl = globalThis.fetch) {
   const config = getOcrPipelineTriggerConfig(env);
-  if (!config.url || !config.secret) return { skipped: true, reason: 'disabled' };
-  if (typeof fetchImpl !== 'function') return { skipped: true, reason: 'fetch_unavailable' };
+  if (!config.url || !config.secret) return { skipped: true, reason: 'disabled', mode: config.mode, target: config.url || '' };
+  if (typeof fetchImpl !== 'function') return { skipped: true, reason: 'fetch_unavailable', mode: config.mode, target: config.url };
 
   const payload = buildOcrJobTriggerPayload(options, env);
-  if (!payload.jobId) return { skipped: true, reason: 'missing_job_id' };
+  if (!payload.jobId) return { skipped: true, reason: 'missing_job_id', mode: config.mode, target: config.url };
 
   const controller = typeof AbortController === 'function' ? new AbortController() : null;
   const timeoutId = controller ? setTimeout(() => controller.abort(), config.timeoutMs) : null;
@@ -149,6 +157,8 @@ async function sendOcrJobTrigger(options = {}, env = process.env, fetchImpl = gl
       status: response.status,
       workerStatus,
       error: normalizeText(responseBody && responseBody.error, 500),
+      mode: config.mode,
+      target: config.url,
     };
   } catch (err) {
     if (err && (err.name === 'AbortError' || /aborted/i.test(String(err.message || '')))) {
@@ -297,6 +307,7 @@ module.exports = {
   createOcrJob,
   createOcrJobId,
   getOcrPipelineTriggerConfig,
+  getOcrPipelineTriggerMode,
   isOcrJobStale,
   isOcrPipelineTriggerEnabled,
   markOcrJobFailed,
