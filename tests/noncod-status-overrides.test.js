@@ -10,6 +10,7 @@ const {
   normalizeSearchQuery,
   normalizeStatusOverride,
   parseStatusOverrideValue,
+  readStatusOverridesByResi,
 } = require('../api/_noncod-status-overrides');
 
 test('normalizer override membersihkan resi, query, dan status', () => {
@@ -66,4 +67,53 @@ test('applyStatusOverrides hanya menimpa status untuk resi yang dioverride', () 
   assert.equal(result[1].manual_status, true);
   assert.equal(result[1].manual_status_terakhir, 'VOID');
   assert.equal(result[1].manual_status_updated_at, '2026-04-13T10:00:00.000Z');
+});
+
+test('readStatusOverridesByResi memakai prefix scan tunggal saat resi periode sangat banyak', async () => {
+  let inCalls = 0;
+  let likeCalls = 0;
+
+  const supabase = {
+    from(table) {
+      assert.equal(table, 'settings');
+      return {
+        select() {
+          return this;
+        },
+        in(field, values) {
+          assert.equal(field, 'key');
+          assert.ok(Array.isArray(values));
+          inCalls += 1;
+          return Promise.resolve({ data: [], error: null });
+        },
+        like(field, pattern) {
+          assert.equal(field, 'key');
+          assert.match(pattern, /^noncod_status_override_/i);
+          likeCalls += 1;
+          return this;
+        },
+        order() {
+          return this;
+        },
+        range() {
+          return Promise.resolve({
+            data: [
+              {
+                key: buildStatusOverrideKey('RESI-150'),
+                value: JSON.stringify({ nomor_resi: 'RESI-150', status_terakhir: 'VOID' }),
+              },
+            ],
+            error: null,
+          });
+        },
+      };
+    },
+  };
+
+  const nomorResiList = Array.from({ length: 250 }, (_, index) => 'RESI-' + index);
+  const result = await readStatusOverridesByResi(supabase, nomorResiList);
+
+  assert.equal(likeCalls, 1);
+  assert.equal(inCalls, 0);
+  assert.equal(result.get('RESI-150').status_terakhir, 'VOID');
 });

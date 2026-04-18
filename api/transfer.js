@@ -1,4 +1,8 @@
 const { requireAdmin } = require('./_auth');
+const {
+  deleteCabangHold,
+  normalizeCabangHoldTransferId,
+} = require('./_noncod-cabang-holds');
 const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { normalizeBankName } = require('./_bank');
@@ -24,6 +28,7 @@ const {
 const { getSupabase } = require('./_supabase');
 const {
   buildTransferUpdate,
+  getAffectedTransferPeriodes,
   getPeriodeFromDate,
   isPositiveTransferNominal,
   isValidTransferDate,
@@ -74,6 +79,20 @@ async function clearPendingAllocationSafe(supabase, transferId, context) {
     await deletePendingAllocation(supabase, normalizedTransferId);
   } catch (err) {
     logError('transfer-pending-allocation', err.message, {
+      method: context,
+      transferId: normalizedTransferId,
+    });
+  }
+}
+
+async function clearCabangHoldSafe(supabase, transferId, context) {
+  const normalizedTransferId = normalizeCabangHoldTransferId(transferId);
+  if (!normalizedTransferId) return;
+
+  try {
+    await deleteCabangHold(supabase, normalizedTransferId);
+  } catch (err) {
+    logError('transfer-cabang-hold', err.message, {
       method: context,
       transferId: normalizedTransferId,
     });
@@ -354,15 +373,32 @@ module.exports = async (req, res) => {
     if (insErr) {
       // Rollback: restore row asli jika insert gagal
       const { timestamp, tgl_inputan: ti, periode: p, nama_bank: nb, nama_cabang: nc, nominal: n, bukti_url: bu, ket: k } = orig;
-      await supabase.from('transfers').insert({ timestamp, tgl_inputan: ti, periode: p, nama_bank: normalizeBankName(nb), nama_cabang: nc, nominal: n, bukti_url: bu, ket: k }).catch(() => {});
+      const rollbackResult = await supabase.from('transfers').insert({
+        timestamp,
+        tgl_inputan: ti,
+        periode: p,
+        nama_bank: normalizeBankName(nb),
+        nama_cabang: nc,
+        nominal: n,
+        bukti_url: bu,
+        ket: k,
+      });
+      if (rollbackResult.error) {
+        logError('transfer', rollbackResult.error.message, {
+          method: 'POST',
+          action: 'rollback_restore_original_transfer',
+          transferId: id,
+        });
+      }
       return res.status(500).json({ error: 'Gagal insert baris baru, data asli dikembalikan.' });
     }
 
     await clearCarryoverOverrideSafe(supabase, id, 'POST');
     await clearPendingAllocationSafe(supabase, id, 'POST');
+    await clearCabangHoldSafe(supabase, id, 'POST');
     await queuePipelineRefreshSafe(
       supabase,
-      newRows.map((row) => row.periode),
+      getAffectedTransferPeriodes([orig.tgl_inputan, ...newRows.map((row) => row.tgl_inputan)]),
       'transfer_split',
       'POST',
     );
@@ -382,6 +418,15 @@ module.exports = async (req, res) => {
     if (hasNominal && !isPositiveTransferNominal(body.nominal)) {
       return res.status(400).json({ error: 'Nominal harus lebih dari 0.' });
     }
+
+    const { data: existing, error: findErr } = await supabase
+      .from('transfers')
+      .select('id, tgl_inputan')
+      .eq('id', id)
+      .maybeSingle();
+    if (findErr) return res.status(500).json({ error: findErr.message });
+    if (!existing) return res.status(404).json({ error: 'Transfer tidak ditemukan.' });
+
     const update = buildTransferUpdate(tgl_inputan, ket, hasNominal ? body.nominal : undefined);
     if (!update) return res.status(400).json({ error: 'Data transfer tidak valid.' });
 
@@ -390,7 +435,13 @@ module.exports = async (req, res) => {
 
     await clearCarryoverOverrideSafe(supabase, id, 'PUT');
     await clearPendingAllocationSafe(supabase, id, 'PUT');
-    await queuePipelineRefreshSafe(supabase, [update.periode], 'transfer_update', 'PUT');
+    await clearCabangHoldSafe(supabase, id, 'PUT');
+    await queuePipelineRefreshSafe(
+      supabase,
+      getAffectedTransferPeriodes([existing.tgl_inputan, update.tgl_inputan]),
+      'transfer_update',
+      'PUT',
+    );
     return res.json({ success: true, periode: update.periode });
   }
 
@@ -412,6 +463,7 @@ module.exports = async (req, res) => {
 
     await clearCarryoverOverrideSafe(supabase, id, 'DELETE');
     await clearPendingAllocationSafe(supabase, id, 'DELETE');
+    await clearCabangHoldSafe(supabase, id, 'DELETE');
     await queuePipelineRefreshSafe(
       supabase,
       [getPeriodeFromDate(existing.tgl_inputan)],

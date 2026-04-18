@@ -1,7 +1,17 @@
-const DEFAULT_TIMEOUT_MS = 2500;
+const DEFAULT_TIMEOUT_MS = 10000;
+const ERROR_SEVERITIES = new Set(['error', 'critical']);
+const NON_ERROR_EVENT_ALLOWLIST = new Set(['manual_test']);
 
 function normalizeText(value, maxLength = 1000) {
   return String(value || '').trim().slice(0, maxLength);
+}
+
+function normalizeSeverity(value) {
+  return normalizeText(value || 'error', 32).toLowerCase() || 'error';
+}
+
+function normalizeEventType(value) {
+  return normalizeText(value || 'error', 80).toLowerCase() || 'error';
 }
 
 function normalizeMeta(meta) {
@@ -51,15 +61,26 @@ function shouldNotifySource(source, env = process.env) {
   const config = getNotifierConfig(env);
   if (!config.url || !config.secret) return false;
   if (!config.sourceAllowlist.size) return false;
+  if (config.sourceAllowlist.has('*') || config.sourceAllowlist.has('all')) return true;
   return config.sourceAllowlist.has(String(source || '').trim().toLowerCase());
+}
+
+function shouldDispatchNotification(options = {}) {
+  const severity = normalizeSeverity(options.severity || 'error');
+  const eventType = normalizeEventType(options.eventType || 'error');
+  if (ERROR_SEVERITIES.has(severity)) return true;
+  return NON_ERROR_EVENT_ALLOWLIST.has(eventType);
 }
 
 function buildNotifierPayload(options = {}, env = process.env) {
   const config = getNotifierConfig(env);
+  const source = normalizeText(options.source, 80).toLowerCase();
+  const eventType = normalizeEventType(options.eventType || 'error');
+  const severity = normalizeSeverity(options.severity || 'error');
   return {
-    source: normalizeText(options.source, 80),
-    eventType: normalizeText(options.eventType || 'error', 80),
-    severity: normalizeText(options.severity || 'error', 32),
+    source,
+    eventType,
+    severity,
     title: normalizeText(options.title || 'Ops Alert', 140),
     message: normalizeText(options.message, 1200),
     service: config.service,
@@ -72,6 +93,8 @@ async function sendOpsNotification(options = {}, env = process.env, fetchImpl = 
   const config = getNotifierConfig(env);
   if (!config.url || !config.secret) return { skipped: true, reason: 'disabled' };
   if (typeof fetchImpl !== 'function') return { skipped: true, reason: 'fetch_unavailable' };
+  if (!shouldNotifySource(options.source, env)) return { skipped: true, reason: 'source_filtered' };
+  if (!shouldDispatchNotification(options)) return { skipped: true, reason: 'severity_filtered' };
 
   const payload = buildNotifierPayload(options, env);
   if (!payload.message) return { skipped: true, reason: 'empty_message' };
@@ -102,6 +125,8 @@ async function sendOpsNotification(options = {}, env = process.env, fetchImpl = 
 
 function queueOpsNotification(options = {}, env = process.env, fetchImpl = globalThis.fetch) {
   if (!isOpsNotifierEnabled(env)) return false;
+  if (!shouldNotifySource(options.source, env)) return false;
+  if (!shouldDispatchNotification(options)) return false;
   sendOpsNotification(options, env, fetchImpl).catch(() => {});
   return true;
 }
@@ -114,5 +139,6 @@ module.exports = {
   parseSourceAllowlist,
   queueOpsNotification,
   sendOpsNotification,
+  shouldDispatchNotification,
   shouldNotifySource,
 };

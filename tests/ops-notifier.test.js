@@ -34,6 +34,18 @@ test('shouldNotifySource hanya aktif untuk source dalam allowlist', () => {
   assert.equal(shouldNotifySource('ocr', env), false);
 });
 
+test('shouldNotifySource mendukung wildcard untuk seluruh backend', () => {
+  const env = {
+    TELEGRAM_NOTIFY_URL: 'https://example.com/hook',
+    TELEGRAM_NOTIFY_SECRET: 'secret-1',
+    TELEGRAM_NOTIFY_SOURCES: '*',
+  };
+
+  assert.equal(shouldNotifySource('noncod-sync', env), true);
+  assert.equal(shouldNotifySource('ocr', env), true);
+  assert.equal(shouldNotifySource('transfer-pending-allocation', env), true);
+});
+
 test('buildNotifierPayload merapikan field utama dan meta', () => {
   const payload = buildNotifierPayload({
     source: 'noncod',
@@ -75,6 +87,7 @@ test('sendOpsNotification mengirim payload dengan shared secret', async () => {
   }, {
     TELEGRAM_NOTIFY_URL: 'https://example.com/hook',
     TELEGRAM_NOTIFY_SECRET: 'secret-1',
+    TELEGRAM_NOTIFY_SOURCES: '*',
     TELEGRAM_NOTIFY_SERVICE: 'dashboard-prod',
   }, fakeFetch);
 
@@ -84,4 +97,51 @@ test('sendOpsNotification mengirim payload dengan shared secret', async () => {
   const body = JSON.parse(captured.options.body);
   assert.equal(body.source, 'noncod');
   assert.equal(body.service, 'dashboard-prod');
+});
+
+test('sendOpsNotification melewati notif non-error rutin', async () => {
+  let called = false;
+  const fakeFetch = async () => {
+    called = true;
+    return { ok: true, status: 200 };
+  };
+
+  const result = await sendOpsNotification({
+    source: 'noncod',
+    eventType: 'sync_ok',
+    severity: 'info',
+    title: 'Sync berhasil',
+    message: 'Periodik sukses',
+  }, {
+    TELEGRAM_NOTIFY_URL: 'https://example.com/hook',
+    TELEGRAM_NOTIFY_SECRET: 'secret-1',
+    TELEGRAM_NOTIFY_SOURCES: '*',
+  }, fakeFetch);
+
+  assert.equal(result.skipped, true);
+  assert.equal(result.reason, 'severity_filtered');
+  assert.equal(called, false);
+});
+
+test('sendOpsNotification tetap mengizinkan manual test eksplisit', async () => {
+  let called = false;
+  const fakeFetch = async () => {
+    called = true;
+    return { ok: true, status: 200 };
+  };
+
+  const result = await sendOpsNotification({
+    source: 'auth',
+    eventType: 'manual_test',
+    severity: 'info',
+    title: 'Ops notifier test',
+    message: 'Tes manual',
+  }, {
+    TELEGRAM_NOTIFY_URL: 'https://example.com/hook',
+    TELEGRAM_NOTIFY_SECRET: 'secret-1',
+    TELEGRAM_NOTIFY_SOURCES: '*',
+  }, fakeFetch);
+
+  assert.equal(result.ok, true);
+  assert.equal(called, true);
 });

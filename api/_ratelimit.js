@@ -36,6 +36,13 @@ function getLimiterScope(req) {
   return String(req.url || req.path || 'unknown').split('?')[0] || 'unknown';
 }
 
+function getLimiterBucket(bucket) {
+  return String(bucket || 'default')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9:_-]+/g, '-') || 'default';
+}
+
 function getRedisConfig() {
   const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
@@ -107,11 +114,12 @@ function applyRateLimitHeaders(res, max, result) {
   }
 }
 
-function rateLimit({ windowMs = 60000, max = 10 } = {}) {
+function rateLimit({ windowMs = 60000, max = 10, bucket = 'default' } = {}) {
   ensureCleanupTimer();
+  const limiterBucket = getLimiterBucket(bucket);
 
   return async function check(req, res) {
-    const limiterKey = `ratelimit:${getLimiterScope(req)}:${getClientIp(req)}`;
+    const limiterKey = `ratelimit:${limiterBucket}:${getLimiterScope(req)}:${getClientIp(req)}`;
     const redisConfig = getRedisConfig();
 
     let result;

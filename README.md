@@ -289,13 +289,14 @@ Langkah singkat:
 	- `TELEGRAM_NOTIFY_SECRET`
 	- `TELEGRAM_NOTIFY_SOURCES`
 	- Opsional: `TELEGRAM_NOTIFY_SERVICE`
-6. Mulai dengan allowlist kecil seperti `noncod` atau `auth` agar bot tidak spam.
+6. Isi `TELEGRAM_NOTIFY_SOURCES` dengan source tertentu seperti `noncod,auth`, atau gunakan `*` jika ingin semua error backend ikut terkirim.
 
 Catatan:
 
 - Notifier ini bersifat fire-and-forget dan tidak memblok request utama.
 - Shared secret diverifikasi di Lambda lewat header `X-Ops-Secret`.
-- Sumber notifikasi dikontrol oleh `TELEGRAM_NOTIFY_SOURCES`, misalnya `noncod,auth`.
+- Sumber notifikasi dikontrol oleh `TELEGRAM_NOTIFY_SOURCES`, misalnya `noncod,auth` atau `*` untuk seluruh backend.
+- Notifikasi otomatis dibatasi untuk event error/critical; event non-error rutin tidak dikirim ke Telegram.
 - Pendekatan ini sengaja memakai pola hybrid agar repo tetap ringan di Vercel, tetapi tetap punya jejak integrasi AWS yang nyata dan siap dikembangkan.
 
 ## AWS NONCOD Sync Trigger

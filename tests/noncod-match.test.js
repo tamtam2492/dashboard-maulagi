@@ -6,7 +6,9 @@ const {
   NONCOD_SPLIT_TOLERANCE,
   allocateSplitPlannedNominals,
   aggregateOngkirByDate,
+  buildCabangHoldTransfers,
   filterByPreferredPeriode,
+  findPublicInputAllocation,
   findOutstandingMatchingDates,
   findMatchingDates,
   findSequentialAllocationDates,
@@ -70,14 +72,15 @@ describe('aggregateOngkirByDate', () => {
     });
   });
 
-  it('includes BATAL from sync but excludes VOID override', () => {
+  it('excludes BATAL and VOID but keeps RETUR in workbook parity mode', () => {
     const rows = [
       { tanggal_buat: '2026-04-10', ongkir: 500000, metode_pembayaran: 'noncod', status_terakhir: 'BATAL' },
       { tanggal_buat: '2026-04-10', ongkir: 200000, metode_pembayaran: 'noncod', status_terakhir: 'VOID' },
+      { tanggal_buat: '2026-04-10', ongkir: 150000, metode_pembayaran: 'noncod', status_terakhir: 'RETUR' },
       { tanggal_buat: '2026-04-10', ongkir: 300000, metode_pembayaran: 'noncod', status_terakhir: 'DELIVERED' },
     ];
     const result = aggregateOngkirByDate(rows);
-    assert.deepEqual(result, { '2026-04-10': 800000 });
+    assert.deepEqual(result, { '2026-04-10': 450000 });
   });
 
   it('returns empty for empty input', () => {
@@ -294,7 +297,7 @@ describe('findSplitMatchingDates', () => {
     assert.equal(result.diff, 0);
   });
 
-  it('allows partial nominal on final date and leaves remainder there', () => {
+  it('rejects multi-date match when the combined NONCOD leaves a selisih', () => {
     const byDate = {
       '2026-04-04': 174000,
       '2026-04-05': 176000,
@@ -303,13 +306,16 @@ describe('findSplitMatchingDates', () => {
       '2026-04-09': 147000,
     };
     const result = findSplitMatchingDates(byDate, [], 1624000, NONCOD_SPLIT_TOLERANCE);
-    assert.ok(result);
-    assert.equal(result.dates.length, 5);
-    assert.equal(result.dates[0].tanggal_buat, '2026-04-04');
-    assert.equal(result.dates[4].tanggal_buat, '2026-04-09');
-    assert.equal(result.dates[4].plannedNominal, 99000);
-    assert.equal(result.diff, 48000);
-    assert.equal(result.leavesRemainderOnLastDate, true);
+    assert.equal(result, null);
+  });
+
+  it('rejects multi-date match even when the selisih is still inside the old tolerance', () => {
+    const byDate = {
+      '2026-04-04': 100000,
+      '2026-04-05': 50000,
+    };
+    const result = findSplitMatchingDates(byDate, [], 149700, NONCOD_SPLIT_TOLERANCE);
+    assert.equal(result, null);
   });
 
   it('allocates small selisih ke tanggal terakhir seperti split admin', () => {
@@ -328,6 +334,17 @@ describe('findSplitMatchingDates', () => {
       '2026-04-07': 916000,
     };
     const result = findSplitMatchingDates(byDate, [], 100000, NONCOD_SPLIT_TOLERANCE);
+    assert.equal(result, null);
+  });
+
+  it('tidak boleh memulai split dari tanggal yang lebih baru saat tanggal tertua masih outstanding', () => {
+    const byDate = {
+      '2026-04-11': 112000,
+      '2026-04-14': 19000,
+      '2026-04-17': 133000,
+    };
+
+    const result = findSplitMatchingDates(byDate, [], 152000, NONCOD_SPLIT_TOLERANCE);
     assert.equal(result, null);
   });
 
@@ -371,6 +388,56 @@ describe('findSplitMatchingDates', () => {
   });
 });
 
+describe('buildCabangHoldTransfers', () => {
+  it('mengurangi outstanding tertua berikutnya dengan saldo hold cabang', () => {
+    const byDate = {
+      '2026-04-11': 112000,
+      '2026-04-14': 19000,
+      '2026-04-17': 133000,
+    };
+    const transfers = [
+      { tgl_inputan: '2026-04-11', nominal: 112000, id: 1 },
+      { tgl_inputan: '2026-04-14', nominal: 19000, id: 2 },
+    ];
+    const holdTransfers = buildCabangHoldTransfers(byDate, transfers, [
+      { root_transfer_id: 'root-1', cabang: 'CABANG PANJAITAN', nominal: 19000, created_at: '2026-04-18T01:00:00.000Z' },
+    ]);
+
+    assert.equal(holdTransfers.length, 1);
+    assert.equal(holdTransfers[0].tgl_inputan, '2026-04-17');
+    assert.equal(holdTransfers[0].nominal, 19000);
+  });
+});
+
+describe('findPublicInputAllocation', () => {
+  it('mengalokasikan prefix exact lalu menyisakan hold saat nominal lebih besar', () => {
+    const byDate = {
+      '2026-04-16': 176000,
+      '2026-04-17': 98000,
+    };
+
+    const result = findPublicInputAllocation(byDate, [], 300000);
+    assert.equal(result.dates.length, 2);
+    assert.equal(result.allocatedTotal, 274000);
+    assert.equal(result.holdNominal, 26000);
+    assert.equal(result.dates[0].plannedNominal, 176000);
+    assert.equal(result.dates[1].plannedNominal, 98000);
+  });
+
+  it('menolak alokasi bila nominal belum cukup untuk outstanding tertua', () => {
+    const byDate = {
+      '2026-04-11': 112000,
+      '2026-04-14': 19000,
+    };
+
+    const result = findPublicInputAllocation(byDate, [], 19000);
+    assert.equal(result.dates.length, 0);
+    assert.equal(result.allocatedTotal, 0);
+    assert.equal(result.firstOutstanding.tanggal_buat, '2026-04-11');
+    assert.equal(result.firstOutstanding.remainingNominal, 112000);
+  });
+});
+
 describe('resolveNoncodDateMatchFromContext', () => {
   it('meresolve exact outstanding match dari context hold cabang', () => {
     const result = resolveNoncodDateMatchFromContext({
@@ -408,5 +475,69 @@ describe('resolveNoncodDateMatchFromContext', () => {
     assert.equal(result.match, null);
     assert.equal(result.blocked, false);
     assert.equal(result.message, 'Tidak ada data NONCOD untuk KENDARI pada periode 2026-04.');
+  });
+
+  it('mengalihkan ke hold cabang bila nominal lebih besar dari prefix exact tetapi belum cukup untuk tanggal berikutnya', () => {
+    const result = resolveNoncodDateMatchFromContext({
+      normalizedCabang: 'KENDARI',
+      normalizedPreferredPeriode: '2026-04',
+      hasPreferredPeriode: true,
+      hasData: true,
+      searchByDate: {
+        '2026-04-04': 100000,
+        '2026-04-05': 50000,
+      },
+      existingTransfers: [],
+      message: null,
+    }, 149700);
+
+    assert.ok(result.match);
+    assert.equal(result.match.tanggal_buat, '2026-04-04');
+    assert.equal(result.hold.nominal, 49700);
+    assert.equal(result.splitMatch, undefined);
+    assert.equal(result.blocked, false);
+  });
+
+  it('mengembalikan hold cabang saat nominal lebih besar dari prefix exact yang valid', () => {
+    const result = resolveNoncodDateMatchFromContext({
+      normalizedCabang: 'LATAMBAGA',
+      normalizedPreferredPeriode: '2026-04',
+      hasPreferredPeriode: true,
+      hasData: true,
+      searchByDate: {
+        '2026-04-16': 176000,
+        '2026-04-17': 98000,
+      },
+      existingTransfers: [],
+      message: null,
+    }, 300000);
+
+    assert.equal(result.match, null);
+    assert.ok(result.splitMatch);
+    assert.equal(result.splitMatch.total, 274000);
+    assert.equal(result.hold.nominal, 26000);
+    assert.equal(result.splitMatch.dates.length, 2);
+  });
+
+  it('menolak nominal yang lebih kecil dari outstanding tertua walau cocok ke tanggal berikutnya', () => {
+    const result = resolveNoncodDateMatchFromContext({
+      normalizedCabang: 'PANJAITAN',
+      normalizedPreferredPeriode: '2026-04',
+      hasPreferredPeriode: true,
+      hasData: true,
+      searchByDate: {
+        '2026-04-11': 112000,
+        '2026-04-14': 19000,
+        '2026-04-17': 133000,
+      },
+      existingTransfers: [],
+      message: null,
+    }, 19000);
+
+    assert.equal(result.match, null);
+    assert.equal(result.splitMatch, undefined);
+    assert.equal(result.blocked, false);
+    assert.match(result.message, /belum cukup untuk outstanding tertua/i);
+    assert.match(result.message, /2026-04-11/);
   });
 });

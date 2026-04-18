@@ -49,8 +49,21 @@ function buildTransferUpdate(tgl_inputan, ket, nominal) {
   return update;
 }
 
+function getAffectedTransferPeriodes(values) {
+  const periodes = new Set();
+  const normalizedValues = Array.isArray(values) ? values : [values];
+
+  for (const value of normalizedValues) {
+    const periode = getPeriodeFromDate(value);
+    if (periode) periodes.add(periode);
+  }
+
+  return [...periodes];
+}
+
 module.exports = {
   buildTransferUpdate,
+  getAffectedTransferPeriodes,
   getPeriodeFromDate,
   isPositiveTransferNominal,
   isValidTransferDate,

@@ -35,6 +35,26 @@ const { excelSerialToDate, loadWorkbookFromBuffer, worksheetToObjects } = requir
 const { getPeriodeFromDate, normalizeTransferKet } = require('./_transfer-utils');
 
 const PERIODE_RE = /^\d{4}-\d{2}$/;
+const EXCLUDED_NONCOD_STATUSES = new Set(['BATAL', 'VOID']);
+const NONCOD_SYNC_COMPARE_FIELDS = [
+  'periode',
+  'tanggal_buat',
+  'tanggal_pickup',
+  'tanggal_kirim',
+  'tanggal_terima',
+  'status_terakhir',
+  'nama_pengirim',
+  'kecamatan_pengirim',
+  'nama_penerima',
+  'provinsi_penerima',
+  'kab_kota_penerima',
+  'nomor_resi',
+  'ongkir',
+  'total_pengiriman',
+  'metode_pembayaran',
+  'nama_ekspedisi',
+  'cabang',
+];
 
 function normalizeMethod(value) {
   const method = String(value || '').trim().toLowerCase();
@@ -51,7 +71,7 @@ const MAUKIRIM_AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 const syncPendingByPeriode = new Map();
 
 function isExcludedNoncodStatus(value) {
-  return String(value || '').trim().toUpperCase() === 'VOID';
+  return EXCLUDED_NONCOD_STATUSES.has(String(value || '').trim().toUpperCase());
 }
 
 function canAutoSyncMaukirim() {
@@ -93,6 +113,7 @@ function buildSyncInfo(periode, meta) {
     source: meta && meta.source ? meta.source : 'database',
     syncedAt: meta && meta.syncedAt ? meta.syncedAt : null,
     inserted: meta && Number.isFinite(meta.inserted) ? meta.inserted : 0,
+    delta: meta && meta.delta ? meta.delta : null,
     stats: meta && meta.stats ? meta.stats : null,
   };
 }
@@ -214,23 +235,138 @@ function summarizeInsertedRows(rows) {
   };
 }
 
-async function replacePeriodeRows(supabase, periode, rows) {
-  const { error: delErr } = await supabase.from('noncod').delete().eq('periode', periode);
-  if (delErr) throw delErr;
+function getNoncodSyncIdentity(row) {
+  const nomorResi = String(row && row.nomor_resi || '').trim().toUpperCase();
+  if (nomorResi) return 'resi:' + nomorResi;
+  return 'fallback:' + [
+    String(row && row.tanggal_buat || '').trim(),
+    String(row && row.cabang || '').trim().toUpperCase(),
+    String(row && row.nama_pengirim || '').trim().toUpperCase(),
+    String(row && row.nama_penerima || '').trim().toUpperCase(),
+    String(row && row.metode_pembayaran || '').trim().toLowerCase(),
+    Number(row && row.ongkir || 0),
+    Number(row && row.total_pengiriman || 0),
+  ].join('|');
+}
 
-  let inserted = 0;
-  for (let i = 0; i < rows.length; i += 500) {
-    const batch = rows.slice(i, i + 500);
-    if (!batch.length) continue;
-    const { error: insErr } = await supabase.from('noncod').insert(batch);
-    if (insErr) throw insErr;
-    inserted += batch.length;
+function normalizeComparableSyncValue(field, value) {
+  if (field === 'ongkir' || field === 'total_pengiriman') return Number(value || 0);
+  return String(value || '').trim();
+}
+
+function hasNoncodSyncRowChanged(existingRow, incomingRow) {
+  return NONCOD_SYNC_COMPARE_FIELDS.some((field) => (
+    normalizeComparableSyncValue(field, existingRow && existingRow[field])
+    !== normalizeComparableSyncValue(field, incomingRow && incomingRow[field])
+  ));
+}
+
+function planPeriodeRowReconciliation(existingRows, incomingRows) {
+  const existingByIdentity = new Map();
+  const duplicateIdsToDelete = [];
+
+  for (const row of (existingRows || [])) {
+    const identity = getNoncodSyncIdentity(row);
+    if (existingByIdentity.has(identity)) {
+      if (row && row.id != null) duplicateIdsToDelete.push(row.id);
+      continue;
+    }
+    existingByIdentity.set(identity, row);
   }
 
-  // Safety net: remove duplicates by nomor_resi (keeps lowest id)
-  await deduplicateNoncodPeriode(supabase, periode);
+  const rowsToInsert = [];
+  const rowsToUpsert = [];
+  let unchanged = 0;
+  const seenIncomingIdentities = new Set();
 
-  return inserted;
+  for (const row of (incomingRows || [])) {
+    const identity = getNoncodSyncIdentity(row);
+    if (seenIncomingIdentities.has(identity)) continue;
+    seenIncomingIdentities.add(identity);
+
+    const existingRow = existingByIdentity.get(identity);
+    if (!existingRow) {
+      rowsToInsert.push(row);
+      continue;
+    }
+
+    if (hasNoncodSyncRowChanged(existingRow, row)) {
+      rowsToUpsert.push({ id: existingRow.id, ...row });
+    } else {
+      unchanged += 1;
+    }
+
+    existingByIdentity.delete(identity);
+  }
+
+  const idsToDelete = duplicateIdsToDelete.concat(
+    Array.from(existingByIdentity.values())
+      .map((row) => row && row.id)
+      .filter((id) => id != null)
+  );
+
+  return {
+    rowsToInsert,
+    rowsToUpsert,
+    idsToDelete,
+    inserted: rowsToInsert.length,
+    updated: rowsToUpsert.length,
+    deleted: idsToDelete.length,
+    unchanged,
+    total: Array.isArray(incomingRows) ? incomingRows.length : 0,
+  };
+}
+
+async function fetchSyncRowsByPeriode(supabase, periode) {
+  const pageSize = 1000;
+  let from = 0;
+  const allRows = [];
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('noncod')
+      .select('id, periode, tanggal_buat, tanggal_pickup, tanggal_kirim, tanggal_terima, status_terakhir, nama_pengirim, kecamatan_pengirim, nama_penerima, provinsi_penerima, kab_kota_penerima, nomor_resi, ongkir, total_pengiriman, metode_pembayaran, nama_ekspedisi, cabang')
+      .eq('periode', periode)
+      .order('id', { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+    if (!data || !data.length) break;
+
+    allRows.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return allRows;
+}
+
+async function reconcilePeriodeRows(supabase, periode, rows) {
+  const existingRows = await fetchSyncRowsByPeriode(supabase, periode);
+  const plan = planPeriodeRowReconciliation(existingRows, rows);
+
+  for (let i = 0; i < plan.rowsToUpsert.length; i += 500) {
+    const batch = plan.rowsToUpsert.slice(i, i + 500);
+    if (!batch.length) continue;
+    const { error } = await supabase.from('noncod').upsert(batch, { onConflict: 'id' });
+    if (error) throw error;
+  }
+
+  for (let i = 0; i < plan.rowsToInsert.length; i += 500) {
+    const batch = plan.rowsToInsert.slice(i, i + 500);
+    if (!batch.length) continue;
+    const { error } = await supabase.from('noncod').insert(batch);
+    if (error) throw error;
+  }
+
+  for (let i = 0; i < plan.idsToDelete.length; i += 200) {
+    const batch = plan.idsToDelete.slice(i, i + 200);
+    if (!batch.length) continue;
+    const { error } = await supabase.from('noncod').delete().in('id', batch);
+    if (error) throw error;
+  }
+
+  return plan;
 }
 
 async function buildPendingResolutionContext(supabase, cabang, periodes) {
@@ -331,7 +467,17 @@ async function resolvePendingAllocations(supabase, options = {}) {
         }
       } catch (pendingError) {
         if (inserted.length) {
-          await supabase.from('transfers').delete().in('id', inserted.map((item) => item.id)).catch(() => {});
+          const rollbackResult = await supabase
+            .from('transfers')
+            .delete()
+            .in('id', inserted.map((item) => item.id));
+          if (rollbackResult.error) {
+            logError('noncod-pending-allocation', rollbackResult.error.message, {
+              method: 'RESOLVE',
+              action: 'rollback_inserted_transfers',
+              transferIds: inserted.map((item) => item.id),
+            });
+          }
         }
         throw pendingError;
       }
@@ -471,13 +617,20 @@ async function maybeSyncMaukirimPeriod(supabase, periode, options = {}) {
     const workbookBuffer = await downloadOrdersWorkbook(cookies, periode);
     const importedRows = await parseWorkbookRows(workbookBuffer);
     const cleanRows = sanitizeNoncodRows(periode, importedRows);
-    const inserted = await replacePeriodeRows(supabase, periode, cleanRows);
+    const delta = await reconcilePeriodeRows(supabase, periode, cleanRows);
     const stats = summarizeInsertedRows(cleanRows);
     await resolvePendingAllocations(supabase, { periodes: getRecentPeriodes() });
     const meta = {
       source: 'maukirim_auto',
       syncedAt: new Date().toISOString(),
-      inserted,
+      inserted: cleanRows.length,
+      delta: {
+        inserted: delta.inserted,
+        updated: delta.updated,
+        deleted: delta.deleted,
+        unchanged: delta.unchanged,
+        total: delta.total,
+      },
       stats,
     };
     await writeSyncMeta(supabase, periode, meta);
@@ -729,11 +882,7 @@ async function handler(req, res) {
       syncInfo.stale = isSyncMetaStale(syncMeta);
       let data = await fetchAllRowsByPeriode(supabase, periode);
 
-      const shouldSync = syncInfo.enabled && syncInfo.eligible && (
-        forceSync
-        || !data.length
-        || (!backgroundTriggerEnabled && syncInfo.stale)
-      );
+      const shouldSync = syncInfo.enabled && syncInfo.eligible && forceSync;
       if (shouldSync) {
         try {
           syncInfo = await maybeSyncMaukirimPeriod(supabase, periode, { force: true });
@@ -784,7 +933,7 @@ async function handler(req, res) {
       const byDay = {};
       let grandOngkir = 0, grandTotal = 0, totalResi = 0;
       for (const row of (data || [])) {
-        // Only VOID rows are excluded from NONCOD calculations and matching.
+        // Workbook excludes raw BATAL rows; admin VOID override must stay excluded too.
         const statusRow = (row.status_terakhir || '').toUpperCase().trim();
         if (isExcludedNoncodStatus(statusRow)) continue;
         const method = normalizeMethod(row.metode_pembayaran);
@@ -909,6 +1058,7 @@ module.exports.getRekonDateKey = getRekonDateKey;
 module.exports.isAutoSyncablePeriode = isAutoSyncablePeriode;
 module.exports.isSyncMetaStale = isSyncMetaStale;
 module.exports.maybeSyncMaukirimPeriod = maybeSyncMaukirimPeriod;
+module.exports.planPeriodeRowReconciliation = planPeriodeRowReconciliation;
 module.exports.readSyncMeta = readSyncMeta;
 module.exports.resolvePendingAllocations = resolvePendingAllocations;
 module.exports.syncMaukirimPeriodes = syncMaukirimPeriodes;

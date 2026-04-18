@@ -8,8 +8,9 @@ const { sendOpsNotification, shouldNotifySource } = require('./_ops-notifier');
 const { getSupabase } = require('./_supabase');
 const { clearAllSessionCookies, clearSessionCookie, readSessionCookies, setSessionCookie } = require('./_session-cookie');
 
-const authLimiter = rateLimit({ windowMs: 60 * 1000, max: 10 }); // 10 req/min per IP
-const notifyTestLimiter = rateLimit({ windowMs: 60 * 1000, max: 5 });
+const authLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, bucket: 'auth-write' }); // 10 req/min per IP
+const notifyTestLimiter = rateLimit({ windowMs: 60 * 1000, max: 5, bucket: 'auth-notify-test' });
+const AUTH_SLOW_TIMEOUT_MS = Number(process.env.AUTH_SLOW_TIMEOUT_MS || 10000) || 10000;
 
 const PW_KEY = 'admin_password';
 const ALLOWED_KEYS = ['admin_password', 'dashboard_password'];
@@ -20,6 +21,44 @@ function timingSafeSecretEqual(left, right) {
   if (!normalizedLeft.length || !normalizedRight.length) return false;
   if (normalizedLeft.length !== normalizedRight.length) return false;
   return crypto.timingSafeEqual(normalizedLeft, normalizedRight);
+}
+
+function createAuthSlowWatch(message, meta = {}, options = {}) {
+  const timeoutMs = Number(options.timeoutMs || AUTH_SLOW_TIMEOUT_MS) || AUTH_SLOW_TIMEOUT_MS;
+  const logFn = typeof options.logFn === 'function' ? options.logFn : logError;
+  const setTimer = typeof options.setTimer === 'function' ? options.setTimer : setTimeout;
+  const clearTimer = typeof options.clearTimer === 'function' ? options.clearTimer : clearTimeout;
+  let fired = false;
+
+  const timerId = setTimer(() => {
+    fired = true;
+    logFn('auth', message, {
+      method: meta.method,
+      action: meta.action,
+      role: meta.role,
+      key: meta.key,
+      path: '/api/auth',
+      slowMs: timeoutMs,
+    });
+  }, timeoutMs);
+
+  return {
+    stop() {
+      clearTimer(timerId);
+    },
+    didFire() {
+      return fired;
+    },
+  };
+}
+
+async function withAuthSlowWatch(message, meta, task) {
+  const watch = createAuthSlowWatch(message, meta);
+  try {
+    return await task();
+  } finally {
+    watch.stop();
+  }
 }
 
 function isNotifyTestRequest(req) {
@@ -163,19 +202,31 @@ module.exports = async (req, res) => {
     try {
       if (req.query.session === '1') {
         const requestedRole = String(req.query.role || '').trim() === 'admin' ? 'admin' : 'dashboard';
-        const authorized = await requireAuth(req, res, [requestedRole]);
-        if (!authorized) return;
-        return res.json({ authenticated: true, role: requestedRole });
+        return withAuthSlowWatch('Pemeriksaan sesi login lambat lebih dari 10 detik.', {
+          method: 'GET',
+          action: 'session_check',
+          role: requestedRole,
+        }, async () => {
+          const authorized = await requireAuth(req, res, [requestedRole]);
+          if (!authorized) return;
+          return res.json({ authenticated: true, role: requestedRole });
+        });
       }
 
       const supabase = getSupabase();
       const key = ALLOWED_KEYS.includes(req.query.key) ? req.query.key : PW_KEY;
-      const { data } = await supabase
-        .from('settings')
-        .select('key')
-        .eq('key', key)
-        .maybeSingle();
-      return res.json({ hasPassword: !!data, key });
+      return withAuthSlowWatch('Pemeriksaan status password lambat lebih dari 10 detik.', {
+        method: 'GET',
+        action: 'password_status',
+        key,
+      }, async () => {
+        const { data } = await supabase
+          .from('settings')
+          .select('key')
+          .eq('key', key)
+          .maybeSingle();
+        return res.json({ hasPassword: !!data, key });
+      });
     } catch (err) {
       console.error(err);
       logError('auth', err.message, { method: 'GET' });
@@ -211,27 +262,34 @@ module.exports = async (req, res) => {
       // action: 'verify' — cek login, return session token
       if (action === 'verify') {
         if (!password) return res.status(400).json({ error: 'Password diperlukan.' });
-        const { data } = await supabase
-          .from('settings').select('value').eq('key', pwKey).maybeSingle();
-        if (!data) return res.status(404).json({ error: 'Password belum dibuat.' });
-        const match = await bcrypt.compare(password, data.value);
-        if (!match) return res.status(401).json({ error: 'Password salah.' });
+        return withAuthSlowWatch('Verifikasi login lambat lebih dari 10 detik.', {
+          method: 'POST',
+          action: 'verify',
+          key: pwKey,
+          role: pwKey === 'admin_password' ? 'admin' : 'dashboard',
+        }, async () => {
+          const { data } = await supabase
+            .from('settings').select('value').eq('key', pwKey).maybeSingle();
+          if (!data) return res.status(404).json({ error: 'Password belum dibuat.' });
+          const match = await bcrypt.compare(password, data.value);
+          if (!match) return res.status(401).json({ error: 'Password salah.' });
 
-        // Generate session token
-        const sessionToken = crypto.randomBytes(32).toString('hex');
-        const tokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
-        const role = pwKey === 'admin_password' ? 'admin' : 'dashboard';
-        const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 60 min
+          // Generate session token
+          const sessionToken = crypto.randomBytes(32).toString('hex');
+          const tokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
+          const role = pwKey === 'admin_password' ? 'admin' : 'dashboard';
+          const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 60 min
 
-        // Store session in settings (key: session_<role>_<full_hash>)
-        await supabase.from('settings').upsert({
-          key: 'session_' + role + '_' + tokenHash,
-          value: JSON.stringify({ hash: tokenHash, role, expires: expiresAt }),
+          // Store session in settings (key: session_<role>_<full_hash>)
+          await supabase.from('settings').upsert({
+            key: 'session_' + role + '_' + tokenHash,
+            value: JSON.stringify({ hash: tokenHash, role, expires: expiresAt }),
+          });
+
+          setSessionCookie(res, role, sessionToken, req, 60 * 60);
+
+          return res.json({ success: true, token: sessionToken, role });
         });
-
-        setSessionCookie(res, role, sessionToken, req, 60 * 60);
-
-        return res.json({ success: true, token: sessionToken, role });
       }
 
       if (action === 'logout') {
@@ -286,3 +344,4 @@ module.exports = async (req, res) => {
 };
 
 module.exports.timingSafeSecretEqual = timingSafeSecretEqual;
+module.exports.createAuthSlowWatch = createAuthSlowWatch;

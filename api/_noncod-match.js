@@ -1,15 +1,17 @@
+const { readCabangHoldRowsByCabang } = require('./_noncod-cabang-holds');
 const { applyStatusOverrides, readStatusOverridesByResi } = require('./_noncod-status-overrides');
 
 const NONCOD_MATCH_TOLERANCE = 10000;
 const NONCOD_SPLIT_TOLERANCE = 500;
 const PERIODE_RE = /^\d{4}-\d{2}$/;
 const PREFETCHED_CONTEXT_TTL_MS = 30 * 1000;
+const EXCLUDED_NONCOD_STATUSES = new Set(['BATAL', 'VOID']);
 
 const prefetchedContexts = new Map();
 let prefetchedContextCounter = 0;
 
 function isExcludedNoncodStatus(value) {
-  return String(value || '').trim().toUpperCase() === 'VOID';
+  return EXCLUDED_NONCOD_STATUSES.has(String(value || '').trim().toUpperCase());
 }
 
 function getPreferredSyncPeriodes(periodes, preferredPeriode) {
@@ -18,10 +20,6 @@ function getPreferredSyncPeriodes(periodes, preferredPeriode) {
     return [normalizedPreferredPeriode];
   }
   return periodes.length ? [periodes[periodes.length - 1]] : [];
-}
-
-function getNoncodSyncModule() {
-  return require('./noncod');
 }
 
 function buildDateCandidates(byDate) {
@@ -77,6 +75,87 @@ function getOutstandingCandidates(byDate, existingTransfers) {
   return annotateCandidates(buildDateCandidates(byDate), existingTransfers)
     .filter(c => c.remainingNominal > 0)
     .sort((a, b) => a.tanggal_buat.localeCompare(b.tanggal_buat));
+}
+
+function buildCabangHoldTransfers(byDate, existingTransfers, holdRows) {
+  const normalizedHoldRows = Array.isArray(holdRows)
+    ? holdRows.slice().sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))
+    : [];
+  if (!normalizedHoldRows.length) return [];
+
+  const candidates = getOutstandingCandidates(byDate, existingTransfers)
+    .map((candidate) => ({ ...candidate }));
+  if (!candidates.length) return [];
+
+  const holdTransfers = [];
+  for (const holdRow of normalizedHoldRows) {
+    let remainingHold = Number(holdRow && holdRow.nominal || 0);
+    if (!(remainingHold > 0)) continue;
+
+    for (const candidate of candidates) {
+      if (!(remainingHold > 0)) break;
+      const candidateRemaining = Number(candidate.remainingNominal || 0);
+      if (!(candidateRemaining > 0)) continue;
+
+      const appliedNominal = Math.min(candidateRemaining, remainingHold);
+      if (!(appliedNominal > 0)) continue;
+
+      holdTransfers.push({
+        id: 'hold:' + String(holdRow.root_transfer_id || '') + ':' + candidate.tanggal_buat,
+        tgl_inputan: candidate.tanggal_buat,
+        nominal: appliedNominal,
+        nama_bank: holdRow.transfer_bank || 'HOLD',
+        nama_cabang: holdRow.cabang || '',
+        timestamp: holdRow.timestamp || holdRow.created_at || '',
+        hold_source: true,
+        hold_source_id: holdRow.root_transfer_id || '',
+      });
+
+      candidate.paidNominal = Number(candidate.paidNominal || 0) + appliedNominal;
+      candidate.remainingNominal = Math.max(candidateRemaining - appliedNominal, 0);
+      remainingHold -= appliedNominal;
+    }
+  }
+
+  return holdTransfers;
+}
+
+function findPublicInputAllocation(byDate, existingTransfers, nominal) {
+  const normalizedNominal = Number(nominal || 0);
+  const outstandingDates = getOutstandingCandidates(byDate, existingTransfers);
+  if (!(normalizedNominal > 0) || !outstandingDates.length) {
+    return {
+      dates: [],
+      allocatedTotal: 0,
+      holdNominal: 0,
+      outstandingDates,
+      firstOutstanding: outstandingDates[0] || null,
+    };
+  }
+
+  let remainingTransfer = normalizedNominal;
+  const dates = [];
+
+  for (const candidate of outstandingDates) {
+    const outstandingNominal = Number(candidate.remainingNominal || 0);
+    if (!(outstandingNominal > 0)) continue;
+    if (remainingTransfer < outstandingNominal) break;
+
+    dates.push({
+      ...candidate,
+      plannedNominal: outstandingNominal,
+    });
+    remainingTransfer -= outstandingNominal;
+    if (!(remainingTransfer > 0)) break;
+  }
+
+  return {
+    dates,
+    allocatedTotal: normalizedNominal - remainingTransfer,
+    holdNominal: remainingTransfer,
+    outstandingDates,
+    firstOutstanding: outstandingDates[0] || null,
+  };
 }
 
 function allocateSplitPlannedNominals(dates, transferTotal) {
@@ -168,42 +247,27 @@ function findSplitMatchingDates(byDate, existingTransfers, nominal, tolerance = 
   if (!(normalizedNominal > 0)) return null;
 
   const outstandingDates = getOutstandingCandidates(byDate, existingTransfers);
-  for (let startIndex = 0; startIndex < outstandingDates.length; startIndex++) {
-    let runningTotal = 0;
-    const selectedDates = [];
+  let runningTotal = 0;
+  const selectedDates = [];
 
-    for (let currentIndex = startIndex; currentIndex < outstandingDates.length; currentIndex++) {
-      const current = outstandingDates[currentIndex];
-      selectedDates.push(current);
-      runningTotal += Number(current.remainingNominal || 0);
-      const previousTotal = runningTotal - Number(current.remainingNominal || 0);
+  for (const current of outstandingDates) {
+    selectedDates.push(current);
+    runningTotal += Number(current.remainingNominal || 0);
 
-      if (selectedDates.length > 1 && Math.abs(runningTotal - normalizedNominal) <= tolerance) {
-        return {
-          dates: allocateSplitPlannedNominals(selectedDates, normalizedNominal),
-          total: runningTotal,
-          transferTotal: normalizedNominal,
-          diff: Math.abs(runningTotal - normalizedNominal),
-          startDate: selectedDates[0].tanggal_buat,
-          endDate: selectedDates[selectedDates.length - 1].tanggal_buat,
-          leavesRemainderOnLastDate: false,
-        };
-      }
-
-      if (selectedDates.length > 1 && previousTotal < normalizedNominal && runningTotal > normalizedNominal + tolerance) {
-        return {
-          dates: allocateSplitPlannedNominals(selectedDates, normalizedNominal),
-          total: runningTotal,
-          transferTotal: normalizedNominal,
-          diff: Math.abs(runningTotal - normalizedNominal),
-          startDate: selectedDates[0].tanggal_buat,
-          endDate: selectedDates[selectedDates.length - 1].tanggal_buat,
-          leavesRemainderOnLastDate: true,
-        };
-      }
-
-      if (runningTotal > normalizedNominal + tolerance) break;
+    // Public multi-input hanya boleh auto-split jika prefix outstanding pas tanpa selisih.
+    if (selectedDates.length > 1 && Math.abs(runningTotal - normalizedNominal) === 0) {
+      return {
+        dates: allocateSplitPlannedNominals(selectedDates, normalizedNominal),
+        total: runningTotal,
+        transferTotal: normalizedNominal,
+        diff: 0,
+        startDate: selectedDates[0].tanggal_buat,
+        endDate: selectedDates[selectedDates.length - 1].tanggal_buat,
+        leavesRemainderOnLastDate: false,
+      };
     }
+
+    if (runningTotal >= normalizedNominal) break;
   }
 
   return null;
@@ -252,18 +316,6 @@ function resolveMatch(candidates, existingTransfers) {
   const match = (candidates || []).find(c => c.remainingNominal > 0) || null;
   const allPaid = (candidates || []).length > 0 && candidates.every(c => c.remainingNominal <= 0);
   return { match, allPaid };
-}
-
-async function ensureFreshNoncod(supabase, periodes) {
-  const { isSyncMetaStale, maybeSyncMaukirimPeriod, readSyncMeta } = getNoncodSyncModule();
-  for (const periode of periodes) {
-    try {
-      const meta = await readSyncMeta(supabase, periode);
-      if (isSyncMetaStale(meta)) {
-        await maybeSyncMaukirimPeriod(supabase, periode, { force: true });
-      }
-    } catch (_) { /* sync failure is non-blocking */ }
-  }
 }
 
 function prunePrefetchedContexts(now = Date.now()) {
@@ -319,7 +371,6 @@ async function loadNoncodMatchContext(supabase, { namaCabang, preferredPeriode }
   }
 
   const periodes = getRecentPeriodes();
-  await ensureFreshNoncod(supabase, getPreferredSyncPeriodes(periodes, normalizedPreferredPeriode));
 
   const { data: noncodRows, error: ncErr } = await supabase
     .from('noncod')
@@ -357,12 +408,16 @@ async function loadNoncodMatchContext(supabase, { namaCabang, preferredPeriode }
     .in('tgl_inputan', allCandidateDates);
   if (trErr) throw trErr;
 
+  const cabangHoldRows = await readCabangHoldRowsByCabang(supabase, normalizedCabang);
+  const holdTransfers = buildCabangHoldTransfers(searchByDate, existingTransfers || [], cabangHoldRows);
+
   return {
     normalizedCabang,
     normalizedPreferredPeriode,
     hasPreferredPeriode,
     searchByDate,
-    existingTransfers: existingTransfers || [],
+    existingTransfers: [...(existingTransfers || []), ...holdTransfers],
+    cabangHoldRows,
     hasData: true,
     message: null,
   };
@@ -385,66 +440,83 @@ function resolveNoncodDateMatchFromContext(context, nominal) {
     };
   }
 
-  const outstandingCandidates = findOutstandingMatchingDates(
+  const allocation = findPublicInputAllocation(
     context.searchByDate,
     context.existingTransfers,
     normalizedNominal,
-    NONCOD_MATCH_TOLERANCE,
   );
 
-  if (outstandingCandidates.length) {
-    return {
-      match: outstandingCandidates[0],
-      candidates: outstandingCandidates,
-      blocked: false,
-      message: null,
-    };
-  }
-
-  const splitMatch = findSplitMatchingDates(
-    context.searchByDate,
-    context.existingTransfers,
-    normalizedNominal,
-    NONCOD_SPLIT_TOLERANCE,
-  );
-
-  if (splitMatch && Array.isArray(splitMatch.dates) && splitMatch.dates.length > 1) {
+  if (!allocation.outstandingDates.length) {
     return {
       match: null,
-      splitMatch,
       candidates: [],
-      blocked: false,
-      message: null,
+      blocked: true,
+      message: 'Semua outstanding NONCOD untuk ' + context.normalizedCabang + ' sudah lunas.',
     };
   }
 
-  const candidates = findMatchingDates(context.searchByDate, normalizedNominal, NONCOD_MATCH_TOLERANCE);
-
-  if (!candidates.length) {
+  if (!allocation.dates.length) {
+    const firstOutstanding = allocation.firstOutstanding;
+    const firstDateLabel = firstOutstanding && firstOutstanding.tanggal_buat ? firstOutstanding.tanggal_buat : '';
+    const firstNominal = firstOutstanding ? Number(firstOutstanding.remainingNominal || 0) : 0;
     return {
       match: null,
       candidates: [],
       blocked: false,
       message: 'Nominal Rp ' + normalizedNominal.toLocaleString('id-ID') +
-        ' tidak cocok dengan NONCOD ' + (context.hasPreferredPeriode ? ('periode ' + context.normalizedPreferredPeriode + ' ') : 'manapun ') + 'untuk ' + context.normalizedCabang +
-        '. Toleransi maks Rp ' + NONCOD_MATCH_TOLERANCE.toLocaleString('id-ID') + '.',
+        ' belum cukup untuk outstanding tertua ' + context.normalizedCabang +
+        (firstDateLabel ? (' tanggal ' + firstDateLabel) : '') +
+        ' sebesar Rp ' + firstNominal.toLocaleString('id-ID') + '.',
     };
   }
 
-  const { match, allPaid } = resolveMatch(candidates, context.existingTransfers);
+  const hold = allocation.holdNominal > 0 ? {
+    nominal: allocation.holdNominal,
+    cabang: context.normalizedCabang,
+    reason: 'Kelebihan transfer akan ditahan sebagai hold cabang.',
+  } : null;
 
-  if (allPaid) {
-    const first = candidates[0];
+  if (allocation.dates.length === 1) {
+    const firstDate = allocation.dates[0];
     return {
-      match: null,
-      candidates,
-      blocked: true,
-      message: 'Semua tanggal NONCOD yang cocok sudah memiliki bukti transfer. Indikasi pembayaran dobel.',
-      existingTransfer: first && first.existingTransfers ? first.existingTransfers[0] || null : null,
+      match: {
+        ...firstDate,
+        diff: 0,
+        matchNominal: Number(firstDate.remainingNominal || 0),
+        plannedNominal: Number(firstDate.plannedNominal || 0),
+      },
+      plannedRows: allocation.dates,
+      hold,
+      candidates: [],
+      blocked: false,
+      message: null,
     };
   }
 
-  return { match, candidates, blocked: false, message: null };
+  return {
+    match: null,
+    splitMatch: {
+      dates: allocation.dates.map((row) => ({
+        tanggal_buat: row.tanggal_buat,
+        periode: row.periode,
+        totalOngkir: row.totalOngkir,
+        paidNominal: row.paidNominal,
+        remainingNominal: row.remainingNominal,
+        plannedNominal: row.plannedNominal,
+      })),
+      total: allocation.allocatedTotal,
+      transferTotal: normalizedNominal,
+      diff: 0,
+      startDate: allocation.dates[0].tanggal_buat,
+      endDate: allocation.dates[allocation.dates.length - 1].tanggal_buat,
+      leavesRemainderOnLastDate: false,
+    },
+    plannedRows: allocation.dates,
+    hold,
+    candidates: [],
+    blocked: false,
+    message: null,
+  };
 }
 
 async function prefetchNoncodMatchContext(supabase, { namaCabang, preferredPeriode }) {
@@ -490,9 +562,11 @@ module.exports = {
   filterByPreferredPeriode,
   findMatchingDates,
   findOutstandingMatchingDates,
+  findPublicInputAllocation,
   findSequentialAllocationDates,
   findSplitMatchingDates,
   findNoncodDateMatch,
+  buildCabangHoldTransfers,
   getPreferredSyncPeriodes,
   getRecentPeriodes,
   getSearchByDate,

@@ -26,32 +26,87 @@ function parseBody(event) {
   return event || {};
 }
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function normalizeLabel(value, fallback = '') {
+  return String(value || fallback).trim();
+}
+
+function buildHeadline(payload) {
+  const title = normalizeLabel(payload.title);
+  if (title) return title;
+
+  const severity = normalizeLabel(payload.severity, 'error').toUpperCase();
+  const source = normalizeLabel(payload.source, 'backend').toUpperCase();
+  const meta = payload && payload.meta && typeof payload.meta === 'object' ? payload.meta : {};
+  const method = normalizeLabel(meta.method).toUpperCase();
+  const path = normalizeLabel(meta.path);
+  const requestLabel = [method, path].filter(Boolean).join(' ').trim();
+  return [severity, source, requestLabel].filter(Boolean).join(' • ');
+}
+
+function getOrderedMetaEntries(meta) {
+  const sourceMeta = meta && typeof meta === 'object' ? meta : {};
+  const preferredKeys = ['page', 'action', 'component', 'reason', 'method', 'path', 'url', 'line', 'column', 'periode', 'periodes', 'transferId', 'resi', 'cabang', 'statusCode', 'requestId', 'eventId', 'requestedAt'];
+  const seen = new Set();
+  const entries = [];
+
+  for (const key of preferredKeys) {
+    if (!(key in sourceMeta)) continue;
+    const value = sourceMeta[key];
+    if (value === undefined || value === null || String(value).trim() === '') continue;
+    entries.push([key, value]);
+    seen.add(key);
+  }
+
+  for (const [key, value] of Object.entries(sourceMeta)) {
+    if (seen.has(key)) continue;
+    if (value === undefined || value === null || String(value).trim() === '') continue;
+    entries.push([key, value]);
+  }
+
+  return entries.slice(0, 10);
+}
+
 function formatMeta(meta) {
-  const entries = Object.entries(meta || {}).filter(([, value]) => value !== undefined);
+  const entries = getOrderedMetaEntries(meta);
   if (!entries.length) return '';
+
   return entries
-    .slice(0, 8)
-    .map(([key, value]) => `${String(key || '').trim()}: ${String(value ?? '').trim()}`)
+    .map(([key, value]) => `<b>${escapeHtml(String(key || '').trim())}:</b> <code>${escapeHtml(String(value ?? '').trim())}</code>`)
     .join('\n');
 }
 
 function formatMessage(payload) {
   const lines = [];
-  lines.push(String(payload.title || 'Ops Alert').trim());
+  lines.push(`<b>${escapeHtml(buildHeadline(payload) || 'Ops Alert')}</b>`);
 
-  if (payload.service) lines.push(`service: ${String(payload.service).trim()}`);
-  if (payload.severity) lines.push(`severity: ${String(payload.severity).trim()}`);
-  if (payload.source) lines.push(`source: ${String(payload.source).trim()}`);
-  if (payload.eventType) lines.push(`event: ${String(payload.eventType).trim()}`);
-  if (payload.timestamp) lines.push(`time: ${String(payload.timestamp).trim()}`);
+  const summary = [];
+  if (payload.service) summary.push(`<b>Service:</b> <code>${escapeHtml(normalizeLabel(payload.service))}</code>`);
+  if (payload.timestamp) summary.push(`<b>Waktu:</b> <code>${escapeHtml(normalizeLabel(payload.timestamp))}</code>`);
+  if (payload.eventType && normalizeLabel(payload.eventType).toLowerCase() !== 'backend_error') {
+    summary.push(`<b>Event:</b> <code>${escapeHtml(normalizeLabel(payload.eventType))}</code>`);
+  }
+  if (summary.length) {
+    lines.push('');
+    lines.push(summary.join('\n'));
+  }
+
   if (payload.message) {
     lines.push('');
-    lines.push(String(payload.message).trim());
+    lines.push('<b>Error:</b>');
+    lines.push(`<pre>${escapeHtml(normalizeLabel(payload.message).slice(0, 1200))}</pre>`);
   }
 
   const metaBlock = formatMeta(payload.meta);
   if (metaBlock) {
     lines.push('');
+    lines.push('<b>Konteks:</b>');
     lines.push(metaBlock);
   }
 
@@ -87,6 +142,7 @@ exports.handler = async (event) => {
     const requestBody = {
       chat_id: chatId,
       text: message,
+      parse_mode: 'HTML',
       disable_web_page_preview: true,
     };
 

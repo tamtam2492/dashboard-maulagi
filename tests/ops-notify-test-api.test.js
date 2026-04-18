@@ -33,6 +33,70 @@ test('timingSafeSecretEqual hanya true untuk secret yang sama', () => {
   assert.equal(handler.timingSafeSecretEqual('abc123', ''), false);
 });
 
+test('createAuthSlowWatch mencatat auth lambat bila timer terpenuhi', () => {
+  const calls = [];
+  let capturedTimer = null;
+  const watch = handler.createAuthSlowWatch('Verifikasi login lambat lebih dari 10 detik.', {
+    method: 'POST',
+    action: 'verify',
+    role: 'admin',
+    key: 'admin_password',
+  }, {
+    timeoutMs: 25,
+    logFn(source, message, meta) {
+      calls.push({ source, message, meta });
+    },
+    setTimer(fn) {
+      capturedTimer = fn;
+      return 11;
+    },
+    clearTimer() {},
+  });
+
+  capturedTimer();
+
+  assert.equal(watch.didFire(), true);
+  assert.deepEqual(calls, [{
+    source: 'auth',
+    message: 'Verifikasi login lambat lebih dari 10 detik.',
+    meta: {
+      method: 'POST',
+      action: 'verify',
+      role: 'admin',
+      key: 'admin_password',
+      path: '/api/auth',
+      slowMs: 25,
+    },
+  }]);
+});
+
+test('createAuthSlowWatch berhenti tanpa mencatat bila distop lebih dulu', () => {
+  const calls = [];
+  let clearedTimer = null;
+  const watch = handler.createAuthSlowWatch('Pemeriksaan sesi login lambat lebih dari 10 detik.', {
+    method: 'GET',
+    action: 'session_check',
+    role: 'admin',
+  }, {
+    timeoutMs: 25,
+    logFn(source, message, meta) {
+      calls.push({ source, message, meta });
+    },
+    setTimer() {
+      return 42;
+    },
+    clearTimer(timerId) {
+      clearedTimer = timerId;
+    },
+  });
+
+  watch.stop();
+
+  assert.equal(watch.didFire(), false);
+  assert.equal(clearedTimer, 42);
+  assert.deepEqual(calls, []);
+});
+
 test('ops-notify-test menolak secret yang salah', async () => {
   const previousSecret = process.env.TELEGRAM_NOTIFY_SECRET;
   process.env.TELEGRAM_NOTIFY_SECRET = 'server-secret';

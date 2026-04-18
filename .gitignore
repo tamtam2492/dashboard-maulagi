@@ -1,6 +1,7 @@
 node_modules/
 .env
 .env.local
+.env*.notifier
 .vercel
 maukirim-account-*.txt
 tmp/aws-ocr-worker-package/

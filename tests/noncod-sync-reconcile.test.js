@@ -1,0 +1,162 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+const { planPeriodeRowReconciliation } = require('../api/noncod');
+
+test('planPeriodeRowReconciliation hanya insert/update/delete row yang berubah', () => {
+  const existingRows = [
+    {
+      id: 1,
+      periode: '2026-04',
+      tanggal_buat: '2026-04-01',
+      tanggal_pickup: '2026-04-01',
+      tanggal_kirim: '2026-04-01',
+      tanggal_terima: '2026-04-03',
+      status_terakhir: 'Selesai',
+      nama_pengirim: 'TOKO A',
+      kecamatan_pengirim: 'KADIA',
+      nama_penerima: 'PELANGGAN A',
+      provinsi_penerima: 'SULTRA',
+      kab_kota_penerima: 'KENDARI',
+      nomor_resi: 'RESI-001',
+      ongkir: 10000,
+      total_pengiriman: 10000,
+      metode_pembayaran: 'noncod',
+      nama_ekspedisi: 'JNT',
+      cabang: 'CABANG KADIA',
+    },
+    {
+      id: 2,
+      periode: '2026-04',
+      tanggal_buat: '2026-04-02',
+      tanggal_pickup: '2026-04-02',
+      tanggal_kirim: '2026-04-02',
+      tanggal_terima: '2026-04-04',
+      status_terakhir: 'Sedang Diantar',
+      nama_pengirim: 'TOKO B',
+      kecamatan_pengirim: 'POASIA',
+      nama_penerima: 'PELANGGAN B',
+      provinsi_penerima: 'SULTRA',
+      kab_kota_penerima: 'KOLAKA',
+      nomor_resi: 'RESI-002',
+      ongkir: 20000,
+      total_pengiriman: 20000,
+      metode_pembayaran: 'noncod',
+      nama_ekspedisi: 'JNT',
+      cabang: 'CABANG POASIA 01',
+    },
+    {
+      id: 3,
+      periode: '2026-04',
+      tanggal_buat: '2026-04-02',
+      tanggal_pickup: '2026-04-02',
+      tanggal_kirim: '2026-04-02',
+      tanggal_terima: '2026-04-04',
+      status_terakhir: 'Sedang Diantar',
+      nama_pengirim: 'TOKO B',
+      kecamatan_pengirim: 'POASIA',
+      nama_penerima: 'PELANGGAN B',
+      provinsi_penerima: 'SULTRA',
+      kab_kota_penerima: 'KOLAKA',
+      nomor_resi: 'RESI-002',
+      ongkir: 20000,
+      total_pengiriman: 20000,
+      metode_pembayaran: 'noncod',
+      nama_ekspedisi: 'JNT',
+      cabang: 'CABANG POASIA 01',
+    },
+    {
+      id: 4,
+      periode: '2026-04',
+      tanggal_buat: '2026-04-03',
+      tanggal_pickup: '2026-04-03',
+      tanggal_kirim: '2026-04-03',
+      tanggal_terima: '2026-04-05',
+      status_terakhir: 'Selesai',
+      nama_pengirim: 'TOKO C',
+      kecamatan_pengirim: 'WOLIO',
+      nama_penerima: 'PELANGGAN C',
+      provinsi_penerima: 'SULTRA',
+      kab_kota_penerima: 'BAUBAU',
+      nomor_resi: 'RESI-003',
+      ongkir: 30000,
+      total_pengiriman: 30000,
+      metode_pembayaran: 'noncod',
+      nama_ekspedisi: 'JNT',
+      cabang: 'CABANG BAU-BAU',
+    },
+  ];
+
+  const incomingRows = [
+    {
+      periode: '2026-04',
+      tanggal_buat: '2026-04-01',
+      tanggal_pickup: '2026-04-01',
+      tanggal_kirim: '2026-04-01',
+      tanggal_terima: '2026-04-03',
+      status_terakhir: 'Selesai',
+      nama_pengirim: 'TOKO A',
+      kecamatan_pengirim: 'KADIA',
+      nama_penerima: 'PELANGGAN A',
+      provinsi_penerima: 'SULTRA',
+      kab_kota_penerima: 'KENDARI',
+      nomor_resi: 'RESI-001',
+      ongkir: 10000,
+      total_pengiriman: 10000,
+      metode_pembayaran: 'noncod',
+      nama_ekspedisi: 'JNT',
+      cabang: 'CABANG KADIA',
+    },
+    {
+      periode: '2026-04',
+      tanggal_buat: '2026-04-02',
+      tanggal_pickup: '2026-04-02',
+      tanggal_kirim: '2026-04-02',
+      tanggal_terima: '2026-04-06',
+      status_terakhir: 'Selesai',
+      nama_pengirim: 'TOKO B',
+      kecamatan_pengirim: 'POASIA',
+      nama_penerima: 'PELANGGAN B',
+      provinsi_penerima: 'SULTRA',
+      kab_kota_penerima: 'KOLAKA',
+      nomor_resi: 'RESI-002',
+      ongkir: 25000,
+      total_pengiriman: 25000,
+      metode_pembayaran: 'noncod',
+      nama_ekspedisi: 'JNT',
+      cabang: 'CABANG POASIA 01',
+    },
+    {
+      periode: '2026-04',
+      tanggal_buat: '2026-04-04',
+      tanggal_pickup: '2026-04-04',
+      tanggal_kirim: '2026-04-04',
+      tanggal_terima: '2026-04-07',
+      status_terakhir: 'Sedang Diantar',
+      nama_pengirim: 'TOKO D',
+      kecamatan_pengirim: 'PANDA',
+      nama_penerima: 'PELANGGAN D',
+      provinsi_penerima: 'SULTRA',
+      kab_kota_penerima: 'MUNA',
+      nomor_resi: 'RESI-004',
+      ongkir: 40000,
+      total_pengiriman: 40000,
+      metode_pembayaran: 'noncod',
+      nama_ekspedisi: 'JNT',
+      cabang: 'CABANG MUNA',
+    },
+  ];
+
+  const plan = planPeriodeRowReconciliation(existingRows, incomingRows);
+
+  assert.equal(plan.inserted, 1);
+  assert.equal(plan.updated, 1);
+  assert.equal(plan.deleted, 2);
+  assert.equal(plan.unchanged, 1);
+  assert.equal(plan.total, 3);
+  assert.deepEqual(plan.rowsToInsert.map((row) => row.nomor_resi), ['RESI-004']);
+  assert.deepEqual(plan.rowsToUpsert.map((row) => ({ id: row.id, nomor_resi: row.nomor_resi, ongkir: row.ongkir })), [
+    { id: 2, nomor_resi: 'RESI-002', ongkir: 25000 },
+  ]);
+  assert.deepEqual(plan.idsToDelete.sort((left, right) => left - right), [3, 4]);
+});

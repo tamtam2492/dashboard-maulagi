@@ -15,6 +15,10 @@ const {
 } = require('./_ocr-job-pipeline');
 const { processOcrJobById } = require('./_ocr-job-runner');
 const {
+  deleteCabangHold,
+  upsertCabangHold,
+} = require('./_noncod-cabang-holds');
+const {
   aggregateOngkirByDate,
   findNoncodDateMatch,
   findSequentialAllocationDates,
@@ -47,12 +51,13 @@ const {
   isValidTransferDate,
   normalizeTransferKet,
   parseTransferNominal,
+  roundTransferNominal,
 } = require('./_transfer-utils');
 
-const uploadLimiter = rateLimit({ windowMs: 60 * 1000, max: 5 }); // 5 uploads/min per IP
-const ocrLimiter = rateLimit({ windowMs: 60 * 1000, max: 10 }); // 10 req/min per IP
-const ocrStatusLimiter = rateLimit({ windowMs: 60 * 1000, max: 120 }); // polling OCR status
-const dupeLimiter = rateLimit({ windowMs: 60 * 1000, max: 20 }); // 20 req/min per IP
+const uploadLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, bucket: 'input-upload' }); // final upload submit per IP
+const ocrLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, bucket: 'input-ocr-start' }); // OCR start per IP
+const ocrStatusLimiter = rateLimit({ windowMs: 60 * 1000, max: 240, bucket: 'input-ocr-status' }); // OCR polling per IP
+const dupeLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, bucket: 'input-dupe' }); // dupe/prefetch checks per IP
 const MAX_OCR_IMAGE_SIZE = 5 * 1024 * 1024;
 
 // Parse multipart/form-data tanpa dependency eksternal tambahan (pakai busboy)
@@ -355,6 +360,27 @@ function buildDupeSummary({ exactDupes, branchDayTransfers, nominal, areaName })
   };
 }
 
+function isExactMultiNoncodMatch(noncodMatch) {
+  return !!(
+    noncodMatch
+    && noncodMatch.splitMatch
+    && Array.isArray(noncodMatch.splitMatch.dates)
+    && noncodMatch.splitMatch.dates.length > 1
+    && Number(noncodMatch.splitMatch.diff || 0) === 0
+  );
+}
+
+function buildCabangHoldPayloadFromMatch(noncodMatch) {
+  if (!noncodMatch || !noncodMatch.hold) return null;
+  const nominal = roundTransferNominal(noncodMatch.hold.nominal);
+  if (!(nominal > 0)) return null;
+
+  return {
+    nominal,
+    reason: String(noncodMatch.hold.reason || '').trim() || 'Kelebihan transfer ditahan sebagai hold cabang.',
+  };
+}
+
 async function getDuplicateContext(supabase, { nama_cabang, tgl_inputan, nominal, planRows }) {
   const normalizedDate = String(tgl_inputan || '').trim();
   const normalizedNominal = Number(nominal || 0);
@@ -447,15 +473,9 @@ async function handleDupeRoute(req, res) {
         preferredPeriode: periode,
         contextKey,
       });
-      if (noncodMatch.match) {
-        effectiveDate = noncodMatch.match.tanggal_buat;
-        planRows = [{ tgl_inputan: effectiveDate, nominal: Number(nominal || 0) }];
-      } else if (noncodMatch.splitMatch && Array.isArray(noncodMatch.splitMatch.dates) && noncodMatch.splitMatch.dates.length > 1) {
-        effectiveDate = noncodMatch.splitMatch.dates[0].tanggal_buat;
-        planRows = noncodMatch.splitMatch.dates.map((row) => ({
-          tgl_inputan: row.tanggal_buat,
-          nominal: Number(row.plannedNominal || 0),
-        }));
+      planRows = buildPlannedRowsFromMatch(noncodMatch, nominal);
+      if (planRows.length) {
+        effectiveDate = planRows[0].tgl_inputan;
       }
     }
 
@@ -671,10 +691,13 @@ function buildPlannedRowsFromMatch(noncodMatch, nominal) {
   if (!(normalizedNominal > 0)) return [];
 
   if (noncodMatch && noncodMatch.match && noncodMatch.match.tanggal_buat) {
-    return [{ tgl_inputan: noncodMatch.match.tanggal_buat, nominal: normalizedNominal }];
+    return [{
+      tgl_inputan: noncodMatch.match.tanggal_buat,
+      nominal: Number(noncodMatch.match.plannedNominal || normalizedNominal),
+    }];
   }
 
-  if (noncodMatch && noncodMatch.splitMatch && Array.isArray(noncodMatch.splitMatch.dates)) {
+  if (isExactMultiNoncodMatch(noncodMatch)) {
     return noncodMatch.splitMatch.dates
       .map((row) => ({
         tgl_inputan: String(row.tanggal_buat || '').trim(),
@@ -798,6 +821,7 @@ async function handler(req, res) {
 
     let plannedRows = [];
     let pendingPayload = null;
+    let holdPayload = null;
     let adminAllocation = null;
     if (adminPendingUpload) {
       const adminPlan = await buildAdminPendingPlan(supabase, fields, normalizedCabang);
@@ -811,6 +835,7 @@ async function handler(req, res) {
         preferredPeriode: periode,
       });
       plannedRows = buildPlannedRowsFromMatch(noncodMatch, nominal);
+      holdPayload = buildCabangHoldPayloadFromMatch(noncodMatch);
       if (!plannedRows.length) {
         return res.status(400).json({
           error: noncodMatch && noncodMatch.message ? noncodMatch.message : 'Tidak ada NONCOD yang cocok untuk nominal ini.',
@@ -823,7 +848,17 @@ async function handler(req, res) {
       throw new Error('Rencana sinkron NONCOD tidak valid.');
     }
 
-    const primaryDate = plannedRows[0].tgl_inputan;
+    const normalizedPlannedRows = plannedRows.map((row) => ({
+      tgl_inputan: String(row.tgl_inputan || '').trim(),
+      nominal: roundTransferNominal(row.nominal),
+    }));
+
+    const invalidNormalizedRow = normalizedPlannedRows.find((row) => !isValidTransferDate(row.tgl_inputan) || !Number.isFinite(row.nominal) || !(row.nominal > 0));
+    if (invalidNormalizedRow) {
+      throw new Error('Rencana sinkron NONCOD tidak valid.');
+    }
+
+    const primaryDate = normalizedPlannedRows[0].tgl_inputan;
 
     const proofSignature = buildProofSignaturePayload({
       fileBuffer,
@@ -880,13 +915,13 @@ async function handler(req, res) {
     if (adminPendingUpload && adminAllocation) ketParts.push('ADMIN tempel NONCOD mulai ' + adminAllocation.targetDate);
     const normalizedKet = normalizeTransferKet(ketParts.join(' · '));
     const timestamp = new Date().toISOString();
-    const insertRows = plannedRows.map((row) => ({
+    const insertRows = normalizedPlannedRows.map((row) => ({
       timestamp,
       tgl_inputan: row.tgl_inputan,
       periode: getPeriodeFromDate(row.tgl_inputan),
       nama_bank: normalizeBankName(nama_bank),
       nama_cabang: normalizedCabang,
-      nominal: parseTransferNominal(row.nominal),
+      nominal: row.nominal,
       ket: normalizedKet,
       bukti_url: buktiUrl,
     }));
@@ -926,12 +961,60 @@ async function handler(req, res) {
         });
       } catch (pendingError) {
         if (insertedRows.length > 0) {
-          await supabase.from('transfers').delete().in('id', insertedRows.map((row) => row.id)).catch(() => {});
+          const rollbackResult = await supabase
+            .from('transfers')
+            .delete()
+            .in('id', insertedRows.map((row) => row.id));
+          if (rollbackResult.error) {
+            logError('input', rollbackResult.error.message, {
+              method: req.method,
+              action: 'rollback_pending_allocation_insert',
+              transferIds: insertedRows.map((row) => row.id),
+            });
+          }
         }
         if (buktiUrl) {
           await supabase.storage.from('bukti-transfer').remove([buktiUrl]).catch(() => {});
         }
         throw pendingError;
+      }
+    }
+
+    if (!adminPendingUpload && holdPayload) {
+      try {
+        const primaryInsert = insertedRows[0];
+        if (!primaryInsert || !primaryInsert.id) {
+          throw new Error('Hold cabang gagal dibuat.');
+        }
+
+        await upsertCabangHold(supabase, {
+          root_transfer_id: primaryInsert.id,
+          cabang: normalizedCabang,
+          nominal: holdPayload.nominal,
+          reason: holdPayload.reason,
+          transfer_bank: normalizeBankName(nama_bank),
+          bukti_url: buktiUrl,
+          ket: normalizedKet,
+          timestamp,
+        });
+      } catch (holdError) {
+        if (insertedRows.length > 0) {
+          const rollbackResult = await supabase
+            .from('transfers')
+            .delete()
+            .in('id', insertedRows.map((row) => row.id));
+          if (rollbackResult.error) {
+            logError('input', rollbackResult.error.message, {
+              method: req.method,
+              action: 'rollback_hold_insert',
+              transferIds: insertedRows.map((row) => row.id),
+            });
+          }
+        }
+        if (buktiUrl) {
+          await supabase.storage.from('bukti-transfer').remove([buktiUrl]).catch(() => {});
+        }
+        throw holdError;
       }
     }
 
@@ -942,12 +1025,13 @@ async function handler(req, res) {
       createdAt: insertedRows[0] ? insertedRows[0].timestamp : new Date().toISOString(),
       namaCabang: normalizedCabang,
       tglInputan: primaryDate,
-      tglInputanList: plannedRows.map((row) => row.tgl_inputan),
+      tglInputanList: normalizedPlannedRows.map((row) => row.tgl_inputan),
       namaBank: normalizeBankName(nama_bank),
-      nominal: parseTransferNominal(nominal),
+      nominal: roundTransferNominal(nominal),
+      holdNominal: holdPayload ? holdPayload.nominal : 0,
       fileName,
       mimeType: fileMime || '',
-      splitRows: plannedRows,
+      splitRows: normalizedPlannedRows,
     });
 
     const { error: proofRegistryError } = await supabase.from('settings').upsert({
@@ -959,8 +1043,21 @@ async function handler(req, res) {
       if (adminPendingUpload && pendingPayload && insertedRows[0] && insertedRows[0].id) {
         await deletePendingAllocation(supabase, insertedRows[0].id).catch(() => {});
       }
+      if (!adminPendingUpload && holdPayload && insertedRows[0] && insertedRows[0].id) {
+        await deleteCabangHold(supabase, insertedRows[0].id).catch(() => {});
+      }
       if (insertedRows.length > 0) {
-        await supabase.from('transfers').delete().in('id', insertedRows.map((row) => row.id)).catch(() => {});
+        const rollbackResult = await supabase
+          .from('transfers')
+          .delete()
+          .in('id', insertedRows.map((row) => row.id));
+        if (rollbackResult.error) {
+          logError('input', rollbackResult.error.message, {
+            method: req.method,
+            action: 'rollback_proof_registry_insert',
+            transferIds: insertedRows.map((row) => row.id),
+          });
+        }
       }
       if (buktiUrl) {
         await supabase.storage.from('bukti-transfer').remove([buktiUrl]).catch(() => {});
@@ -994,9 +1091,10 @@ async function handler(req, res) {
       ids: insertedRows.map((row) => row.id),
       inserted: insertRows.length,
       split: insertRows.length > 1,
+      holdNominal: holdPayload ? holdPayload.nominal : 0,
       pendingNominal: pendingPayload ? pendingPayload.nominal : 0,
       pendingAfterDate: pendingPayload ? pendingPayload.afterDate : '',
-      rows: plannedRows,
+      rows: normalizedPlannedRows,
     });
 
   } catch (err) {

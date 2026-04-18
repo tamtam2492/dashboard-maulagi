@@ -3,4 +3,5 @@ scripts/legacy/
 sql-indexes.sql
 .env
 .env.local
+.env*.notifier
 .env.example

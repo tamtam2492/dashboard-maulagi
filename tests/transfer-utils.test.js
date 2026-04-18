@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const {
   buildTransferUpdate,
+  getAffectedTransferPeriodes,
   getPeriodeFromDate,
   isPositiveTransferNominal,
   isValidTransferDate,
@@ -58,4 +59,12 @@ test('buildTransferUpdate bisa sekaligus membulatkan nominal manual dari admin',
     nominal: 36000,
   });
   assert.equal(buildTransferUpdate('2026-04-11', 'x', '0'), null);
+});
+
+test('getAffectedTransferPeriodes menggabungkan periode lama dan baru tanpa duplikasi', () => {
+  assert.deepEqual(
+    getAffectedTransferPeriodes(['2026-04-30', '2026-05-01', '2026-04-11', 'invalid', '']),
+    ['2026-04', '2026-05'],
+  );
+  assert.deepEqual(getAffectedTransferPeriodes('2026-04-11'), ['2026-04']);
 });

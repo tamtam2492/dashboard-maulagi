@@ -126,6 +126,19 @@ async function readStatusOverridesByResi(supabase, nomorResiList) {
 
   if (!keys.length) return new Map();
 
+  if (keys.length > 200) {
+    const wantedKeys = new Set(keys);
+    const rows = await fetchOverrideSettingsByPrefix(supabase);
+    const overrides = rows.reduce((result, row) => {
+      if (!row || !wantedKeys.has(row.key)) return result;
+      const parsed = parseStatusOverrideValue(row.value);
+      if (parsed) result.push(parsed);
+      return result;
+    }, []);
+
+    return buildOverrideMap(overrides);
+  }
+
   const overrides = [];
   for (let index = 0; index < keys.length; index += 100) {
     const batch = keys.slice(index, index + 100);
@@ -176,7 +189,7 @@ async function searchSyncRowsByResi(supabase, query, limit = 50) {
     .ilike('nomor_resi', '%' + normalizedQuery + '%')
     .order('periode', { ascending: false })
     .order('tanggal_buat', { ascending: false })
-    .limit(Math.max(1, Math.min(Number(limit) || 50, 200)));
+    .limit(Math.max(1, Math.min(Number(limit) || 50, 1000)));
 
   if (error) throw error;
   return data || [];
@@ -251,7 +264,7 @@ function sortMergedRows(rows) {
 
 async function listStatusOverrideRows(supabase, options = {}) {
   const query = normalizeSearchQuery(options.query);
-  const limit = Math.max(1, Math.min(Number(options.limit) || 100, 200));
+  const limit = Math.max(1, Math.min(Number(options.limit) || 100, 1000));
   const overrides = await readAllStatusOverrides(supabase);
   const overrideMap = buildOverrideMap(overrides);
 
