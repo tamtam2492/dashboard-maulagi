@@ -128,7 +128,6 @@ OCR_PIPELINE_TRIGGER_SECRET=your-ocr-trigger-secret
 OCR_PIPELINE_TRIGGER_TIMEOUT_MS=15000
 UPSTASH_REDIS_REST_URL=https://your-upstash-instance.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your-upstash-token
-EXCEL_PATH=C:/path/to/source.xlsx
 NONCOD_SYNC_SECRET=your-vercel-sync-endpoint-secret
 NONCOD_PIPELINE_TRIGGER_URL=https://your-lambda-or-worker-url
 NONCOD_PIPELINE_TRIGGER_SECRET=your-trigger-secret
@@ -144,7 +143,6 @@ Kebutuhan utama:
 - `OCR_SYNC_SECRET` mengamankan worker internal `/api/input?ocr=1&worker=1`. Jika belum diisi, backend akan fallback ke `NONCOD_SYNC_SECRET` bila tersedia.
 - `OCR_PIPELINE_TRIGGER_URL` dan `OCR_PIPELINE_TRIGGER_SECRET` mengarahkan enqueue OCR dari Vercel ke worker Lambda/background endpoint.
 - `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN` dipakai rate limiter lintas instance.
-- `EXCEL_PATH` hanya dipakai script migrasi lokal.
 - `NONCOD_SYNC_SECRET` mengamankan endpoint worker internal `/api/noncod-sync`.
 - Jika app berjalan di Vercel, `NONCOD_SYNC_SECRET` juga cukup untuk mode self-trigger langsung ke deployment aktif lewat `VERCEL_URL`.
 - `NONCOD_PIPELINE_TRIGGER_URL` dan `NONCOD_PIPELINE_TRIGGER_SECRET` hanya perlu diisi bila trigger background harus diarahkan ke Lambda atau endpoint lain di luar self-trigger langsung.
