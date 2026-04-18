@@ -149,6 +149,39 @@ Kebutuhan utama:
 - Jika app berjalan di Vercel, `NONCOD_SYNC_SECRET` juga cukup untuk mode self-trigger langsung ke deployment aktif lewat `VERCEL_URL`.
 - `NONCOD_PIPELINE_TRIGGER_URL` dan `NONCOD_PIPELINE_TRIGGER_SECRET` hanya perlu diisi bila trigger background harus diarahkan ke Lambda atau endpoint lain di luar self-trigger langsung.
 
+## Model Keamanan dan Batas Trust
+
+Model keamanan aplikasi ini sengaja dibuat **backend-only untuk akses data utama**.
+
+- Browser tidak mengakses tabel aplikasi Supabase secara langsung.
+- Tabel `settings`, `cabang`, `transfers`, `noncod`, `visitors`, dan `error_logs` ditujukan untuk diakses lewat backend serverless, bukan lewat `anon key` dari frontend.
+- `SUPABASE_SERVICE_ROLE_KEY` hanya dipakai di handler backend dan script maintenance tepercaya.
+- RLS di tabel aplikasi diaktifkan untuk menutup akses role `anon` dan `authenticated`, lalu akses langsung ke tabel tersebut direvoke lewat [sql-security.sql](sql-security.sql).
+- `SUPABASE_ANON_KEY` bersifat opsional dan tidak dipakai untuk akses data aplikasi utama di repo ini.
+
+Batas trust yang perlu dipahami:
+
+- Karena backend memakai service role, blast radius akan besar jika satu handler privileged berhasil dibypass atau dieksploitasi.
+- Repo ini mengurangi risiko itu dengan meminimalkan surface area endpoint, membatasi route admin dengan session/token, dan menjaga agar semua akses data tetap lewat backend.
+- Ini cocok untuk aplikasi internal/server-gated, tetapi **belum** ditujukan sebagai arsitektur multi-tenant dengan isolasi privilege yang sangat granular.
+
+## Model Auth dan Limitasi Saat Ini
+
+Auth saat ini memakai pemisahan role sederhana, bukan RBAC penuh.
+
+- Role `admin` dipakai untuk upload, edit, pengaturan, log operasional, dan route sensitif lainnya.
+- Role `dashboard` dipakai untuk akses viewer/workspace yang lebih terbatas.
+- Session disimpan sebagai token acak yang di-hash, lalu diverifikasi backend lewat helper [api/_auth.js](api/_auth.js) dan [api/auth.js](api/auth.js).
+- Password disimpan ter-hash di tabel `settings`, bukan plaintext.
+
+Limitasi yang masih ada:
+
+- Belum ada identity per-user yang kaya; akses masih berbasis role bersama, bukan akun individu per operator.
+- Belum ada RBAC granular per aksi atau per resource.
+- Belum ada audit trail lengkap per aktor untuk semua operasi bisnis; yang sudah ada lebih kuat di session boundary, error log, dan notifikasi operasional.
+
+Untuk penggunaan internal solo dev atau tim kecil, model ini masih masuk akal. Untuk lingkungan yang lebih besar, section ini memang sengaja menjelaskan bahwa batasannya belum setara IAM/RBAC enterprise.
+
 ## Sumber Daya Supabase
 
 Proyek ini mengandalkan resource berikut:
@@ -177,6 +210,37 @@ Tambahan SQL di repo:
 
 Utilitas maintenance yang masih aktif disimpan di folder [scripts/local](scripts/local).
 Skrip migrasi dan integrasi lama yang sifatnya one-off diarsipkan di folder [scripts/legacy](scripts/legacy).
+
+## Fallback Dependency dan Degradation Mode
+
+Arsitektur ini memang bergantung pada beberapa layanan eksternal, tetapi beberapa jalur kritis sudah punya fallback agar kegagalan satu komponen tidak selalu mematikan alur utama.
+
+- **Upstash/Redis limiter**: jika Redis REST tidak tersedia, limiter fallback ke in-memory limiter di instance aktif lewat [api/_ratelimit.js](api/_ratelimit.js).
+- **OCR worker**: jika trigger worker OCR eksternal gagal, backend masih bisa fallback ke worker internal Vercel `waitUntil(...)` bila tersedia, lewat [api/input.js](api/input.js).
+- **Telegram notifier**: notifikasi bersifat fire-and-forget dan tidak memblok request utama; kegagalan Lambda notifier tidak menghentikan alur bisnis utama.
+- **NONCOD background sync**: pipeline bisa diarahkan ke Lambda terpisah, endpoint Vercel langsung, atau self-trigger via `VERCEL_URL` bila mode sederhana yang dipakai.
+- **MauKirim sync**: jika refresh background gagal, endpoint baca tetap bisa melayani snapshot/published data terakhir sambil melaporkan status pipeline.
+
+Artinya, sistem ini tidak bebas risiko third-party downtime, tetapi beberapa dependency penting sudah dirancang untuk degrade secara lebih aman daripada langsung hard-fail seluruh aplikasi.
+
+## Cakupan Test dan Gap yang Diketahui
+
+Test yang ada saat ini berfokus pada kombinasi unit, regression, dan API-level behavior untuk helper/helper backend yang paling sensitif.
+
+Yang sudah tercakup:
+
+- matcher NONCOD, hold cabang, pending allocation, carryover override, dan status override
+- OCR parsing, OCR job pipeline, dan notifier behavior
+- rate limiter, session cookie, proof signature, serta utilitas transfer
+- beberapa jalur API seperti duplicate check, NONCOD sync, dan notify test
+
+Yang **belum** diklaim selesai:
+
+- belum ada end-to-end browser test penuh untuk alur user dari upload bukti sampai sukses submit
+- belum ada integration test multipart upload lengkap yang mencakup upload storage + insert transfer + proof registry + pipeline trigger dalam satu skenario utuh
+- perubahan besar di [api/input.js](api/input.js), auth/session boundary, atau integrasi storage masih tetap perlu smoke test manual setelah deploy
+
+Section ini sengaja ditulis eksplisit agar pembaca GitHub tidak salah mengira bahwa seluruh flow utama sudah punya coverage e2e penuh.
 
 ## Deploy
 
