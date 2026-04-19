@@ -37,14 +37,18 @@ module.exports = async (req, res) => {
     try {
       const { data, error } = await supabase
         .from('cabang')
-        .select('id, nama, area, no_wa')
+        .select('id, nama, area, no_wa, viewer_pw_hash')
         .order('area', { ascending: true })
         .order('nama', { ascending: true });
       if (error) throw error;
-      // Jangan expose viewer_pw_hash ke client, expose has_viewer saja
+      // Jangan expose viewer_pw_hash ke client, expose has_viewer + has_password saja
       const cabangWithStatus = (data || []).map((c) => ({
-        ...c,
+        id: c.id,
+        nama: c.nama,
+        area: c.area,
+        no_wa: c.no_wa,
         has_viewer: !!(c.no_wa),
+        has_password: !!(c.viewer_pw_hash),
       }));
       return res.json({ cabang: cabangWithStatus });
     } catch (err) {
