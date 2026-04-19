@@ -4,34 +4,7 @@ const { publishAdminWriteMarker } = require('./_admin-write-marker');
 const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { getSupabase } = require('./_supabase');
-const { loginMaukirim, httpReq, ckStr, MK_HOST } = require('./_maukirim');
-
-/**
- * Ambil daftar sub-akun dari Maukirim (/account/data/5).
- * Return array of { name: string, wa: string }
- */
-async function fetchMaukirimSenders() {
-  const ck = await loginMaukirim();
-  const res = await httpReq({
-    hostname: MK_HOST,
-    path: '/account/data/5',
-    method: 'GET',
-    headers: { Cookie: ckStr(ck), 'User-Agent': 'Mozilla/5.0', Accept: 'text/html' },
-  });
-  if (res.status !== 200) throw new Error(`Maukirim /account/data/5 returned ${res.status}`);
-  const cells = [...res.body.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)]
-    .map((m) => m[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, '').trim());
-  const senders = [];
-  // Struktur tabel: No | Tanggal | Name | Whatsapp | Level | Action — skip 6 header
-  for (let i = 6; i + 4 < cells.length; i += 6) {
-    const name = cells[i + 2];
-    const wa = cells[i + 3];
-    if (name && wa && /^0[0-9]{7,14}$/.test(wa)) {
-      senders.push({ name: name.trim().toUpperCase(), wa: wa.trim() });
-    }
-  }
-  return senders;
-}
+const { fetchMaukirimSenders } = require('./_maukirim');
 
 async function publishCabangMarkerSafe(supabase, source, context) {
   try {

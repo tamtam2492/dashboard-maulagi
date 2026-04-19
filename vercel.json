@@ -7,12 +7,17 @@
     { "source": "/api/transfer", "destination": "/api/transfer.js" },
     { "source": "/api/noncod-sync", "destination": "/api/noncod?pipeline=1" },
     { "source": "/api/noncod-status", "destination": "/api/noncod?manual_status=1" },
-    { "source": "/api/noncod", "destination": "/api/noncod.js" }
+    { "source": "/api/noncod", "destination": "/api/noncod.js" },
+    { "source": "/api/cron-sync", "destination": "/api/cron.js" }
   ],
   "functions": {
     "api/input.js": { "maxDuration": 30 },
-    "api/noncod.js": { "maxDuration": 30 }
+    "api/noncod.js": { "maxDuration": 30 },
+    "api/cron.js": { "maxDuration": 60 }
   },
+  "crons": [
+    { "path": "/api/cron-sync", "schedule": "0 18 * * *" }
+  ],
   "headers": [
     {
       "source": "/",
