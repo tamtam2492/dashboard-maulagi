@@ -100,6 +100,9 @@
       .menu-card.viewer .menu-icon { background: #e0f2fe; color: #0369a1; }
       .login-box .form-control-wa { border-radius: 10px; border: 1.5px solid var(--border); font-size: 0.9rem; padding: 11px 14px; background: #f8fafc; width: 100%; margin-bottom: 8px; font-family: 'Inter', sans-serif; }
       .login-box .form-control-wa:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14,165,233,0.12); background: var(--card); outline: none; }
+      .login-remember { display: flex; justify-content: flex-start; margin: 2px 0 10px; }
+      .remember-check { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--gray2); cursor: pointer; user-select: none; }
+      .remember-check input { width: 16px; height: 16px; accent-color: #0ea5e9; cursor: pointer; }
       .btn-login-viewer { width: 100%; border-radius: 10px; background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white; border: none; padding: 11px; font-size: 0.9rem; font-weight: 700; transition: all 0.2s; box-shadow: 0 4px 14px rgba(14,165,233,0.3); }
       .btn-login-viewer:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(14,165,233,0.4); }
       .btn-login-viewer:disabled { background: var(--gray2); box-shadow: none; cursor: not-allowed; transform: none; }
@@ -133,6 +136,12 @@
         <div class="l-sub">Masuk dengan nomor WA dan password Maukirim</div>
         <input type="tel" class="form-control-wa" id="viewerWa" placeholder="Nomor WhatsApp..." autocomplete="username" inputmode="numeric">
         <input type="password" class="form-control" id="viewerPw" placeholder="Password Maukirim..." autocomplete="current-password">
+        <div class="login-remember">
+          <label class="remember-check" for="viewerRemember">
+            <input type="checkbox" id="viewerRemember">
+            <span>Ingat saya di perangkat ini</span>
+          </label>
+        </div>
         <div class="l-err" id="viewerErr"></div>
         <button class="btn-login-viewer" id="btnViewerLogin" type="button">
           <i class="bi bi-box-arrow-in-right me-1"></i>Masuk
@@ -147,6 +156,12 @@
         <h2 id="loginTitle">Admin Panel</h2>
         <div class="l-sub" id="loginSub">Masukkan password untuk melanjutkan</div>
         <input type="password" class="form-control" id="loginPw" placeholder="Password...">
+        <div class="login-remember">
+          <label class="remember-check" for="loginRemember">
+            <input type="checkbox" id="loginRemember">
+            <span>Ingat saya di perangkat ini</span>
+          </label>
+        </div>
         <div class="l-err" id="loginErr"></div>
         <button class="btn-login" id="btnLogin" type="button">
           <i class="bi bi-unlock-fill me-1"></i>Masuk
@@ -187,11 +202,11 @@
             <div class="menu-desc">Ringkasan cabang, riwayat, dan bukti transaksi.</div>
           </div>
         </a>
-        <a href="/dashboard.html#dashboard" class="menu-card dash" data-dashboard-target="dashboard" data-dashboard-role="dashboard">
+        <a href="/dashboard.html#viewer" class="menu-card dash" id="dashboardViewerCard">
           <div class="menu-icon"><i class="bi bi-speedometer2"></i></div>
           <div>
             <div class="menu-title">Dashboard</div>
-            <div class="menu-desc">Performa operasional dan omset bulan ini.</div>
+            <div class="menu-desc">NONCOD dan DFOD cabang Anda dalam tampilan dashboard yang sama.</div>
           </div>
         </a>
         <a href="/dashboard.html#admin" class="menu-card admin" data-dashboard-target="admin" data-dashboard-role="admin">
@@ -201,13 +216,6 @@
             <div class="menu-desc">Kelola cabang, validasi, dan pengaturan.</div>
           </div>
         </a>
-        <button type="button" class="menu-card viewer" id="viewerCard" style="cursor:pointer;text-align:left;">
-          <div class="menu-icon"><i class="bi bi-building-check"></i></div>
-          <div>
-            <div class="menu-title">Viewer Cabang</div>
-            <div class="menu-desc">Lihat data transfer cabang Anda.</div>
-          </div>
-        </button>
       </div>
 
 

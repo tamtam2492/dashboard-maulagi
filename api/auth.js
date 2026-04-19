@@ -18,6 +18,8 @@ const { clearAllSessionCookies, clearSessionCookie, readSessionCookies, setSessi
 const authLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, bucket: 'auth-write' }); // 10 req/min per IP
 const notifyTestLimiter = rateLimit({ windowMs: 60 * 1000, max: 5, bucket: 'auth-notify-test' });
 const AUTH_SLOW_TIMEOUT_MS = Number(process.env.AUTH_SLOW_TIMEOUT_MS || 10000) || 10000;
+const DEFAULT_SESSION_MAX_AGE_SECONDS = 60 * 60;
+const REMEMBERED_SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 const PW_KEY = 'admin_password';
 const ALLOWED_KEYS = ['admin_password', 'dashboard_password'];
@@ -28,6 +30,19 @@ function timingSafeSecretEqual(left, right) {
   if (!normalizedLeft.length || !normalizedRight.length) return false;
   if (normalizedLeft.length !== normalizedRight.length) return false;
   return crypto.timingSafeEqual(normalizedLeft, normalizedRight);
+}
+
+function shouldRememberSession(rawValue) {
+  return rawValue === true
+    || rawValue === 1
+    || rawValue === '1'
+    || String(rawValue || '').trim().toLowerCase() === 'true';
+}
+
+function getSessionMaxAgeSeconds(remember) {
+  return shouldRememberSession(remember)
+    ? REMEMBERED_SESSION_MAX_AGE_SECONDS
+    : DEFAULT_SESSION_MAX_AGE_SECONDS;
 }
 
 function createAuthSlowWatch(message, meta = {}, options = {}) {
@@ -295,6 +310,7 @@ module.exports = async (req, res) => {
       if (action === 'verify_viewer') {
         const noWa = normalizeViewerWa(req.body.no_wa);
         const viewerPw = String(req.body.password || '');
+        const sessionMaxAgeSeconds = getSessionMaxAgeSeconds(req.body.remember);
         if (!noWa) return res.status(400).json({ error: 'Nomor WhatsApp diperlukan.' });
         if (!viewerPw) return res.status(400).json({ error: 'Password diperlukan.' });
         return withAuthSlowWatch('Verifikasi login viewer lambat lebih dari 10 detik.', {
@@ -319,12 +335,12 @@ module.exports = async (req, res) => {
 
           const sessionToken = crypto.randomBytes(32).toString('hex');
           const tokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
-          const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+          const expiresAt = new Date(Date.now() + sessionMaxAgeSeconds * 1000).toISOString();
           await supabase.from('settings').upsert({
             key: 'session_viewer_' + tokenHash,
             value: JSON.stringify({ hash: tokenHash, role: 'viewer', cabang: cb.nama, expires: expiresAt }),
           });
-          setSessionCookie(res, 'viewer', sessionToken, req, 60 * 60);
+          setSessionCookie(res, 'viewer', sessionToken, req, sessionMaxAgeSeconds);
           return res.json({ success: true, token: sessionToken, role: 'viewer', cabang: cb.nama });
         });
       }
@@ -332,6 +348,7 @@ module.exports = async (req, res) => {
       // action: 'verify' — cek login, return session token
       if (action === 'verify') {
         if (!password) return res.status(400).json({ error: 'Password diperlukan.' });
+        const sessionMaxAgeSeconds = getSessionMaxAgeSeconds(req.body.remember);
         return withAuthSlowWatch('Verifikasi login lambat lebih dari 10 detik.', {
           method: 'POST',
           action: 'verify',
@@ -348,7 +365,7 @@ module.exports = async (req, res) => {
           const sessionToken = crypto.randomBytes(32).toString('hex');
           const tokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
           const role = pwKey === 'admin_password' ? 'admin' : 'dashboard';
-          const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 60 min
+          const expiresAt = new Date(Date.now() + sessionMaxAgeSeconds * 1000).toISOString();
 
           // Store session in settings (key: session_<role>_<full_hash>)
           await supabase.from('settings').upsert({
@@ -356,7 +373,7 @@ module.exports = async (req, res) => {
             value: JSON.stringify({ hash: tokenHash, role, expires: expiresAt }),
           });
 
-          setSessionCookie(res, role, sessionToken, req, 60 * 60);
+          setSessionCookie(res, role, sessionToken, req, sessionMaxAgeSeconds);
 
           return res.json({ success: true, token: sessionToken, role });
         });
@@ -416,4 +433,6 @@ module.exports = async (req, res) => {
 
 module.exports.timingSafeSecretEqual = timingSafeSecretEqual;
 module.exports.createAuthSlowWatch = createAuthSlowWatch;
+module.exports.shouldRememberSession = shouldRememberSession;
+module.exports.getSessionMaxAgeSeconds = getSessionMaxAgeSeconds;
 module.exports.verifyViewerCabangAccess = verifyViewerCabangAccess;
