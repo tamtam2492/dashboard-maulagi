@@ -6,7 +6,8 @@ function normalizeCabangSyncName(value) {
   return String(value || '')
     .trim()
     .toUpperCase()
-    .replace(/\s+/g, ' ')
+    .replace(/^CABANG\s+/i, '')
+    .replace(/[^A-Z0-9]+/g, '')
     .slice(0, 100);
 }
 

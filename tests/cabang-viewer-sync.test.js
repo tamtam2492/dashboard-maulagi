@@ -56,7 +56,9 @@ function createCabangSupabase(rows, options = {}) {
 }
 
 test('normalizer viewer sync membersihkan nama cabang dan nomor WA', () => {
-  assert.equal(normalizeCabangSyncName('  Cabang   Kendari  '), 'CABANG KENDARI');
+  assert.equal(normalizeCabangSyncName('  Cabang   Kendari  '), 'KENDARI');
+  assert.equal(normalizeCabangSyncName('CABANG BAU-BAU'), 'BAUBAU');
+  assert.equal(normalizeCabangSyncName('Pasar_Wajo2'), 'PASARWAJO2');
   assert.equal(normalizeViewerWa(' 0812 345 6789 '), '08123456789');
 });
 
