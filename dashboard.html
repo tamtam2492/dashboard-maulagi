@@ -1475,6 +1475,12 @@
         gap: 12px;
         min-width: 0;
       }
+      .audit-shell.viewer-locked {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .audit-shell.viewer-locked .audit-side {
+        display: none;
+      }
       .audit-side-card,
       .audit-detail-card {
         background: rgba(255,255,255,0.9);
