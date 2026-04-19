@@ -660,6 +660,9 @@
         gap: 12px;
         margin-top: 12px;
       }
+      .overview-grid.viewer-compact {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
       .overview-card {
         background: var(--card);
         border-radius: var(--radius);
@@ -1980,8 +1983,8 @@
             </div>
           </div>
 
-          <div class="overview-grid">
-            <div class="overview-card blue">
+          <div class="overview-grid" id="overviewGrid">
+            <div class="overview-card blue" id="ovBranchesCard">
               <div class="oc-label">Cabang Aktif</div>
               <div class="oc-value" id="ovBranches">-</div>
               <div class="oc-meta" id="ovBranchesMeta">Menghitung data...</div>
