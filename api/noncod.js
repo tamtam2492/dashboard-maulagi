@@ -30,6 +30,7 @@ const {
   normalizePeriodeList,
   queueNoncodPipelineTrigger,
   readNoncodSyncPipelineState,
+  sendNoncodPipelineTriggerWithSelfFallback,
   timingSafeSecretEqual,
 } = require('./_noncod-sync-pipeline');
 const { publishAdminWriteMarker } = require('./_admin-write-marker');
@@ -1063,14 +1064,41 @@ async function handler(req, res) {
             periodes: [periode],
             reason: queuedReason,
           });
-          queueNoncodPipelineTrigger({
+          const triggerRequest = {
             reason: queuedReason,
             periodes: [periode],
             source: 'noncod-read',
             force: true,
-          });
-          syncInfo.pipeline = queuedState;
-          syncInfo.refreshState = autoRefresh;
+          };
+          const triggerResult = await sendNoncodPipelineTriggerWithSelfFallback(triggerRequest);
+
+          if (triggerResult && triggerResult.ok) {
+            syncInfo.pipeline = queuedState;
+            syncInfo.refreshState = autoRefresh;
+          } else {
+            const triggerFailure = triggerResult && !triggerResult.skipped
+              ? (triggerResult.error || (triggerResult.status ? ('HTTP ' + triggerResult.status) : 'trigger_failed'))
+              : 'trigger_unavailable';
+            const failedState = await markNoncodSyncFailed(supabase, {
+              reason: queuedReason,
+              periodes: [periode],
+              error: 'Trigger background gagal: ' + triggerFailure,
+            });
+            logError('noncod-sync', 'Trigger background gagal: ' + triggerFailure, {
+              method: 'GET',
+              action: 'queue_snapshot_refresh',
+              periode,
+              triggerTarget: triggerResult && triggerResult.target ? triggerResult.target : '',
+              fallbackUsed: !!(triggerResult && triggerResult.fallbackUsed),
+            });
+            syncInfo.pipeline = failedState;
+            syncInfo.refreshState = {
+              action: 'queue',
+              status: 'failed',
+              reason: autoRefresh.reason,
+            };
+            syncInfo.error = 'Trigger background gagal: ' + triggerFailure;
+          }
         } else if (autoRefresh.status !== 'idle') {
           syncInfo.refreshState = autoRefresh;
         }
