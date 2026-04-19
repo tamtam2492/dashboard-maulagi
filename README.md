@@ -457,6 +457,13 @@ Template Lambda ada di:
 - [scripts/aws/noncod-sync-trigger/index.js](scripts/aws/noncod-sync-trigger/index.js)
 - [scripts/aws/noncod-sync-trigger/index.mjs](scripts/aws/noncod-sync-trigger/index.mjs)
 
+Status deploy aktif per 2026-04-19:
+
+- Function aktif: `noncod-worker-maulagi`
+- Function URL aktif: `https://irpr6duajtxzxbfkxigbtrqjeu0jzlma.lambda-url.ap-southeast-1.on.aws/`
+- `NONCOD_PIPELINE_TRIGGER_TIMEOUT_MS` dinaikkan ke `15000` agar trigger dari Vercel tidak cepat abort.
+- Env `NONCOD_PIPELINE_TRIGGER_URL` diarahkan ke worker ini untuk production, dan disamakan ke preview/development.
+
 Artifact zip worker bisa dibuat dari repo ini dengan:
 
 ```bash
