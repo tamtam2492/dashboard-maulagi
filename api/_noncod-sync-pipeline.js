@@ -73,26 +73,13 @@ function parseNoncodSyncPipelineState(value) {
   }
 }
 
-function buildSelfNoncodSyncUrl(env = process.env) {
-  const explicitUrl = normalizeText(env.NONCOD_PIPELINE_TRIGGER_URL, 500);
-  if (explicitUrl) return explicitUrl;
-
-  const vercelUrl = normalizeText(env.VERCEL_URL, 300)
-    .replace(/^https?:\/\//i, '')
-    .replace(/\/+$/, '');
-  if (!vercelUrl) return '';
-
-  return `https://${vercelUrl}/api/noncod-sync`;
-}
-
 function getNoncodPipelineTriggerMode(env = process.env) {
   const explicitUrl = normalizeText(env.NONCOD_PIPELINE_TRIGGER_URL, 500);
-  if (explicitUrl) return 'external';
-  return buildSelfNoncodSyncUrl(env) ? 'self' : 'disabled';
+  return explicitUrl ? 'external' : 'disabled';
 }
 
 function getNoncodPipelineTriggerConfig(env = process.env) {
-  const url = buildSelfNoncodSyncUrl(env);
+  const url = normalizeText(env.NONCOD_PIPELINE_TRIGGER_URL, 500);
   return {
     url,
     mode: getNoncodPipelineTriggerMode(env),
@@ -152,65 +139,9 @@ async function sendNoncodPipelineTrigger(options = {}, env = process.env, fetchI
   }
 }
 
-function buildNoncodPipelineTriggerFailureResult(error, env = process.env) {
-  const config = getNoncodPipelineTriggerConfig(env);
-  return {
-    skipped: false,
-    ok: false,
-    status: 0,
-    mode: config.mode,
-    target: config.url,
-    error: normalizeText(error && error.message ? error.message : error, 500) || 'trigger_failed',
-  };
-}
-
-function buildNoncodSelfTriggerEnv(env = process.env) {
-  const selfUrl = buildSelfNoncodSyncUrl({
-    ...env,
-    NONCOD_PIPELINE_TRIGGER_URL: '',
-  });
-  const selfSecret = normalizeText(env.NONCOD_SYNC_SECRET, 500);
-  if (!selfUrl || !selfSecret) return null;
-  return {
-    ...env,
-    NONCOD_PIPELINE_TRIGGER_URL: selfUrl,
-    NONCOD_PIPELINE_TRIGGER_SECRET: selfSecret,
-  };
-}
-
-async function sendNoncodPipelineTriggerWithSelfFallback(options = {}, env = process.env, fetchImpl = globalThis.fetch) {
-  let primaryResult;
-  try {
-    primaryResult = await sendNoncodPipelineTrigger(options, env, fetchImpl);
-  } catch (error) {
-    primaryResult = buildNoncodPipelineTriggerFailureResult(error, env);
-  }
-
-  if (primaryResult.ok || primaryResult.skipped) return primaryResult;
-
-  const fallbackEnv = buildNoncodSelfTriggerEnv(env);
-  if (!fallbackEnv) return primaryResult;
-
-  const fallbackConfig = getNoncodPipelineTriggerConfig(fallbackEnv);
-  if (!fallbackConfig.url || fallbackConfig.url === primaryResult.target) return primaryResult;
-
-  let fallbackResult;
-  try {
-    fallbackResult = await sendNoncodPipelineTrigger(options, fallbackEnv, fetchImpl);
-  } catch (error) {
-    fallbackResult = buildNoncodPipelineTriggerFailureResult(error, fallbackEnv);
-  }
-
-  return {
-    ...fallbackResult,
-    fallbackUsed: true,
-    fallbackFrom: primaryResult.target || '',
-  };
-}
-
 function queueNoncodPipelineTrigger(options = {}, env = process.env, fetchImpl = globalThis.fetch) {
   if (!isNoncodPipelineTriggerEnabled(env)) return false;
-  sendNoncodPipelineTriggerWithSelfFallback(options, env, fetchImpl).catch(() => {});
+  sendNoncodPipelineTrigger(options, env, fetchImpl).catch(() => {});
   return true;
 }
 
@@ -316,7 +247,6 @@ async function markNoncodSyncFailed(supabase, options = {}) {
 
 module.exports = {
   NONCOD_SYNC_PIPELINE_STATE_KEY,
-  buildSelfNoncodSyncUrl,
   buildNoncodPipelineTriggerPayload,
   createDefaultNoncodSyncPipelineState,
   getNoncodPipelineTriggerConfig,
@@ -333,7 +263,6 @@ module.exports = {
   queueNoncodPipelineTrigger,
   readNoncodSyncPipelineState,
   sendNoncodPipelineTrigger,
-  sendNoncodPipelineTriggerWithSelfFallback,
   timingSafeSecretEqual,
   writeNoncodSyncPipelineState,
 };

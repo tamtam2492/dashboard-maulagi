@@ -1,3 +1,21 @@
+const { publishAdminWriteMarker } = require('../../../api/_admin-write-marker');
+const { logError } = require('../../../api/_logger');
+const {
+  markNoncodSyncBuilding,
+  markNoncodSyncFailed,
+  markNoncodSyncPublished,
+  normalizePeriodeList,
+  queueNoncodPipelineTrigger,
+} = require('../../../api/_noncod-sync-pipeline');
+const { getSupabase } = require('../../../api/_supabase');
+const noncodModule = require('../../../api/noncod');
+
+const {
+  getAutoSyncPeriods,
+  isValidPeriodeParam,
+  syncMaukirimPeriodes,
+} = noncodModule;
+
 function json(statusCode, body) {
   return {
     statusCode,
@@ -26,25 +44,36 @@ function parseBody(event) {
   return event || {};
 }
 
-function normalizePeriodes(raw) {
-  const values = Array.isArray(raw) ? raw : String(raw || '').split(',');
-  return [...new Set(values
-    .map((value) => String(value || '').trim())
-    .filter((value) => /^\d{4}-\d{2}$/.test(value)))].sort();
+function getRequestedPeriodes(payload) {
+  const configuredPeriodes = normalizePeriodeList(process.env.NONCOD_SYNC_PERIODES || '');
+  return normalizePeriodeList(payload && payload.periodes ? payload.periodes : configuredPeriodes)
+    .filter((periode) => isValidPeriodeParam(periode));
+}
+
+function shouldForceSync(payload) {
+  if (payload && payload.force !== undefined) return payload.force !== false;
+  return String(process.env.NONCOD_SYNC_FORCE || '').trim().toLowerCase() !== 'false';
+}
+
+async function markWorkerFailed(reason, periodes, errorMessage) {
+  try {
+    const supabase = getSupabase();
+    return await markNoncodSyncFailed(supabase, {
+      reason,
+      periodes,
+      error: errorMessage,
+    });
+  } catch {
+    return null;
+  }
 }
 
 exports.handler = async (event) => {
+  let reason = 'lambda_background_sync';
+  let requestedPeriodes = [];
+
   try {
     const triggerSecret = String(process.env.NONCOD_PIPELINE_TRIGGER_SECRET || '').trim();
-    const endpointUrl = String(process.env.NONCOD_SYNC_ENDPOINT_URL || '').trim();
-    const endpointSecret = String(process.env.NONCOD_SYNC_ENDPOINT_SECRET || '').trim();
-    const defaultPeriodes = normalizePeriodes(process.env.NONCOD_SYNC_PERIODES || '');
-    const defaultForce = String(process.env.NONCOD_SYNC_FORCE || '').trim().toLowerCase() !== 'false';
-
-    if (!endpointUrl || !endpointSecret) {
-      return json(500, { error: 'NONCOD_SYNC_ENDPOINT_URL dan NONCOD_SYNC_ENDPOINT_SECRET wajib diisi.' });
-    }
-
     const hasHttpEnvelope = !!(event && (event.body !== undefined || event.headers));
     if (hasHttpEnvelope && triggerSecret) {
       const headers = normalizeHeaders(event.headers);
@@ -55,30 +84,66 @@ exports.handler = async (event) => {
     }
 
     const payload = parseBody(event);
-    const requestBody = {
-      reason: String(payload.reason || 'lambda_background_sync').trim() || 'lambda_background_sync',
-      periodes: normalizePeriodes(payload.periodes || defaultPeriodes),
-      force: payload.force !== undefined ? payload.force !== false : defaultForce,
-    };
+    reason = String(payload.reason || 'lambda_background_sync').trim() || 'lambda_background_sync';
+    requestedPeriodes = getRequestedPeriodes(payload);
+    const force = shouldForceSync(payload);
 
-    const response = await fetch(endpointUrl, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-sync-secret': endpointSecret,
-      },
-      body: JSON.stringify(requestBody),
+    const supabase = getSupabase();
+    const started = await markNoncodSyncBuilding(supabase, {
+      reason,
+      periodes: requestedPeriodes,
     });
 
-    const responseBody = await response.text();
-    return json(response.status, {
-      ok: response.ok,
-      status: response.status,
-      preview: String(responseBody || '').slice(0, 1000),
+    if (started.alreadyBuilding) {
+      return json(202, {
+        success: true,
+        status: 'building',
+        state: started.state,
+      });
+    }
+
+    const periodesToSync = started.state.buildPeriodes.length
+      ? started.state.buildPeriodes
+      : getAutoSyncPeriods();
+
+    const results = await syncMaukirimPeriodes(supabase, periodesToSync, { force });
+    const nextState = await markNoncodSyncPublished(supabase, {
+      periodes: periodesToSync,
+      reason,
+    });
+
+    await publishAdminWriteMarker(supabase, {
+      source: 'noncod_sync_published',
+      scopes: ['overview', 'noncod', 'dfod', 'transfer', 'pending_allocation', 'audit', 'admin_monitor'],
+      periodes: periodesToSync,
+    });
+
+    if (nextState.dirty && nextState.pendingPeriodes.length) {
+      queueNoncodPipelineTrigger({
+        reason: 'coalesced_rebuild',
+        periodes: nextState.pendingPeriodes,
+        source: 'noncod-sync-lambda',
+      });
+    }
+
+    return json(200, {
+      success: true,
+      status: nextState.status,
+      results,
+      state: nextState,
     });
   } catch (err) {
+    const detail = err && err.message ? err.message : 'Unexpected Lambda error.';
+    const failedState = await markWorkerFailed(reason, requestedPeriodes, detail);
+    logError('noncod-sync-worker', detail, {
+      method: 'LAMBDA',
+      reason,
+      periodes: requestedPeriodes,
+    });
     return json(500, {
-      error: err && err.message ? err.message : 'Unexpected Lambda error.',
+      error: 'Gagal menjalankan Lambda sync NONCOD.',
+      detail,
+      state: failedState,
     });
   }
 };

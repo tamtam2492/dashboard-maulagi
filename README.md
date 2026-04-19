@@ -54,7 +54,7 @@ Alur utamanya:
 Tambahan penting di dalam folder `scripts/`:
 
 - Folder [scripts/aws/telegram-notifier](scripts/aws/telegram-notifier) berisi template AWS Lambda notifier Telegram.
-- Folder [scripts/aws/noncod-sync-trigger](scripts/aws/noncod-sync-trigger) berisi template AWS Lambda trigger untuk pipeline sync NONCOD background.
+- Folder [scripts/aws/noncod-sync-trigger](scripts/aws/noncod-sync-trigger) berisi template AWS Lambda worker untuk pipeline sync NONCOD background.
 - Folder [scripts/aws/ocr-worker](scripts/aws/ocr-worker) berisi template dan artifact builder untuk worker OCR terpisah.
 - Dokumen aturan bisnis operasional dirangkum di [ATURAN-BISNIS-APLIKASI.md](ATURAN-BISNIS-APLIKASI.md).
 
@@ -150,8 +150,7 @@ Kebutuhan utama:
 - Simpan value Redis production tanpa quote pembungkus dan tanpa whitespace ekstra. Backend sekarang menormalkan nilai env yang terkutip atau ber-spasi, tetapi format raw yang bersih tetap yang direkomendasikan.
 - `RATE_LIMIT_ALLOW_MEMORY_FALLBACK` hanya untuk override emergency sementara. Biarkan kosong atau `0` di production normal; jika diisi `1`, backend akan tetap jalan dengan limiter in-memory sambil mencatat warning runtime.
 - `NONCOD_SYNC_SECRET` mengamankan endpoint worker internal `/api/noncod-sync`.
-- Jika app berjalan di Vercel, `NONCOD_SYNC_SECRET` juga cukup untuk mode self-trigger langsung ke deployment aktif lewat `VERCEL_URL`.
-- `NONCOD_PIPELINE_TRIGGER_URL` dan `NONCOD_PIPELINE_TRIGGER_SECRET` hanya perlu diisi bila trigger background harus diarahkan ke Lambda atau endpoint lain di luar self-trigger langsung.
+- `NONCOD_PIPELINE_TRIGGER_URL` dan `NONCOD_PIPELINE_TRIGGER_SECRET` dipakai untuk memicu Lambda worker NONCOD dari backend utama.
 
 ## Higiene Repo GitHub
 
@@ -271,7 +270,7 @@ Arsitektur ini memang bergantung pada beberapa layanan eksternal, tetapi beberap
 - **Upstash/Redis limiter**: local dan test boleh memakai limiter in-memory. Production menganggap Redis REST sebagai jalur utama; bila Redis hilang atau gagal, request akan fail-closed lewat [api/_ratelimit.js](api/_ratelimit.js) kecuali override emergency `RATE_LIMIT_ALLOW_MEMORY_FALLBACK=1` sengaja diaktifkan.
 - **OCR worker**: jika trigger worker OCR eksternal gagal, backend masih bisa fallback ke worker internal Vercel `waitUntil(...)` bila tersedia, lewat [api/input.js](api/input.js).
 - **Telegram notifier**: notifikasi bersifat fire-and-forget dan tidak memblok request utama; kegagalan Lambda notifier tidak menghentikan alur bisnis utama.
-- **NONCOD background sync**: pipeline bisa diarahkan ke Lambda terpisah, endpoint Vercel langsung, atau self-trigger via `VERCEL_URL` bila mode sederhana yang dipakai.
+- **NONCOD background sync**: Lambda worker menjadi executor sync MauKirim ke snapshot DB; Vercel hanya memicu worker dan membaca snapshot terakhir.
 - **MauKirim sync**: jika refresh background gagal, endpoint baca tetap bisa melayani snapshot/published data terakhir sambil melaporkan status pipeline.
 
 Artinya, sistem ini tidak bebas risiko third-party downtime, tetapi beberapa dependency penting sudah dirancang untuk degrade secara lebih aman daripada langsung hard-fail seluruh aplikasi.
@@ -341,15 +340,14 @@ Catatan penting:
 Pipeline background NONCOD sekarang mendukung pola berikut:
 
 - Input transfer menandai pipeline NONCOD sebagai `dirty` lalu memicu worker secara fire-and-forget.
-- Worker internal route `/api/noncod-sync` dijalankan oleh handler [api/noncod.js](api/noncod.js) dan memperbarui state pipeline di tabel `settings`.
+- Worker Lambda menjalankan sync MauKirim langsung dan memperbarui state pipeline di tabel `settings`.
 - GET [api/noncod](api/noncod.js) tidak lagi menjadi pemicu stale refresh utama jika trigger background aktif; endpoint ini membaca data published terakhir dan mengembalikan status pipeline di `syncInfo.pipeline`.
 
-Konfigurasi yang paling fleksibel:
+Konfigurasi aktif:
 
 1. `NONCOD_PIPELINE_TRIGGER_URL` boleh diarahkan ke AWS Lambda Function URL.
-2. Lambda tersebut lalu meneruskan request ke route Vercel `/api/noncod-sync`.
-3. Jika ingin lebih sederhana, `NONCOD_PIPELINE_TRIGGER_URL` juga boleh langsung diarahkan ke endpoint Vercel tadi.
-4. Untuk deploy Vercel biasa tanpa Lambda, cukup isi `NONCOD_SYNC_SECRET`; backend akan memakai self-trigger ke deployment aktif lewat `VERCEL_URL`.
+2. Lambda tersebut menjalankan sync MauKirim langsung ke Supabase tanpa meneruskan beban kerja ke Vercel.
+3. Vercel tetap menyimpan route [api/noncod.js](api/noncod.js) untuk baca snapshot dan kontrol admin, bukan sebagai executor sync background utama.
 
 State pipeline disimpan di key `noncod_sync_pipeline_state` pada tabel `settings`, dengan status utama `idle`, `dirty`, `building`, `published`, atau `failed`.
 
@@ -452,20 +450,28 @@ Catatan:
 - Notifikasi otomatis dibatasi untuk event error/critical; event non-error rutin tidak dikirim ke Telegram.
 - Pendekatan ini sengaja memakai pola hybrid agar repo tetap ringan di Vercel, tetapi tetap punya jejak integrasi AWS yang nyata dan siap dikembangkan.
 
-## AWS NONCOD Sync Trigger
+## AWS NONCOD Sync Worker
 
 Template Lambda ada di:
 
 - [scripts/aws/noncod-sync-trigger/index.js](scripts/aws/noncod-sync-trigger/index.js)
 - [scripts/aws/noncod-sync-trigger/index.mjs](scripts/aws/noncod-sync-trigger/index.mjs)
 
+Artifact zip worker bisa dibuat dari repo ini dengan:
+
+```bash
+npm run package:noncod-worker
+```
+
 Env Lambda yang dipakai:
 
 - `NONCOD_PIPELINE_TRIGGER_SECRET` untuk memverifikasi trigger dari backend/app.
-- `NONCOD_SYNC_ENDPOINT_URL` untuk URL target Vercel, misalnya `/api/noncod-sync`.
-- `NONCOD_SYNC_ENDPOINT_SECRET` untuk header `X-Sync-Secret` ke endpoint target.
+- `SUPABASE_URL` untuk koneksi database.
+- `SUPABASE_SERVICE_ROLE_KEY` untuk write snapshot dan state pipeline.
+- `MAUKIRIM_WA` dan `MAUKIRIM_PASS` untuk login dan export workbook MauKirim.
 - Opsional: `NONCOD_SYNC_PERIODES` untuk override daftar periode sinkron.
 - Opsional: `NONCOD_SYNC_FORCE` untuk memaksa refresh saat Lambda dipanggil scheduler.
+- Opsional: env notifier Telegram yang sama seperti backend utama jika error worker juga ingin dikirim ke notifier.
 
 ## Pengembangan
 

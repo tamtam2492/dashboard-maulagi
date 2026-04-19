@@ -30,7 +30,7 @@ const {
   normalizePeriodeList,
   queueNoncodPipelineTrigger,
   readNoncodSyncPipelineState,
-  sendNoncodPipelineTriggerWithSelfFallback,
+  sendNoncodPipelineTrigger,
   timingSafeSecretEqual,
 } = require('./_noncod-sync-pipeline');
 const { publishAdminWriteMarker } = require('./_admin-write-marker');
@@ -893,6 +893,7 @@ async function handlePipelineRoute(req, res) {
   if (!authorized) return true;
 
   const supabase = getSupabase();
+  const triggerConfig = getNoncodPipelineTriggerConfig();
 
   const reason = normalizeText(req.body?.reason || 'background_sync', 120) || 'background_sync';
   const requestedPeriodes = normalizePeriodeList(req.body?.periodes)
@@ -900,48 +901,73 @@ async function handlePipelineRoute(req, res) {
   const force = req.body?.force !== false;
 
   try {
-    const started = await markNoncodSyncBuilding(supabase, {
-      reason,
-      periodes: requestedPeriodes,
-    });
-
-    if (started.alreadyBuilding) {
-      res.status(202).json({
-        success: true,
-        status: 'building',
-        state: started.state,
+    if (!isNoncodPipelineTriggerEnabled()) {
+      res.status(503).json({
+        error: 'Lambda worker NONCOD belum dikonfigurasi.',
+        triggerEnabled: false,
+        triggerMode: triggerConfig.mode,
+        triggerTarget: triggerConfig.url,
       });
       return true;
     }
 
-    const periodesToSync = started.state.buildPeriodes.length
-      ? started.state.buildPeriodes
-      : getAutoSyncPeriods();
-
-    const results = await syncMaukirimPeriodes(supabase, periodesToSync, { force });
-    const nextState = await markNoncodSyncPublished(supabase, {
-      periodes: periodesToSync,
+    const queuedState = await markNoncodSyncQueued(supabase, {
       reason,
+      periodes: requestedPeriodes.length ? requestedPeriodes : getAutoSyncPeriods(),
     });
-    await publishNoncodMarkerSafe(supabase, {
-      source: 'noncod_sync_published',
-      scopes: ['overview', 'noncod', 'dfod', 'transfer', 'pending_allocation', 'audit', 'admin_monitor'],
-      periodes: periodesToSync,
-    }, 'POST');
 
-    if (nextState.dirty && nextState.pendingPeriodes.length) {
-      queueNoncodPipelineTrigger({
-        reason: 'coalesced_rebuild',
-        periodes: nextState.pendingPeriodes,
-        source: 'noncod-sync',
+    let triggerResult;
+    try {
+      triggerResult = await sendNoncodPipelineTrigger({
+        reason,
+        periodes: requestedPeriodes,
+        source: 'noncod-pipeline-route',
+        force,
       });
+    } catch (triggerError) {
+      triggerResult = {
+        skipped: false,
+        ok: false,
+        status: 0,
+        target: triggerConfig.url,
+        error: triggerError && triggerError.message ? triggerError.message : 'trigger_failed',
+      };
     }
 
-    res.json({
+    if (!triggerResult || !triggerResult.ok) {
+      const triggerFailure = triggerResult && !triggerResult.skipped
+        ? (triggerResult.error || (triggerResult.status ? ('HTTP ' + triggerResult.status) : 'trigger_failed'))
+        : 'trigger_unavailable';
+      const failedState = await markNoncodSyncFailed(supabase, {
+        reason,
+        periodes: requestedPeriodes,
+        error: 'Trigger Lambda worker gagal: ' + triggerFailure,
+      }).catch(() => null);
+      logError('noncod-sync', 'Trigger Lambda worker gagal: ' + triggerFailure, {
+        method: 'POST',
+        action: 'trigger_lambda_worker',
+        reason,
+        periodes: requestedPeriodes,
+        triggerTarget: triggerResult && triggerResult.target ? triggerResult.target : triggerConfig.url,
+      });
+      res.status(502).json({
+        error: 'Gagal memicu Lambda worker NONCOD.',
+        detail: triggerFailure,
+        state: failedState,
+        triggerEnabled: true,
+        triggerMode: triggerConfig.mode,
+        triggerTarget: triggerConfig.url,
+      });
+      return true;
+    }
+
+    res.status(202).json({
       success: true,
-      status: nextState.status,
-      results,
-      state: nextState,
+      status: queuedState.status,
+      state: queuedState,
+      triggerEnabled: true,
+      triggerMode: triggerConfig.mode,
+      triggerTarget: triggerResult.target || triggerConfig.url,
     });
     return true;
   } catch (err) {
@@ -1070,7 +1096,18 @@ async function handler(req, res) {
             source: 'noncod-read',
             force: true,
           };
-          const triggerResult = await sendNoncodPipelineTriggerWithSelfFallback(triggerRequest);
+          let triggerResult;
+          try {
+            triggerResult = await sendNoncodPipelineTrigger(triggerRequest);
+          } catch (triggerError) {
+            triggerResult = {
+              skipped: false,
+              ok: false,
+              status: 0,
+              target: triggerConfig.url,
+              error: triggerError && triggerError.message ? triggerError.message : 'trigger_failed',
+            };
+          }
 
           if (triggerResult && triggerResult.ok) {
             syncInfo.pipeline = queuedState;
@@ -1089,7 +1126,6 @@ async function handler(req, res) {
               action: 'queue_snapshot_refresh',
               periode,
               triggerTarget: triggerResult && triggerResult.target ? triggerResult.target : '',
-              fallbackUsed: !!(triggerResult && triggerResult.fallbackUsed),
             });
             syncInfo.pipeline = failedState;
             syncInfo.refreshState = {

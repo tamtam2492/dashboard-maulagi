@@ -6,6 +6,8 @@ node_modules/
 maukirim-account-*.txt
 tmp/aws-ocr-worker-package/
 tmp/aws-ocr-worker-package.zip
+tmp/aws-noncod-sync-worker-package/
+tmp/aws-noncod-sync-worker-package.zip
 tmp/vercel-env-pull
 
 .vercel

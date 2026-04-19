@@ -6,6 +6,8 @@
     "lint": "node scripts/check-syntax.js",
     "test": "node --test",
     "check": "npm run lint && npm run test",
+    "build:noncod-worker": "node scripts/aws/build-noncod-sync-worker-package.js",
+    "package:noncod-worker": "node scripts/aws/package-noncod-sync-worker.js",
     "build:ocr-worker": "node scripts/aws/build-ocr-worker-package.js",
     "package:ocr-worker": "node scripts/aws/package-ocr-worker.js",
     "local:cleanup": "node -r dotenv/config scripts/local/cleanup.js",

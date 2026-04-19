@@ -3,14 +3,13 @@ const assert = require('node:assert/strict');
 
 const {
   buildNoncodPipelineTriggerPayload,
-  buildSelfNoncodSyncUrl,
   createDefaultNoncodSyncPipelineState,
   getNoncodPipelineTriggerConfig,
   getNoncodPipelineTriggerMode,
   isNoncodPipelineTriggerEnabled,
   normalizePeriodeList,
   parseNoncodSyncPipelineState,
-  sendNoncodPipelineTriggerWithSelfFallback,
+  sendNoncodPipelineTrigger,
   timingSafeSecretEqual,
 } = require('../api/_noncod-sync-pipeline');
 
@@ -37,28 +36,15 @@ test('getNoncodPipelineTriggerConfig membaca env trigger pipeline', () => {
   assert.equal(config.timeoutMs, 4100);
 });
 
-test('getNoncodPipelineTriggerMode membedakan external, self, dan disabled', () => {
+test('getNoncodPipelineTriggerMode membedakan external dan disabled', () => {
   assert.equal(getNoncodPipelineTriggerMode({ NONCOD_PIPELINE_TRIGGER_URL: 'https://example.test/trigger' }), 'external');
-  assert.equal(getNoncodPipelineTriggerMode({ VERCEL_URL: 'dashboard-transfer-preview.vercel.app' }), 'self');
   assert.equal(getNoncodPipelineTriggerMode({}), 'disabled');
-});
-
-test('buildSelfNoncodSyncUrl membentuk fallback URL worker dari VERCEL_URL', () => {
-  assert.equal(
-    buildSelfNoncodSyncUrl({ VERCEL_URL: 'dashboard-transfer-preview.vercel.app' }),
-    'https://dashboard-transfer-preview.vercel.app/api/noncod-sync',
-  );
-  assert.equal(buildSelfNoncodSyncUrl({}), '');
 });
 
 test('isNoncodPipelineTriggerEnabled aktif jika URL dan secret tersedia', () => {
   assert.equal(isNoncodPipelineTriggerEnabled({
     NONCOD_PIPELINE_TRIGGER_URL: 'https://example.test/trigger',
     NONCOD_PIPELINE_TRIGGER_SECRET: 'secret-123',
-  }), true);
-  assert.equal(isNoncodPipelineTriggerEnabled({
-    VERCEL_URL: 'dashboard-transfer-preview.vercel.app',
-    NONCOD_SYNC_SECRET: 'secret-123',
   }), true);
   assert.equal(isNoncodPipelineTriggerEnabled({
     NONCOD_PIPELINE_TRIGGER_URL: 'https://example.test/trigger',
@@ -90,9 +76,9 @@ test('timingSafeSecretEqual hanya true untuk secret yang sama', () => {
   assert.equal(timingSafeSecretEqual('abc123', ''), false);
 });
 
-test('sendNoncodPipelineTriggerWithSelfFallback fallback ke self trigger saat trigger external gagal', async () => {
+test('sendNoncodPipelineTrigger mengirim request ke Lambda worker external', async () => {
   const calls = [];
-  const result = await sendNoncodPipelineTriggerWithSelfFallback({
+  const result = await sendNoncodPipelineTrigger({
     reason: 'snapshot_dirty',
     periodes: ['2026-04'],
     source: 'test',
@@ -100,23 +86,15 @@ test('sendNoncodPipelineTriggerWithSelfFallback fallback ke self trigger saat tr
   }, {
     NONCOD_PIPELINE_TRIGGER_URL: 'https://example.test/trigger',
     NONCOD_PIPELINE_TRIGGER_SECRET: 'trigger-secret',
-    NONCOD_SYNC_SECRET: 'endpoint-secret',
-    VERCEL_URL: 'dashboard-transfer-preview.vercel.app',
-  }, async (url) => {
-    calls.push(url);
-    if (url === 'https://example.test/trigger') {
-      return { ok: false, status: 500 };
-    }
+  }, async (url, options) => {
+    calls.push({ url, options });
     return { ok: true, status: 202 };
   });
 
   assert.equal(result.ok, true);
   assert.equal(result.status, 202);
-  assert.equal(result.fallbackUsed, true);
-  assert.equal(result.fallbackFrom, 'https://example.test/trigger');
-  assert.equal(result.target, 'https://dashboard-transfer-preview.vercel.app/api/noncod-sync');
-  assert.deepEqual(calls, [
-    'https://example.test/trigger',
-    'https://dashboard-transfer-preview.vercel.app/api/noncod-sync',
-  ]);
+  assert.equal(result.target, 'https://example.test/trigger');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, 'https://example.test/trigger');
+  assert.equal(calls[0].options.headers['X-Sync-Secret'], 'trigger-secret');
 });
