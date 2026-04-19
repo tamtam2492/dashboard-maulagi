@@ -3,6 +3,7 @@ const { logError, logFrontendErrorAsync } = require('./_logger');
 const { rateLimit } = require('./_ratelimit');
 
 const frontendLogLimiter = rateLimit({ windowMs: 60 * 1000, max: 20 });
+const FRONTEND_LOG_FETCH_TIMEOUT_MS = 5000;
 const ALLOWED_FRONTEND_SOURCES = new Set([
   'frontend-admin',
   'frontend-dashboard',
@@ -94,7 +95,7 @@ function buildFrontendMeta(req, body, source) {
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
-  if (cors(req, res, { methods: 'POST, OPTIONS', headers: 'Content-Type, X-Admin-Token' })) return;
+  if (cors(req, res, { methods: 'POST, OPTIONS', headers: 'Content-Type' })) return;
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed.' });

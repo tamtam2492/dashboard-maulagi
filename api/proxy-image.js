@@ -4,6 +4,15 @@ const { ensureAllowedMethod, normalizeText } = require('./_request-validation');
 const { getSupabase } = require('./_supabase');
 
 const limiter = rateLimit({ windowMs: 60 * 1000, max: 300 });
+const IMAGE_FETCH_TIMEOUT_MS = 10000;
+
+async function fetchWithTimeout(url, options = {}) {
+  const timeoutSignal = AbortSignal.timeout(IMAGE_FETCH_TIMEOUT_MS);
+  return fetch(url, {
+    ...options,
+    signal: timeoutSignal,
+  });
+}
 
 module.exports = async (req, res) => {
   if (cors(req, res, { methods: 'GET, OPTIONS' })) return;
@@ -26,7 +35,7 @@ module.exports = async (req, res) => {
       if (error || !data?.signedUrl) {
         return res.status(404).json({ error: 'Gambar tidak ditemukan.' });
       }
-      const imgRes = await fetch(data.signedUrl);
+      const imgRes = await fetchWithTimeout(data.signedUrl);
       if (!imgRes.ok) {
         return res.status(404).json({ error: 'Gambar tidak ditemukan.' });
       }
@@ -48,7 +57,7 @@ module.exports = async (req, res) => {
 
   try {
     const driveUrl = `https://drive.google.com/uc?export=view&id=${id}`;
-    const response = await fetch(driveUrl, {
+    const response = await fetchWithTimeout(driveUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0',
         'Accept': 'image/*,*/*',
