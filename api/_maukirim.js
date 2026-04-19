@@ -37,22 +37,61 @@ function ckStr(obj) {
   return Object.entries(obj).map(([k, v]) => `${k}=${v}`).join('; ');
 }
 
-async function loginMaukirim() {
-  const wa = process.env.MAUKIRIM_WA;
-  const pass = process.env.MAUKIRIM_PASS;
-  if (!wa || !pass) throw new Error('MAUKIRIM_WA/PASS not set');
+function createMaukirimError(message, code = 'MAUKIRIM_UPSTREAM_ERROR') {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
 
-  const r1 = await httpReq({
-    hostname: MK_HOST,
-    path: '/',
-    method: 'GET',
-    headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html' },
-  });
+function normalizeMaukirimRedirectPath(location) {
+  const rawLocation = String(location || '').trim();
+  if (!rawLocation) return '';
+
+  if (!rawLocation.startsWith('http')) return rawLocation;
+
+  try {
+    const url = new URL(rawLocation);
+    return `${url.pathname || ''}${url.search || ''}` || '';
+  } catch {
+    return '';
+  }
+}
+
+function isMaukirimLoginPage(body) {
+  const html = String(body || '');
+  return /name\s*=\s*["']?_token["']?/i.test(html)
+    && /name\s*=\s*["']?whatsapp["']?/i.test(html)
+    && /name\s*=\s*["']?password["']?/i.test(html);
+}
+
+async function performMaukirimCredentialLogin(requestFn, wa, pass) {
+  const loginWa = String(wa || '').replace(/\s+/g, '').trim();
+  const loginPass = String(pass || '');
+  if (!loginWa || !loginPass) {
+    throw createMaukirimError('Kredensial Maukirim tidak lengkap.', 'MAUKIRIM_AUTH_FAILED');
+  }
+
+  let r1;
+  try {
+    r1 = await requestFn({
+      hostname: MK_HOST,
+      path: '/',
+      method: 'GET',
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html' },
+    });
+  } catch (err) {
+    throw createMaukirimError(err.message || 'Gagal menghubungi Maukirim.', 'MAUKIRIM_UPSTREAM_ERROR');
+  }
+
+  if (!r1 || r1.status >= 400) {
+    throw createMaukirimError(`Maukirim login bootstrap gagal (${r1 && r1.status ? r1.status : 0})`, 'MAUKIRIM_UPSTREAM_ERROR');
+  }
+
   const ck = parseCk(r1.headers['set-cookie']);
-  const tm = r1.body.match(/name=_token value=([^\s>]+)/);
-  if (!tm) throw new Error('CSRF token not found');
+  const tm = String(r1.body || '').match(/name\s*=\s*["']?_token["']?\s+value\s*=\s*["']?([^\s"'>]+)/i);
+  if (!tm) throw createMaukirimError('CSRF token Maukirim tidak ditemukan.', 'MAUKIRIM_UPSTREAM_ERROR');
 
-  const payload = querystring.stringify({ _token: tm[1], whatsapp: wa, password: pass });
+  const payload = querystring.stringify({ _token: tm[1], whatsapp: loginWa, password: loginPass });
   let path = '/login';
   let method = 'POST';
   let body = payload;
@@ -66,13 +105,27 @@ async function loginMaukirim() {
     'Accept': 'text/html',
   };
 
+  let lastResponse = null;
+
   for (let i = 0; i < 5; i++) {
-    const res = await httpReq({ hostname: MK_HOST, path, method, headers }, body);
+    let res;
+    try {
+      res = await requestFn({ hostname: MK_HOST, path, method, headers }, body);
+    } catch (err) {
+      throw createMaukirimError(err.message || 'Gagal menghubungi Maukirim.', 'MAUKIRIM_UPSTREAM_ERROR');
+    }
+
+    lastResponse = res;
     Object.assign(ck, parseCk(res.headers['set-cookie']));
+    if (res.status >= 500) {
+      throw createMaukirimError(`Maukirim login returned ${res.status}`, 'MAUKIRIM_UPSTREAM_ERROR');
+    }
+
     if (res.status >= 300 && res.status < 400 && res.headers.location) {
-      const loc = res.headers.location;
-      path = loc.startsWith('http') ? new URL(loc).pathname : loc;
-      if (path === '/login' || path === '/') throw new Error('Login gagal');
+      path = normalizeMaukirimRedirectPath(res.headers.location);
+      if (!path || path === '/' || path.startsWith('/login')) {
+        throw createMaukirimError('Login gagal.', 'MAUKIRIM_AUTH_FAILED');
+      }
       method = 'GET';
       body = null;
       headers = {
@@ -82,10 +135,42 @@ async function loginMaukirim() {
       };
       continue;
     }
+
+    if (method === 'POST') {
+      throw createMaukirimError('Login gagal.', 'MAUKIRIM_AUTH_FAILED');
+    }
+
     break;
   }
 
+  if (!lastResponse) {
+    throw createMaukirimError('Maukirim tidak mengembalikan respons login.', 'MAUKIRIM_UPSTREAM_ERROR');
+  }
+
+  if (lastResponse.status >= 300 && lastResponse.status < 400) {
+    throw createMaukirimError('Redirect login Maukirim tidak selesai.', 'MAUKIRIM_UPSTREAM_ERROR');
+  }
+
+  if (lastResponse.status >= 400) {
+    throw createMaukirimError(`Maukirim login final returned ${lastResponse.status}`, 'MAUKIRIM_UPSTREAM_ERROR');
+  }
+
+  if (isMaukirimLoginPage(lastResponse.body)) {
+    throw createMaukirimError('Login gagal.', 'MAUKIRIM_AUTH_FAILED');
+  }
+
   return ck;
+}
+
+async function loginMaukirimWithCredentials(wa, pass) {
+  return performMaukirimCredentialLogin(httpReq, wa, pass);
+}
+
+async function loginMaukirim() {
+  const wa = process.env.MAUKIRIM_WA;
+  const pass = process.env.MAUKIRIM_PASS;
+  if (!wa || !pass) throw createMaukirimError('MAUKIRIM_WA/PASS not set', 'MAUKIRIM_UPSTREAM_ERROR');
+  return loginMaukirimWithCredentials(wa, pass);
 }
 
 function getPeriodeDateRange(periode) {
@@ -150,9 +235,14 @@ async function fetchMaukirimSenders() {
 
 module.exports = {
   MK_HOST,
+  createMaukirimError,
   ckStr,
   httpReq,
+  isMaukirimLoginPage,
   loginMaukirim,
+  loginMaukirimWithCredentials,
+  normalizeMaukirimRedirectPath,
+  performMaukirimCredentialLogin,
   downloadOrdersWorkbook,
   getPeriodeDateRange,
   fetchMaukirimSenders,

@@ -10,6 +10,8 @@ const {
   normalizeQueryFlag,
   normalizeText,
 } = require('./_request-validation');
+const { normalizeViewerWa } = require('./_cabang-viewer-sync');
+const { loginMaukirimWithCredentials } = require('./_maukirim');
 const { getSupabase } = require('./_supabase');
 const { clearAllSessionCookies, clearSessionCookie, readSessionCookies, setSessionCookie } = require('./_session-cookie');
 
@@ -191,6 +193,24 @@ async function deleteSessionByHash(supabase, role, tokenHash) {
   if (error) throw error;
 }
 
+async function verifyViewerCabangAccess(supabase, noWa, viewerPassword, options = {}) {
+  const loginFn = typeof options.loginFn === 'function'
+    ? options.loginFn
+    : loginMaukirimWithCredentials;
+  const normalizedNoWa = normalizeViewerWa(noWa);
+
+  const { data: cabang, error } = await supabase
+    .from('cabang')
+    .select('id, nama, no_wa')
+    .eq('no_wa', normalizedNoWa)
+    .maybeSingle();
+  if (error) throw error;
+  if (!cabang) return null;
+
+  await loginFn(normalizedNoWa, viewerPassword);
+  return cabang;
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   if (cors(req, res, { methods: 'GET, POST, DELETE, OPTIONS', headers: 'Content-Type, X-Admin-Token, X-Ops-Secret' })) return;
@@ -273,23 +293,30 @@ module.exports = async (req, res) => {
 
       // action: 'verify_viewer' — login dengan no_wa + password Maukirim cabang
       if (action === 'verify_viewer') {
-        const noWa = normalizeText(String(req.body.no_wa || '').replace(/\s+/g, ''), 20);
+        const noWa = normalizeViewerWa(req.body.no_wa);
         const viewerPw = String(req.body.password || '');
         if (!noWa) return res.status(400).json({ error: 'Nomor WhatsApp diperlukan.' });
         if (!viewerPw) return res.status(400).json({ error: 'Password diperlukan.' });
         return withAuthSlowWatch('Verifikasi login viewer lambat lebih dari 10 detik.', {
           method: 'POST', action: 'verify_viewer',
         }, async () => {
-          const { data: cb } = await supabase
-            .from('cabang')
-            .select('id, nama, viewer_pw_hash')
-            .eq('no_wa', noWa)
-            .maybeSingle();
-          if (!cb || !cb.viewer_pw_hash) {
+          let cb = null;
+          try {
+            cb = await verifyViewerCabangAccess(supabase, noWa, viewerPw);
+          } catch (err) {
+            if (err && err.code === 'MAUKIRIM_AUTH_FAILED') {
+              return res.status(401).json({ error: 'Nomor WhatsApp atau password salah.' });
+            }
+            if (err && err.code === 'MAUKIRIM_UPSTREAM_ERROR') {
+              return res.status(502).json({ error: 'Verifikasi ke Maukirim sedang bermasalah. Coba lagi.' });
+            }
+            throw err;
+          }
+
+          if (!cb) {
             return res.status(401).json({ error: 'Nomor WhatsApp atau password salah.' });
           }
-          const match = await bcrypt.compare(viewerPw, cb.viewer_pw_hash);
-          if (!match) return res.status(401).json({ error: 'Nomor WhatsApp atau password salah.' });
+
           const sessionToken = crypto.randomBytes(32).toString('hex');
           const tokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
           const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
@@ -389,3 +416,4 @@ module.exports = async (req, res) => {
 
 module.exports.timingSafeSecretEqual = timingSafeSecretEqual;
 module.exports.createAuthSlowWatch = createAuthSlowWatch;
+module.exports.verifyViewerCabangAccess = verifyViewerCabangAccess;

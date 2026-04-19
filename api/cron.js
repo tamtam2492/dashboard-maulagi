@@ -1,9 +1,9 @@
 /**
- * Vercel Cron: sync WA + password cabang dari Maukirim secara otomatis.
+ * Vercel Cron: sync nomor WA viewer cabang dari Maukirim secara otomatis.
  * Dipanggil oleh Vercel cron scheduler, bukan oleh user.
  * Protected: Authorization: Bearer CRON_SECRET
  */
-const bcrypt = require('bcryptjs');
+const { syncCabangViewerFromSenders } = require('./_cabang-viewer-sync');
 const { getSupabase } = require('./_supabase');
 const { fetchMaukirimSenders } = require('./_maukirim');
 const { publishAdminWriteMarker } = require('./_admin-write-marker');
@@ -23,36 +23,16 @@ module.exports = async (req, res) => {
     const senders = await fetchMaukirimSenders();
     if (!senders.length) return res.json({ success: true, updated: 0, message: 'No senders from Maukirim.' });
 
-    const { data: cabangList, error } = await supabase
-      .from('cabang')
-      .select('id, nama, no_wa, viewer_pw_hash');
-    if (error) throw error;
+    const result = await syncCabangViewerFromSenders(supabase, senders);
 
-    const senderMap = new Map(senders.map((s) => [s.name, s.wa]));
-    let updated = 0;
-    let skipped = 0;
-
-    for (const cab of (cabangList || [])) {
-      const wa = senderMap.get((cab.nama || '').trim().toUpperCase());
-      if (!wa) { skipped++; continue; }
-      const waChanged = cab.no_wa !== wa;
-      const noPassword = !cab.viewer_pw_hash;
-      const updateData = { no_wa: wa };
-      if (waChanged || noPassword) {
-        updateData.viewer_pw_hash = await bcrypt.hash(wa, 10);
-      }
-      await supabase.from('cabang').update(updateData).eq('id', cab.id);
-      updated++;
-    }
-
-    if (updated > 0) {
+    if (result.updated > 0) {
       await publishAdminWriteMarker(supabase, {
         source: 'cron_sync_maukirim',
         scopes: ['admin_cabang', 'audit'],
       });
     }
 
-    return res.json({ success: true, updated, skipped, total: (cabangList || []).length });
+    return res.json({ success: true, ...result });
   } catch (err) {
     logError('cron', err.message, { action: 'sync_maukirim' });
     return res.status(500).json({ error: 'Cron sync gagal: ' + err.message });

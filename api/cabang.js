@@ -1,6 +1,6 @@
-const bcrypt = require('bcryptjs');
 const { requireAdmin } = require('./_auth');
 const { publishAdminWriteMarker } = require('./_admin-write-marker');
+const { syncCabangViewerFromSenders } = require('./_cabang-viewer-sync');
 const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { getSupabase } = require('./_supabase');
@@ -38,18 +38,18 @@ module.exports = async (req, res) => {
     try {
       const { data, error } = await supabase
         .from('cabang')
-        .select('id, nama, area, no_wa, viewer_pw_hash')
+        .select('id, nama, area, no_wa')
         .order('area', { ascending: true })
         .order('nama', { ascending: true });
       if (error) throw error;
-      // Jangan expose viewer_pw_hash ke client, expose has_viewer + has_password saja
+      // Viewer login siap jika nomor WA cabang sudah terhubung ke sub-akun Maukirim.
       const cabangWithStatus = (data || []).map((c) => ({
         id: c.id,
         nama: c.nama,
         area: c.area,
         no_wa: c.no_wa,
         has_viewer: !!(c.no_wa),
-        has_password: !!(c.viewer_pw_hash),
+        viewer_login_ready: !!(c.no_wa),
       }));
       return res.json({ cabang: cabangWithStatus });
     } catch (err) {
@@ -59,20 +59,35 @@ module.exports = async (req, res) => {
     }
   }
 
+  // POST /api/cabang?sync=maukirim — sync nomor WA viewer dari sub-akun Maukirim.
+  if (req.method === 'POST' && req.query.sync === 'maukirim') {
+    try {
+      const senders = await fetchMaukirimSenders();
+      if (!senders.length) return res.status(502).json({ error: 'Tidak ada data sub-akun dari Maukirim.' });
+
+      const result = await syncCabangViewerFromSenders(supabase, senders);
+
+      if (result.updated > 0) {
+        await publishCabangMarkerSafe(supabase, 'cabang_sync_maukirim', 'POST?sync=maukirim');
+      }
+
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      console.error(err);
+      logError('cabang', err.message, { method: 'POST', action: 'sync_maukirim' });
+      return res.status(500).json({ error: 'Sync dari Maukirim gagal: ' + err.message });
+    }
+  }
+
   // POST /api/cabang — tambah cabang baru
   if (req.method === 'POST') {
     try {
-      const { nama, area, no_wa, viewer_password } = req.body || {};
+      const { nama, area } = req.body || {};
       if (!nama || typeof nama !== 'string' || !nama.trim()) {
         return res.status(400).json({ error: 'Nama cabang tidak boleh kosong.' });
       }
       const namaBersih = nama.trim().toUpperCase().slice(0, 100);
       const areaBersih = (area || '').trim().toUpperCase().slice(0, 50) || null;
-      const noWaBersih = no_wa ? String(no_wa).replace(/\s+/g, '').slice(0, 20) : null;
-      let viewerPwHash = undefined; // undefined = tidak diubah
-      if (viewer_password && String(viewer_password).length > 0) {
-        viewerPwHash = await bcrypt.hash(String(viewer_password), 12);
-      }
 
       // Cek duplikat
       const { data: existing } = await supabase
@@ -84,16 +99,7 @@ module.exports = async (req, res) => {
         return res.status(409).json({ error: 'Cabang sudah terdaftar.' });
       }
 
-      // Cek duplikat no_wa
-      if (noWaBersih) {
-        const { data: existingWa } = await supabase
-          .from('cabang').select('id').eq('no_wa', noWaBersih).maybeSingle();
-        if (existingWa) return res.status(409).json({ error: 'Nomor WhatsApp sudah terdaftar di cabang lain.' });
-      }
-
       const insertData = { nama: namaBersih, area: areaBersih };
-      if (noWaBersih !== undefined) insertData.no_wa = noWaBersih;
-      if (viewerPwHash !== undefined) insertData.viewer_pw_hash = viewerPwHash;
 
       const { data, error } = await supabase
         .from('cabang')
@@ -113,7 +119,7 @@ module.exports = async (req, res) => {
   // PUT /api/cabang — edit nama/area cabang
   if (req.method === 'PUT') {
     try {
-      const { id, nama, area, no_wa, viewer_password } = req.body || {};
+      const { id, nama, area } = req.body || {};
       const idNum = parseInt(id, 10);
       if (!idNum) return res.status(400).json({ error: 'ID tidak valid.' });
       if (!nama || typeof nama !== 'string' || !nama.trim()) {
@@ -121,15 +127,6 @@ module.exports = async (req, res) => {
       }
       const namaBersih = nama.trim().toUpperCase().slice(0, 100);
       const areaBersih = (area || '').trim().toUpperCase().slice(0, 50) || null;
-      // no_wa: null untuk hapus, string untuk set, undefined untuk tidak diubah
-      const noWaBersih = no_wa === null ? null : (no_wa ? String(no_wa).replace(/\s+/g, '').slice(0, 20) : undefined);
-      let viewerPwHash = undefined;
-      if (viewer_password && String(viewer_password).length > 0) {
-        viewerPwHash = await bcrypt.hash(String(viewer_password), 12);
-      } else if (no_wa === null) {
-        // Hapus WA berarti hapus password juga
-        viewerPwHash = null;
-      }
 
       // Cek duplikat (kecuali diri sendiri)
       const { data: existing } = await supabase
@@ -140,16 +137,7 @@ module.exports = async (req, res) => {
         .maybeSingle();
       if (existing) return res.status(409).json({ error: 'Nama cabang sudah dipakai.' });
 
-      // Cek duplikat no_wa (kecuali diri sendiri)
-      if (noWaBersih !== undefined && noWaBersih !== null) {
-        const { data: existingWa } = await supabase
-          .from('cabang').select('id').eq('no_wa', noWaBersih).neq('id', idNum).maybeSingle();
-        if (existingWa) return res.status(409).json({ error: 'Nomor WhatsApp sudah terdaftar di cabang lain.' });
-      }
-
       const updateData = { nama: namaBersih, area: areaBersih };
-      if (noWaBersih !== undefined) updateData.no_wa = noWaBersih;
-      if (viewerPwHash !== undefined) updateData.viewer_pw_hash = viewerPwHash;
 
       const { data, error } = await supabase
         .from('cabang')
@@ -191,55 +179,6 @@ module.exports = async (req, res) => {
       console.error(err);
       logError('cabang', err.message, { method: 'DELETE' });
       return res.status(500).json({ error: 'Gagal menghapus cabang.' });
-    }
-  }
-
-  // POST /api/cabang?sync=maukirim — sync no_wa + viewer_pw_hash otomatis dari sub-akun Maukirim
-  // Password viewer = nomor WA cabang (di-hash). Overwrite semua cabang yang namanya cocok.
-  if (req.method === 'POST' && req.query.sync === 'maukirim') {
-    try {
-      const senders = await fetchMaukirimSenders();
-      if (!senders.length) return res.status(502).json({ error: 'Tidak ada data sub-akun dari Maukirim.' });
-
-      const { data: cabangList, error: fetchErr } = await supabase
-        .from('cabang')
-        .select('id, nama, no_wa, viewer_pw_hash');
-      if (fetchErr) throw fetchErr;
-
-      const senderMap = new Map(senders.map((s) => [s.name, s.wa]));
-
-      let updated = 0;
-      let skipped = 0;
-      for (const cab of (cabangList || [])) {
-        const namaNorm = (cab.nama || '').trim().toUpperCase();
-        const wa = senderMap.get(namaNorm);
-        if (!wa) { skipped++; continue; }
-        // Selalu update no_wa; update hash hanya jika WA berubah atau belum punya password
-        const waChanged = cab.no_wa !== wa;
-        const noPassword = !cab.viewer_pw_hash;
-        const updateData = { no_wa: wa };
-        if (waChanged || noPassword) {
-          updateData.viewer_pw_hash = await bcrypt.hash(wa, 10);
-        }
-        await supabase.from('cabang').update(updateData).eq('id', cab.id);
-        updated++;
-      }
-
-      if (updated > 0) {
-        await publishCabangMarkerSafe(supabase, 'cabang_sync_maukirim', 'POST?sync=maukirim');
-      }
-
-      return res.json({
-        success: true,
-        updated,
-        skipped,
-        total_maukirim: senders.length,
-        total_cabang: (cabangList || []).length,
-      });
-    } catch (err) {
-      console.error(err);
-      logError('cabang', err.message, { method: 'POST', action: 'sync_maukirim' });
-      return res.status(500).json({ error: 'Sync dari Maukirim gagal: ' + err.message });
     }
   }
 
