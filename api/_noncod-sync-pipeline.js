@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 
-const DEFAULT_TIMEOUT_MS = 2500;
+const DEFAULT_TIMEOUT_MS = 45000;
 const NONCOD_SYNC_PIPELINE_STATE_KEY = 'noncod_sync_pipeline_state';
 const PERIODE_RE = /^\d{4}-\d{2}$/;
 

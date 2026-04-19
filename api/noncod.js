@@ -44,6 +44,13 @@ const {
 } = require('./_request-validation');
 const { getPeriodeFromDate, normalizeTransferKet } = require('./_transfer-utils');
 
+let vercelWaitUntil = null;
+try {
+  ({ waitUntil: vercelWaitUntil } = require('@vercel/functions'));
+} catch {
+  vercelWaitUntil = null;
+}
+
 const PERIODE_RE = /^\d{4}-\d{2}$/;
 const EXCLUDED_NONCOD_STATUSES = new Set(['BATAL', 'VOID']);
 const NONCOD_SYNC_COMPARE_FIELDS = [
@@ -80,6 +87,16 @@ const MAUKIRIM_SYNC_KEY_PREFIX = 'maukirim_sync_';
 const MAUKIRIM_AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 const NONCOD_BACKGROUND_REFRESH_COOLDOWN_MS = 60 * 1000;
 const syncPendingByPeriode = new Map();
+
+function scheduleNoncodBackgroundTask(task) {
+  if (!task || typeof task.then !== 'function') return false;
+  if (typeof vercelWaitUntil === 'function') {
+    vercelWaitUntil(task);
+    return true;
+  }
+  task.catch(() => {});
+  return false;
+}
 
 function isValidPeriodeParam(periode) {
   const normalized = String(periode || '').trim();
@@ -1096,23 +1113,24 @@ async function handler(req, res) {
             source: 'noncod-read',
             force: true,
           };
-          let triggerResult;
-          try {
-            triggerResult = await sendNoncodPipelineTrigger(triggerRequest);
-          } catch (triggerError) {
-            triggerResult = {
-              skipped: false,
-              ok: false,
-              status: 0,
-              target: triggerConfig.url,
-              error: triggerError && triggerError.message ? triggerError.message : 'trigger_failed',
-            };
-          }
+          const runTriggerTask = async () => {
+            let triggerResult;
+            try {
+              triggerResult = await sendNoncodPipelineTrigger(triggerRequest);
+            } catch (triggerError) {
+              triggerResult = {
+                skipped: false,
+                ok: false,
+                status: 0,
+                target: triggerConfig.url,
+                error: triggerError && triggerError.message ? triggerError.message : 'trigger_failed',
+              };
+            }
 
-          if (triggerResult && triggerResult.ok) {
-            syncInfo.pipeline = queuedState;
-            syncInfo.refreshState = autoRefresh;
-          } else {
+            if (triggerResult && triggerResult.ok) {
+              return { ok: true };
+            }
+
             const triggerFailure = triggerResult && !triggerResult.skipped
               ? (triggerResult.error || (triggerResult.status ? ('HTTP ' + triggerResult.status) : 'trigger_failed'))
               : 'trigger_unavailable';
@@ -1127,13 +1145,31 @@ async function handler(req, res) {
               periode,
               triggerTarget: triggerResult && triggerResult.target ? triggerResult.target : '',
             });
-            syncInfo.pipeline = failedState;
-            syncInfo.refreshState = {
-              action: 'queue',
-              status: 'failed',
-              reason: autoRefresh.reason,
+            return {
+              ok: false,
+              failedState,
+              triggerFailure,
             };
-            syncInfo.error = 'Trigger background gagal: ' + triggerFailure;
+          };
+
+          if (typeof vercelWaitUntil === 'function') {
+            scheduleNoncodBackgroundTask(runTriggerTask());
+            syncInfo.pipeline = queuedState;
+            syncInfo.refreshState = autoRefresh;
+          } else {
+            const triggerOutcome = await runTriggerTask();
+            if (triggerOutcome && triggerOutcome.ok) {
+              syncInfo.pipeline = queuedState;
+              syncInfo.refreshState = autoRefresh;
+            } else {
+              syncInfo.pipeline = triggerOutcome && triggerOutcome.failedState ? triggerOutcome.failedState : queuedState;
+              syncInfo.refreshState = {
+                action: 'queue',
+                status: 'failed',
+                reason: autoRefresh.reason,
+              };
+              syncInfo.error = 'Trigger background gagal: ' + (triggerOutcome && triggerOutcome.triggerFailure ? triggerOutcome.triggerFailure : 'trigger_failed');
+            }
           }
         } else if (autoRefresh.status !== 'idle') {
           syncInfo.refreshState = autoRefresh;
