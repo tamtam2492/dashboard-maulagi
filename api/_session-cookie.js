@@ -1,6 +1,7 @@
 const SESSION_COOKIE_NAMES = {
   admin: 'maulagi_admin_session',
   dashboard: 'maulagi_dashboard_session',
+  viewer: 'maulagi_viewer_session',
 };
 const SESSION_SAME_SITE = 'Strict';
 
@@ -98,6 +99,7 @@ function clearSessionCookie(res, role, req) {
 function clearAllSessionCookies(res, req) {
   clearSessionCookie(res, 'admin', req);
   clearSessionCookie(res, 'dashboard', req);
+  clearSessionCookie(res, 'viewer', req);
 }
 
 module.exports = {

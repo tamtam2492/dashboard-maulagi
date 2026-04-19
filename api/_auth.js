@@ -2,6 +2,36 @@ const crypto = require('crypto');
 const { getSupabase } = require('./_supabase');
 const { clearSessionCookie, readSessionCookies } = require('./_session-cookie');
 
+/**
+ * Cek session viewer tanpa mengirim response.
+ * @returns {{ cabang: string, role: 'viewer' } | null}
+ */
+async function getViewerSession(req) {
+  const headerToken = String(req.headers['x-admin-token'] || '').trim();
+  const cookieMatch = headerToken ? null : (readSessionCookies(req, ['viewer'])[0] || null);
+  const token = headerToken || (cookieMatch && cookieMatch.token) || '';
+  if (!token) return null;
+  try {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const supabase = getSupabase();
+    const { data } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'session_viewer_' + tokenHash)
+      .maybeSingle();
+    if (!data) return null;
+    let session = null;
+    try { session = JSON.parse(data.value); } catch { return null; }
+    if (!session || session.role !== 'viewer' || !session.cabang || !session.hash) return null;
+    if (session.hash !== tokenHash) return null;
+    const expiresAt = new Date(session.expires);
+    if (Number.isNaN(expiresAt.getTime()) || expiresAt < new Date()) return null;
+    return { cabang: session.cabang, role: 'viewer' };
+  } catch {
+    return null;
+  }
+}
+
 async function deleteSessionByKey(supabase, key) {
   if (!key) return;
   const { error } = await supabase
@@ -114,4 +144,4 @@ async function requireAdmin(req, res) {
   return requireAuth(req, res, ['admin']);
 }
 
-module.exports = { requireAuth, requireAdmin };
+module.exports = { requireAuth, requireAdmin, getViewerSession };

@@ -1,4 +1,4 @@
-const { requireAdmin } = require('./_auth');
+const { requireAdmin, getViewerSession } = require('./_auth');
 const { normalizeBankName } = require('./_bank');
 const { cors } = require('./_cors');
 const { logError } = require('./_logger');
@@ -996,6 +996,10 @@ async function handler(req, res) {
       }
       if (forceSync && !(await requireAdmin(req, res))) return;
 
+      // Cek viewer session lebih awal — viewer hanya baca snapshot DB
+      const viewerSession = await getViewerSession(req);
+      const viewerCabang = viewerSession ? viewerSession.cabang : null;
+
       const syncMeta = await readSyncMeta(supabase, periode);
       const pipelineState = await readNoncodSyncPipelineState(supabase);
       const backgroundTriggerEnabled = isNoncodPipelineTriggerEnabled();
@@ -1009,68 +1013,76 @@ async function handler(req, res) {
       syncInfo.refreshState = { action: 'none', status: 'idle', reason: '' };
       let data = await fetchAllRowsByPeriode(supabase, periode);
 
-      const autoRefresh = planNoncodAutoRefresh({
-        periode,
-        syncInfo,
-        syncMeta,
-        rowCount: data.length,
-        forceSync,
-        backgroundTriggerEnabled,
-        pipelineState,
-      });
+      // Viewer: langsung pakai snapshot DB, skip semua auto-refresh/sync ke Maukirim
+      if (!viewerCabang) {
+        const autoRefresh = planNoncodAutoRefresh({
+          periode,
+          syncInfo,
+          syncMeta,
+          rowCount: data.length,
+          forceSync,
+          backgroundTriggerEnabled,
+          pipelineState,
+        });
 
-      if (autoRefresh.action === 'inline') {
-        try {
-          syncInfo = await maybeSyncMaukirimPeriod(supabase, periode, { force: true });
-          syncInfo.pipeline = pipelineState;
-          syncInfo.triggerEnabled = backgroundTriggerEnabled;
-          syncInfo.triggerMode = triggerConfig.mode;
-          syncInfo.triggerTarget = triggerConfig.url;
-          syncInfo.stale = false;
-          syncInfo.refreshState = {
-            action: 'inline',
-            status: 'completed',
-            reason: autoRefresh.reason,
-          };
-          data = await fetchAllRowsByPeriode(supabase, periode);
-        } catch (syncErr) {
-          console.error('[noncod sync]', syncErr.message);
-          logError('noncod', syncErr.message, { method: 'GET', action: 'sync', periode, forceSync });
-          syncInfo = {
-            ...buildSyncInfo(periode, syncMeta),
-            pipeline: pipelineState,
-            triggerEnabled: backgroundTriggerEnabled,
-            triggerMode: triggerConfig.mode,
-            triggerTarget: triggerConfig.url,
-            stale: syncInfo.stale,
-            refreshState: {
+        if (autoRefresh.action === 'inline') {
+          try {
+            syncInfo = await maybeSyncMaukirimPeriod(supabase, periode, { force: true });
+            syncInfo.pipeline = pipelineState;
+            syncInfo.triggerEnabled = backgroundTriggerEnabled;
+            syncInfo.triggerMode = triggerConfig.mode;
+            syncInfo.triggerTarget = triggerConfig.url;
+            syncInfo.stale = false;
+            syncInfo.refreshState = {
               action: 'inline',
-              status: 'failed',
+              status: 'completed',
               reason: autoRefresh.reason,
-            },
-            error: syncErr.message,
-          };
+            };
+            data = await fetchAllRowsByPeriode(supabase, periode);
+          } catch (syncErr) {
+            console.error('[noncod sync]', syncErr.message);
+            logError('noncod', syncErr.message, { method: 'GET', action: 'sync', periode, forceSync });
+            syncInfo = {
+              ...buildSyncInfo(periode, syncMeta),
+              pipeline: pipelineState,
+              triggerEnabled: backgroundTriggerEnabled,
+              triggerMode: triggerConfig.mode,
+              triggerTarget: triggerConfig.url,
+              stale: syncInfo.stale,
+              refreshState: {
+                action: 'inline',
+                status: 'failed',
+                reason: autoRefresh.reason,
+              },
+              error: syncErr.message,
+            };
+          }
+        } else if (autoRefresh.action === 'queue') {
+          const queuedReason = 'snapshot_' + autoRefresh.reason;
+          const queuedState = await markNoncodSyncQueued(supabase, {
+            periodes: [periode],
+            reason: queuedReason,
+          });
+          queueNoncodPipelineTrigger({
+            reason: queuedReason,
+            periodes: [periode],
+            source: 'noncod-read',
+            force: true,
+          });
+          syncInfo.pipeline = queuedState;
+          syncInfo.refreshState = autoRefresh;
+        } else if (autoRefresh.status !== 'idle') {
+          syncInfo.refreshState = autoRefresh;
         }
-      } else if (autoRefresh.action === 'queue') {
-        const queuedReason = 'snapshot_' + autoRefresh.reason;
-        const queuedState = await markNoncodSyncQueued(supabase, {
-          periodes: [periode],
-          reason: queuedReason,
-        });
-        queueNoncodPipelineTrigger({
-          reason: queuedReason,
-          periodes: [periode],
-          source: 'noncod-read',
-          force: true,
-        });
-        syncInfo.pipeline = queuedState;
-        syncInfo.refreshState = autoRefresh;
-      } else if (autoRefresh.status !== 'idle') {
-        syncInfo.refreshState = autoRefresh;
       }
 
       const overrideMap = await readStatusOverridesByResi(supabase, (data || []).map((row) => row.nomor_resi));
       data = applyStatusOverrides(data, overrideMap);
+
+      // Viewer: filter hanya data cabang sendiri (viewerCabang sudah di-resolve di atas)
+      if (viewerCabang) {
+        data = data.filter((row) => (row.cabang || '').trim() === viewerCabang.trim());
+      }
 
       const summary = {
         noncod: createMetric(),
@@ -1183,6 +1195,7 @@ async function handler(req, res) {
         summary,
         monthSummary,
         syncInfo,
+        ...(viewerCabang ? { viewer: { cabang: viewerCabang } } : {}),
       });
     } catch (err) {
       console.error(err);

@@ -181,6 +181,7 @@
       .c-btn-edit:hover { background: #e2e8f0; }
       .c-btn-del { background: #fff1f2; color: #f87171; }
       .c-btn-del:hover { background: #fee2e2; color: #dc2626; }
+      .c-wa-badge { display: inline-flex; align-items: center; color: #16a34a; font-size: 0.75rem; margin-left: 4px; vertical-align: middle; }
 
       /* Inline edit mode */
       .cabang-item.editing { background: #fffbeb; border-color: #fde68a; flex-wrap: wrap; gap: 6px; }
@@ -660,6 +661,10 @@
               <button class="btn-add-cabang" id="btnAdd" type="button" data-admin-click="add-cabang" disabled style="flex:0 0 auto;white-space:nowrap;width:auto;padding-left:14px;padding-right:14px">
                 <i class="bi bi-plus-lg"></i> Tambah
               </button>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:6px">
+              <input type="tel" id="inputWa" placeholder="No. WhatsApp viewer (opsional)" autocomplete="off" maxlength="20" inputmode="numeric" style="flex:1;margin-bottom:0">
+              <input type="password" id="inputViewerPw" placeholder="Password viewer (opsional)" autocomplete="new-password" maxlength="100" style="flex:1;margin-bottom:0">
             </div>
           </div>
           <div class="search-wrap" style="margin-top:10px">

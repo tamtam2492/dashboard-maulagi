@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const { rateLimit } = require('./_ratelimit');
 const { cors } = require('./_cors');
 const { logError } = require('./_logger');
-const { requireAdmin, requireAuth } = require('./_auth');
+const { requireAdmin, requireAuth, getViewerSession } = require('./_auth');
 const { sendOpsNotification, shouldNotifySource } = require('./_ops-notifier');
 const {
   normalizeBoundedInt,
@@ -206,7 +206,13 @@ module.exports = async (req, res) => {
   if (req.method === 'GET') {
     try {
       if (normalizeQueryFlag(req.query.session)) {
-        const requestedRole = normalizeText(req.query.role, 20) === 'admin' ? 'admin' : 'dashboard';
+        const rawRole = normalizeText(req.query.role, 20);
+        if (rawRole === 'viewer') {
+          const vs = await getViewerSession(req);
+          if (!vs) return res.status(401).json({ error: 'Sesi tidak valid.' });
+          return res.json({ authenticated: true, role: 'viewer', cabang: vs.cabang });
+        }
+        const requestedRole = rawRole === 'admin' ? 'admin' : 'dashboard';
         return withAuthSlowWatch('Pemeriksaan sesi login lambat lebih dari 10 detik.', {
           method: 'GET',
           action: 'session_check',
@@ -265,6 +271,37 @@ module.exports = async (req, res) => {
         return res.json({ success: true, message: 'Password berhasil dibuat.' });
       }
 
+      // action: 'verify_viewer' — login dengan no_wa + password Maukirim cabang
+      if (action === 'verify_viewer') {
+        const noWa = normalizeText(String(req.body.no_wa || '').replace(/\s+/g, ''), 20);
+        const viewerPw = String(req.body.password || '');
+        if (!noWa) return res.status(400).json({ error: 'Nomor WhatsApp diperlukan.' });
+        if (!viewerPw) return res.status(400).json({ error: 'Password diperlukan.' });
+        return withAuthSlowWatch('Verifikasi login viewer lambat lebih dari 10 detik.', {
+          method: 'POST', action: 'verify_viewer',
+        }, async () => {
+          const { data: cb } = await supabase
+            .from('cabang')
+            .select('id, nama, viewer_pw_hash')
+            .eq('no_wa', noWa)
+            .maybeSingle();
+          if (!cb || !cb.viewer_pw_hash) {
+            return res.status(401).json({ error: 'Nomor WhatsApp atau password salah.' });
+          }
+          const match = await bcrypt.compare(viewerPw, cb.viewer_pw_hash);
+          if (!match) return res.status(401).json({ error: 'Nomor WhatsApp atau password salah.' });
+          const sessionToken = crypto.randomBytes(32).toString('hex');
+          const tokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
+          const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+          await supabase.from('settings').upsert({
+            key: 'session_viewer_' + tokenHash,
+            value: JSON.stringify({ hash: tokenHash, role: 'viewer', cabang: cb.nama, expires: expiresAt }),
+          });
+          setSessionCookie(res, 'viewer', sessionToken, req, 60 * 60);
+          return res.json({ success: true, token: sessionToken, role: 'viewer', cabang: cb.nama });
+        });
+      }
+
       // action: 'verify' — cek login, return session token
       if (action === 'verify') {
         if (!password) return res.status(400).json({ error: 'Password diperlukan.' });
@@ -300,13 +337,14 @@ module.exports = async (req, res) => {
 
       if (action === 'logout') {
         const headerToken = String(req.headers['x-admin-token'] || '').trim();
-        const cookieTokens = readSessionCookies(req, ['admin', 'dashboard']).map((entry) => entry.token);
+        const cookieTokens = readSessionCookies(req, ['admin', 'dashboard', 'viewer']).map((entry) => entry.token);
         const tokens = [...new Set([headerToken, ...cookieTokens].filter(Boolean))];
 
         for (const rawToken of tokens) {
           const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
           await deleteSessionByHash(supabase, 'admin', tokenHash);
           await deleteSessionByHash(supabase, 'dashboard', tokenHash);
+          await deleteSessionByHash(supabase, 'viewer', tokenHash);
         }
 
         clearAllSessionCookies(res, req);

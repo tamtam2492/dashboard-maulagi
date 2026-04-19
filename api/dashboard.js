@@ -7,6 +7,7 @@ const {
   TEMPORARY_CLEANUP_LAST_RUN_KEY,
   runMaintenanceCleanup,
 } = require('./_cleanup-maintenance');
+const { getViewerSession } = require('./_auth');
 const { logError } = require('./_logger');
 const { rateLimit } = require('./_ratelimit');
 const {
@@ -265,7 +266,7 @@ async function handleWatchRoute(res) {
   }
 }
 
-async function buildDashboardPayload(supabase, batchSize) {
+async function buildDashboardPayload(supabase, batchSize, viewerCabang) {
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
   const rekapCabang = {};
   const todayCabang = new Set();
@@ -276,19 +277,22 @@ async function buildDashboardPayload(supabase, batchSize) {
   let from = 0;
 
   while (true) {
-    const { data: rows, error } = await supabase
+    let query = supabase
       .from('transfers')
       .select('timestamp, tgl_inputan, periode, nama_bank, nama_cabang, nominal, bukti_url, ket')
       .order('timestamp', { ascending: true })
       .range(from, from + batchSize - 1);
+    if (viewerCabang) query = query.eq('nama_cabang', viewerCabang);
+    const { data: rows, error } = await query;
 
+    const filteredRows = rows;
     if (error) throw error;
-    if (!rows || rows.length === 0) break;
+    if (!filteredRows || filteredRows.length === 0) break;
 
     batchCount += 1;
-    transaksi += rows.length;
+    transaksi += filteredRows.length;
 
-    for (const row of rows) {
+    for (const row of filteredRows) {
       const nominal = parseFloat(row.nominal) || 0;
       if (nominal <= 0) continue;
 
@@ -314,7 +318,7 @@ async function buildDashboardPayload(supabase, batchSize) {
       rekapCabang[cabang].list.push({ bank, nominal, tgl, tglRaw, periode, ket: row.ket || '-', bukti: buktiUrl, ts: row.timestamp });
     }
 
-    if (rows.length < batchSize) break;
+    if (filteredRows.length < batchSize) break;
     from += batchSize;
   }
 
@@ -329,6 +333,7 @@ async function buildDashboardPayload(supabase, batchSize) {
       byCabang: {},
       lastUpdate: now,
       meta: { batched: true, batchSize, batchCount: 0, rowsProcessed: 0 },
+      ...(viewerCabang ? { viewer: { cabang: viewerCabang } } : {}),
     };
   }
 
@@ -346,6 +351,7 @@ async function buildDashboardPayload(supabase, batchSize) {
     byCabang: rekapCabang,
     lastUpdate: now,
     meta: { batched: true, batchSize, batchCount, rowsProcessed: transaksi },
+    ...(viewerCabang ? { viewer: { cabang: viewerCabang } } : {}),
   };
 }
 
@@ -396,7 +402,8 @@ module.exports = async (req, res) => {
   }
 
   if (isMaukirimRequest(req)) {
-    return handleMaukirimRoute(req, res);
+    // Route ini tidak lagi dipakai — semua data noncod/order baca dari snapshot DB
+    return res.status(410).json({ error: 'Route ini tidak aktif. Gunakan /api/noncod untuk data snapshot.' });
   }
 
   if (isWatchRequest(req)) {
@@ -407,12 +414,14 @@ module.exports = async (req, res) => {
   try {
     const supabase = getSupabase();
     const batchSize = getBatchSize(req);
+    const viewerSession = await getViewerSession(req);
+    const viewerCabang = viewerSession ? viewerSession.cabang : null;
 
     // Run daily cleanup (non-blocking)
     const cleanupTask = runCleanup(supabase).catch(() => {});
     if (typeof vercelWaitUntil === 'function') vercelWaitUntil(cleanupTask);
 
-    return res.json(await buildDashboardPayload(supabase, batchSize));
+    return res.json(await buildDashboardPayload(supabase, batchSize, viewerCabang));
   } catch (err) {
     console.error(err);
     logError('dashboard', err.message, { method: req.method });
