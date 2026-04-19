@@ -221,8 +221,8 @@ module.exports = async (req, res) => {
     }
   }
 
-  // POST /api/cabang?sync=maukirim — sync no_wa dari sub-akun Maukirim
-  // Hanya update cabang yang no_wa-nya masih kosong (tidak overwrite yang sudah diset manual)
+  // POST /api/cabang?sync=maukirim — sync no_wa + viewer_pw_hash otomatis dari sub-akun Maukirim
+  // Password viewer = nomor WA cabang (di-hash). Overwrite semua cabang yang namanya cocok.
   if (req.method === 'POST' && req.query.sync === 'maukirim') {
     try {
       const senders = await fetchMaukirimSenders();
@@ -230,25 +230,25 @@ module.exports = async (req, res) => {
 
       const { data: cabangList, error: fetchErr } = await supabase
         .from('cabang')
-        .select('id, nama, no_wa');
+        .select('id, nama, no_wa, viewer_pw_hash');
       if (fetchErr) throw fetchErr;
 
-      // Buat map: nama_cabang_upper → sender.wa
       const senderMap = new Map(senders.map((s) => [s.name, s.wa]));
 
       let updated = 0;
       let skipped = 0;
-      const updates = [];
       for (const cab of (cabangList || [])) {
         const namaNorm = (cab.nama || '').trim().toUpperCase();
         const wa = senderMap.get(namaNorm);
         if (!wa) { skipped++; continue; }
-        if (cab.no_wa) { skipped++; continue; } // sudah ada, tidak overwrite
-        updates.push({ id: cab.id, no_wa: wa });
-      }
-
-      for (const u of updates) {
-        await supabase.from('cabang').update({ no_wa: u.no_wa }).eq('id', u.id);
+        // Selalu update no_wa; update hash hanya jika WA berubah atau belum punya password
+        const waChanged = cab.no_wa !== wa;
+        const noPassword = !cab.viewer_pw_hash;
+        const updateData = { no_wa: wa };
+        if (waChanged || noPassword) {
+          updateData.viewer_pw_hash = await bcrypt.hash(wa, 10);
+        }
+        await supabase.from('cabang').update(updateData).eq('id', cab.id);
         updated++;
       }
 
