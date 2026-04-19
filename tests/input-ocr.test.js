@@ -6,6 +6,7 @@ const {
   matchBank,
   normalizeBankNameInput,
   parseOcrApiResponse,
+  readFileAsDataUrl,
 } = require('../lib/input-ocr');
 
 test('normalizeBankNameInput menormalkan variasi penulisan bank', () => {
@@ -40,6 +41,25 @@ test('parseOcrApiResponse memberi pesan server error untuk body non-JSON', () =>
     () => parseOcrApiResponse(502, '<html>bad gateway</html>'),
     /Server error \(502\)/
   );
+});
+
+test('readFileAsDataUrl fallback ke arrayBuffer saat FileReader tidak tersedia', async () => {
+  const previousFileReader = global.FileReader;
+  global.FileReader = undefined;
+
+  try {
+    const file = {
+      type: 'text/plain',
+      async arrayBuffer() {
+        return Uint8Array.from([79, 75]).buffer;
+      },
+    };
+
+    const dataUrl = await readFileAsDataUrl(file);
+    assert.equal(dataUrl, 'data:text/plain;base64,T0s=');
+  } finally {
+    global.FileReader = previousFileReader;
+  }
 });
 
 test('createInputOcrController mengabaikan hasil OCR lama saat file diganti', async () => {
