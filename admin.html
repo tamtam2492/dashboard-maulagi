@@ -668,14 +668,16 @@
                 <i class="bi bi-plus-lg"></i> Tambah
               </button>
             </div>
-            <div style="display:flex;gap:8px;margin-top:6px">
-              <input type="tel" id="inputWa" placeholder="No. WhatsApp viewer (opsional)" autocomplete="off" maxlength="20" inputmode="numeric" style="flex:1;margin-bottom:0">
-              <input type="password" id="inputViewerPw" placeholder="Password viewer (opsional)" autocomplete="new-password" maxlength="100" style="flex:1;margin-bottom:0">
-            </div>
+
           </div>
-          <div class="search-wrap" style="margin-top:10px">
-            <i class="bi bi-search"></i>
-            <input type="text" id="searchCabang" placeholder="Cari nama cabang..." data-admin-input="render-cabang-list">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:8px">
+            <div class="search-wrap" style="flex:1;margin-top:0">
+              <i class="bi bi-search"></i>
+              <input type="text" id="searchCabang" placeholder="Cari nama cabang..." data-admin-input="render-cabang-list">
+            </div>
+            <button class="c-btn c-btn-edit" id="btnSyncMaukirim" type="button" data-admin-click="sync-maukirim-wa" title="Sync No. WA dari Maukirim" style="width:auto;padding:0 12px;font-size:0.75rem;font-weight:700;gap:5px;height:36px;white-space:nowrap">
+              <i class="bi bi-arrow-repeat"></i> Sync WA Maukirim
+            </button>
           </div>
           <div id="cabangList">
             <div class="empty-state"><span class="spinner-border spinner-border-sm"></span></div>

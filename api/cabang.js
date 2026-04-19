@@ -4,6 +4,34 @@ const { publishAdminWriteMarker } = require('./_admin-write-marker');
 const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { getSupabase } = require('./_supabase');
+const { loginMaukirim, httpReq, ckStr, MK_HOST } = require('./_maukirim');
+
+/**
+ * Ambil daftar sub-akun dari Maukirim (/account/data/5).
+ * Return array of { name: string, wa: string }
+ */
+async function fetchMaukirimSenders() {
+  const ck = await loginMaukirim();
+  const res = await httpReq({
+    hostname: MK_HOST,
+    path: '/account/data/5',
+    method: 'GET',
+    headers: { Cookie: ckStr(ck), 'User-Agent': 'Mozilla/5.0', Accept: 'text/html' },
+  });
+  if (res.status !== 200) throw new Error(`Maukirim /account/data/5 returned ${res.status}`);
+  const cells = [...res.body.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)]
+    .map((m) => m[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, '').trim());
+  const senders = [];
+  // Struktur tabel: No | Tanggal | Name | Whatsapp | Level | Action — skip 6 header
+  for (let i = 6; i + 4 < cells.length; i += 6) {
+    const name = cells[i + 2];
+    const wa = cells[i + 3];
+    if (name && wa && /^0[0-9]{7,14}$/.test(wa)) {
+      senders.push({ name: name.trim().toUpperCase(), wa: wa.trim() });
+    }
+  }
+  return senders;
+}
 
 async function publishCabangMarkerSafe(supabase, source, context) {
   try {
@@ -190,6 +218,55 @@ module.exports = async (req, res) => {
       console.error(err);
       logError('cabang', err.message, { method: 'DELETE' });
       return res.status(500).json({ error: 'Gagal menghapus cabang.' });
+    }
+  }
+
+  // POST /api/cabang?sync=maukirim — sync no_wa dari sub-akun Maukirim
+  // Hanya update cabang yang no_wa-nya masih kosong (tidak overwrite yang sudah diset manual)
+  if (req.method === 'POST' && req.query.sync === 'maukirim') {
+    try {
+      const senders = await fetchMaukirimSenders();
+      if (!senders.length) return res.status(502).json({ error: 'Tidak ada data sub-akun dari Maukirim.' });
+
+      const { data: cabangList, error: fetchErr } = await supabase
+        .from('cabang')
+        .select('id, nama, no_wa');
+      if (fetchErr) throw fetchErr;
+
+      // Buat map: nama_cabang_upper → sender.wa
+      const senderMap = new Map(senders.map((s) => [s.name, s.wa]));
+
+      let updated = 0;
+      let skipped = 0;
+      const updates = [];
+      for (const cab of (cabangList || [])) {
+        const namaNorm = (cab.nama || '').trim().toUpperCase();
+        const wa = senderMap.get(namaNorm);
+        if (!wa) { skipped++; continue; }
+        if (cab.no_wa) { skipped++; continue; } // sudah ada, tidak overwrite
+        updates.push({ id: cab.id, no_wa: wa });
+      }
+
+      for (const u of updates) {
+        await supabase.from('cabang').update({ no_wa: u.no_wa }).eq('id', u.id);
+        updated++;
+      }
+
+      if (updated > 0) {
+        await publishCabangMarkerSafe(supabase, 'cabang_sync_maukirim', 'POST?sync=maukirim');
+      }
+
+      return res.json({
+        success: true,
+        updated,
+        skipped,
+        total_maukirim: senders.length,
+        total_cabang: (cabangList || []).length,
+      });
+    } catch (err) {
+      console.error(err);
+      logError('cabang', err.message, { method: 'POST', action: 'sync_maukirim' });
+      return res.status(500).json({ error: 'Sync dari Maukirim gagal: ' + err.message });
     }
   }
 
