@@ -3,7 +3,6 @@ const { logError, logFrontendErrorAsync } = require('./_logger');
 const { rateLimit } = require('./_ratelimit');
 
 const frontendLogLimiter = rateLimit({ windowMs: 60 * 1000, max: 20 });
-const FRONTEND_LOG_FETCH_TIMEOUT_MS = 5000;
 const ALLOWED_FRONTEND_SOURCES = new Set([
   'frontend-admin',
   'frontend-dashboard',
@@ -12,6 +11,7 @@ const ALLOWED_FRONTEND_SOURCES = new Set([
   'frontend-noncod',
   'frontend-rekap',
 ]);
+const NON_ERROR_FRONTEND_ACTIONS = new Set(['smoke_test']);
 
 function normalizeText(value, maxLength = 1000) {
   return String(value || '').trim().slice(0, maxLength);
@@ -66,6 +66,14 @@ function normalizeFrontendSource(value) {
   return ALLOWED_FRONTEND_SOURCES.has(source) ? source : '';
 }
 
+function normalizeFrontendAction(value) {
+  return normalizeText(value, 120).toLowerCase();
+}
+
+function isNonErrorFrontendAction(value) {
+  return NON_ERROR_FRONTEND_ACTIONS.has(normalizeFrontendAction(value));
+}
+
 function normalizeOptionalNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : undefined;
@@ -74,7 +82,7 @@ function normalizeOptionalNumber(value) {
 function buildFrontendMeta(req, body, source) {
   const path = normalizeText(body.path, 200);
   const url = normalizeText(body.url, 400);
-  const action = normalizeText(body.action, 120);
+  const action = normalizeFrontendAction(body.action);
   const component = normalizeText(body.component, 120);
   const line = normalizeOptionalNumber(body.line);
   const column = normalizeOptionalNumber(body.column);
@@ -109,6 +117,7 @@ module.exports = async (req, res) => {
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const source = normalizeFrontendSource(body.source);
+    const action = normalizeFrontendAction(body.action);
     if (!source) {
       return res.status(400).json({ error: 'Source frontend tidak valid.' });
     }
@@ -118,7 +127,11 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Message wajib diisi.' });
     }
 
-    await logFrontendErrorAsync(source, message, buildFrontendMeta(req, body, source));
+    if (isNonErrorFrontendAction(action)) {
+      return res.status(202).json({ ok: true, skipped: true, reason: action });
+    }
+
+    await logFrontendErrorAsync(source, message, buildFrontendMeta(req, { ...body, action }, source));
     return res.status(202).json({ ok: true });
   } catch (err) {
     console.error(err);
@@ -128,3 +141,4 @@ module.exports = async (req, res) => {
 };
 
 module.exports.isTrustedFrontendRequest = isTrustedFrontendRequest;
+module.exports.isNonErrorFrontendAction = isNonErrorFrontendAction;
