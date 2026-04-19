@@ -1,18 +1,36 @@
 -- =============================================================
--- Atomic admin write marker RPC for workspace refresh
--- Run this on Supabase SQL Editor after the settings table exists.
+-- Atomic admin write marker RPC for workspace refresh.
+-- Run once in Supabase SQL Editor after the settings table exists.
 -- Safe to re-run.
 -- =============================================================
 
--- RPC relies on a unique key lookup so the marker row stays singleton.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_settings_key
   ON public.settings (key);
 
+-- ---------------------------------------------------------------
+-- Internal helpers — stateless, immutable, independently testable.
+-- ---------------------------------------------------------------
+
+-- Normalize a scope identifier: lowercase, collapse invalid chars to _, cap 40.
+CREATE OR REPLACE FUNCTION public._mk_norm_scope(rv text)
+RETURNS text LANGUAGE sql IMMUTABLE CALLED ON NULL INPUT AS $$
+  SELECT LEFT(regexp_replace(LOWER(TRIM(COALESCE(rv, ''))), '[^a-z0-9_-]+', '_', 'g'), 40)
+$$;
+
+-- Validate and normalize a periode string (YYYY-MM); returns NULL if invalid.
+CREATE OR REPLACE FUNCTION public._mk_norm_periode(rv text)
+RETURNS text LANGUAGE sql IMMUTABLE CALLED ON NULL INPUT AS $$
+  SELECT CASE WHEN TRIM(COALESCE(rv, '')) ~ '^\d{4}-\d{2}$' THEN TRIM(rv) ELSE NULL END
+$$;
+
+-- Drop both overloads to ensure clean recreation.
+DROP FUNCTION IF EXISTS public.touch_admin_write_marker(text, text[], text[], integer);
+DROP FUNCTION IF EXISTS public.touch_admin_write_marker(text, text[], text[]);
+
 CREATE OR REPLACE FUNCTION public.touch_admin_write_marker(
-  p_source text DEFAULT 'admin',
-  p_scopes text[] DEFAULT ARRAY[]::text[],
-  p_periodes text[] DEFAULT ARRAY[]::text[],
-  p_window_seconds integer DEFAULT 60
+  p_source   text    DEFAULT 'admin',
+  p_scopes   text[]  DEFAULT ARRAY[]::text[],
+  p_periodes text[]  DEFAULT ARRAY[]::text[]
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -20,171 +38,195 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 DECLARE
-  marker_key constant text := 'admin_write_marker';
-  window_seconds integer := GREATEST(COALESCE(p_window_seconds, 60), 10);
-  next_changed_at timestamptz := clock_timestamp();
-  next_changed_at_text text := to_char(next_changed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
-  normalized_source text := LEFT(regexp_replace(LOWER(TRIM(COALESCE(p_source, 'admin'))), '[^a-z0-9_-]+', '_', 'g'), 64);
-  normalized_scopes text[];
-  normalized_periodes text[];
-  current_value text;
-  current_json jsonb;
-  current_version integer := 0;
-  current_window_started_at timestamptz;
-  current_window_started_at_text text;
-  should_compact boolean := false;
-  next_version integer;
-  next_window_started_at_text text;
-  merged_scopes text[];
-  merged_periodes text[];
-  next_payload jsonb;
+  v_marker_key   constant text    := 'admin_write_marker';
+  v_window_secs  constant integer := 60;
+  v_max_scopes   constant integer := 20;
+  v_max_periodes constant integer := 24;
+
+  -- clock_timestamp() (not now()) so elapsed-time check is accurate
+  -- even when this function runs inside a long-lived transaction.
+  v_now               timestamptz := clock_timestamp();
+  v_now_text          text;
+  v_source            text;
+  v_input_scopes      text[];
+  v_input_periodes    text[];
+  v_current_raw       text;
+  v_current           jsonb;
+  v_current_version   integer := 0;
+  v_win_start         timestamptz;
+  v_win_start_text    text;
+  v_in_window         boolean := false;
+  v_next_version      integer;
+  v_next_win_text     text;
+  v_existing_scopes   text[] := ARRAY[]::text[];
+  v_existing_periodes text[] := ARRAY[]::text[];
+  v_merged_scopes     text[];
+  v_merged_periodes   text[];
+  v_payload           jsonb;
 BEGIN
-  IF normalized_source IS NULL OR normalized_source = '' THEN
-    normalized_source := 'admin';
-  END IF;
+  v_now_text := to_char(v_now AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
 
-  SELECT COALESCE(array_agg(scope_value ORDER BY first_pos), ARRAY[]::text[])
-    INTO normalized_scopes
+  -- Normalize source in one expression.
+  v_source := COALESCE(
+    NULLIF(LEFT(regexp_replace(LOWER(TRIM(COALESCE(p_source, ''))), '[^a-z0-9_-]+', '_', 'g'), 64), ''),
+    'admin'
+  );
+
+  -- Normalize and deduplicate input scopes.
+  -- p_scopes is a function parameter — PL/pgSQL substitutes it correctly in static SQL,
+  -- including inside nested subqueries. No EXECUTE needed here.
+  SELECT COALESCE(array_agg(n ORDER BY fp), ARRAY[]::text[])
+    INTO v_input_scopes
   FROM (
-    SELECT scope_value, MIN(ordinality) AS first_pos
+    SELECT n, MIN(i) AS fp
     FROM (
-      SELECT LEFT(regexp_replace(LOWER(TRIM(COALESCE(raw_scope, ''))), '[^a-z0-9_-]+', '_', 'g'), 40) AS scope_value,
-             ordinality
-      FROM unnest(COALESCE(p_scopes, ARRAY[]::text[])) WITH ORDINALITY AS scope_rows(raw_scope, ordinality)
-    ) normalized_scope_rows
-    WHERE scope_value <> ''
-    GROUP BY scope_value
-  ) deduped_scope_rows;
+      SELECT public._mk_norm_scope(rv) AS n, i
+      FROM unnest(COALESCE(p_scopes, ARRAY[]::text[])) WITH ORDINALITY AS t(rv, i)
+    ) inner_q
+    WHERE n <> ''
+    GROUP BY n
+  ) outer_q;
 
-  SELECT COALESCE(array_agg(periode_value ORDER BY first_pos), ARRAY[]::text[])
-    INTO normalized_periodes
+  -- Normalize and deduplicate input periodes.
+  SELECT COALESCE(array_agg(n ORDER BY fp), ARRAY[]::text[])
+    INTO v_input_periodes
   FROM (
-    SELECT periode_value, MIN(ordinality) AS first_pos
+    SELECT n, MIN(i) AS fp
     FROM (
-      SELECT TRIM(COALESCE(raw_periode, '')) AS periode_value,
-             ordinality
-      FROM unnest(COALESCE(p_periodes, ARRAY[]::text[])) WITH ORDINALITY AS periode_rows(raw_periode, ordinality)
-    ) normalized_periode_rows
-    WHERE periode_value ~ '^\d{4}-\d{2}$'
-    GROUP BY periode_value
-  ) deduped_periode_rows;
+      SELECT public._mk_norm_periode(rv) AS n, i
+      FROM unnest(COALESCE(p_periodes, ARRAY[]::text[])) WITH ORDINALITY AS t(rv, i)
+    ) inner_q
+    WHERE n IS NOT NULL
+    GROUP BY n
+  ) outer_q;
 
+  -- Ensure marker row exists.
   INSERT INTO public.settings (key, value)
-  VALUES (marker_key, '{}'::jsonb::text)
+  VALUES (v_marker_key, '{}')
   ON CONFLICT (key) DO NOTHING;
 
+  -- Read and lock the current marker row for the duration of this transaction.
   SELECT value
-    INTO current_value
+    INTO v_current_raw
   FROM public.settings
-  WHERE key = marker_key
+  WHERE key = v_marker_key
   FOR UPDATE;
 
-  IF current_value IS NOT NULL THEN
+  -- Parse stored marker JSON (silently resets to empty state on corruption).
+  IF v_current_raw IS NOT NULL AND v_current_raw <> '' THEN
     BEGIN
-      current_json := current_value::jsonb;
+      v_current := v_current_raw::jsonb;
     EXCEPTION WHEN others THEN
-      current_json := NULL;
+      v_current := NULL;
     END;
   END IF;
 
-  IF current_json IS NOT NULL THEN
+  IF v_current IS NOT NULL THEN
     BEGIN
-      current_version := GREATEST(COALESCE((current_json ->> 'version')::integer, 0), 0);
+      v_current_version := GREATEST(COALESCE((v_current ->> 'version')::integer, 0), 0);
     EXCEPTION WHEN others THEN
-      current_version := 0;
+      v_current_version := 0;
     END;
 
-    current_window_started_at_text := NULLIF(TRIM(COALESCE(current_json ->> 'window_started_at', '')), '');
-    IF current_window_started_at_text IS NOT NULL THEN
+    v_win_start_text := NULLIF(TRIM(COALESCE(v_current ->> 'window_started_at', '')), '');
+    IF v_win_start_text IS NOT NULL THEN
       BEGIN
-        current_window_started_at := current_window_started_at_text::timestamptz;
+        v_win_start := v_win_start_text::timestamptz;
       EXCEPTION WHEN others THEN
-        current_window_started_at := NULL;
-        current_window_started_at_text := NULL;
+        v_win_start := NULL;
+        v_win_start_text := NULL;
       END;
     END IF;
   END IF;
 
-  should_compact := current_window_started_at IS NOT NULL
-    AND EXTRACT(EPOCH FROM (next_changed_at - current_window_started_at)) < window_seconds;
+  v_in_window := v_win_start IS NOT NULL
+    AND EXTRACT(EPOCH FROM (v_now - v_win_start)) < v_window_secs;
 
-  next_version := CASE WHEN current_version > 0 THEN current_version + 1 ELSE 1 END;
+  v_next_version := CASE WHEN v_current_version > 0 THEN v_current_version + 1 ELSE 1 END;
 
-  IF should_compact THEN
-    next_window_started_at_text := COALESCE(current_window_started_at_text, next_changed_at_text);
+  IF v_in_window THEN
+    v_next_win_text := COALESCE(v_win_start_text, v_now_text);
 
-    SELECT COALESCE(array_agg(scope_value ORDER BY first_pos), ARRAY[]::text[])
-      INTO merged_scopes
-    FROM (
-      SELECT scope_value, MIN(ordinality) AS first_pos
+    SELECT COALESCE(array_agg(ev), ARRAY[]::text[])
+      INTO v_existing_scopes
+    FROM jsonb_array_elements_text(COALESCE(v_current -> 'scopes', '[]'::jsonb)) AS t(ev);
+
+    SELECT COALESCE(array_agg(ev), ARRAY[]::text[])
+      INTO v_existing_periodes
+    FROM jsonb_array_elements_text(COALESCE(v_current -> 'periodes', '[]'::jsonb)) AS t(ev);
+
+    -- Merge + deduplicate scopes (existing first, then new additions).
+    -- EXECUTE USING is required for the merge queries: PL/pgSQL does NOT substitute
+    -- local DECLARE-block variables (v_existing_scopes, v_input_scopes) when they
+    -- appear as unnest() arguments inside nested subqueries — PostgreSQL tries to
+    -- resolve them as relation names and throws 42P01 at runtime.
+    -- Passing the concatenated array as a bound $1 parameter via USING avoids this.
+    EXECUTE $q$
+      SELECT COALESCE(array_agg(n ORDER BY fp), ARRAY[]::text[])
       FROM (
-        SELECT LEFT(regexp_replace(LOWER(TRIM(COALESCE(raw_scope, ''))), '[^a-z0-9_-]+', '_', 'g'), 40) AS scope_value,
-               ordinality
-        FROM unnest(
-          COALESCE(
-            ARRAY(SELECT jsonb_array_elements_text(COALESCE(current_json -> 'scopes', '[]'::jsonb))),
-            ARRAY[]::text[]
-          ) || normalized_scopes
-        ) WITH ORDINALITY AS scope_rows(raw_scope, ordinality)
-      ) merged_scope_rows
-      WHERE scope_value <> ''
-      GROUP BY scope_value
-    ) deduped_scope_rows;
+        SELECT n, MIN(i) AS fp
+        FROM (
+          SELECT public._mk_norm_scope(rv) AS n, i
+          FROM unnest($1) WITH ORDINALITY AS t(rv, i)
+        ) inner_q
+        WHERE n <> ''
+        GROUP BY n
+      ) outer_q
+    $q$ INTO v_merged_scopes USING (v_existing_scopes || v_input_scopes);
 
-    SELECT COALESCE(array_agg(periode_value ORDER BY first_pos), ARRAY[]::text[])
-      INTO merged_periodes
-    FROM (
-      SELECT periode_value, MIN(ordinality) AS first_pos
+    -- Merge + deduplicate periodes.
+    EXECUTE $q$
+      SELECT COALESCE(array_agg(n ORDER BY fp), ARRAY[]::text[])
       FROM (
-        SELECT TRIM(COALESCE(raw_periode, '')) AS periode_value,
-               ordinality
-        FROM unnest(
-          COALESCE(
-            ARRAY(SELECT jsonb_array_elements_text(COALESCE(current_json -> 'periodes', '[]'::jsonb))),
-            ARRAY[]::text[]
-          ) || normalized_periodes
-        ) WITH ORDINALITY AS periode_rows(raw_periode, ordinality)
-      ) merged_periode_rows
-      WHERE periode_value ~ '^\d{4}-\d{2}$'
-      GROUP BY periode_value
-    ) deduped_periode_rows;
+        SELECT n, MIN(i) AS fp
+        FROM (
+          SELECT public._mk_norm_periode(rv) AS n, i
+          FROM unnest($1) WITH ORDINALITY AS t(rv, i)
+        ) inner_q
+        WHERE n IS NOT NULL
+        GROUP BY n
+      ) outer_q
+    $q$ INTO v_merged_periodes USING (v_existing_periodes || v_input_periodes);
+
   ELSE
-    next_window_started_at_text := next_changed_at_text;
-    merged_scopes := normalized_scopes;
-    merged_periodes := normalized_periodes;
+    v_next_win_text   := v_now_text;
+    v_merged_scopes   := v_input_scopes;
+    v_merged_periodes := v_input_periodes;
   END IF;
 
-  next_payload := jsonb_build_object(
-    'version', next_version,
-    'changed_at', next_changed_at_text,
-    'window_started_at', next_window_started_at_text,
-    'source', normalized_source,
-    'scopes', to_jsonb(COALESCE(merged_scopes, ARRAY[]::text[])),
-    'periodes', to_jsonb(COALESCE(merged_periodes, ARRAY[]::text[]))
+  -- Cap to prevent unbounded growth in a burst window.
+  v_merged_scopes   := COALESCE(v_merged_scopes[1:v_max_scopes],    ARRAY[]::text[]);
+  v_merged_periodes := COALESCE(v_merged_periodes[1:v_max_periodes], ARRAY[]::text[]);
+
+  v_payload := jsonb_build_object(
+    'version',           v_next_version,
+    'changed_at',        v_now_text,
+    'window_started_at', v_next_win_text,
+    'source',            v_source,
+    'scopes',            to_jsonb(v_merged_scopes),
+    'periodes',          to_jsonb(v_merged_periodes)
   );
 
   INSERT INTO public.settings (key, value)
-  VALUES (marker_key, next_payload::text)
+  VALUES (v_marker_key, v_payload::text)
   ON CONFLICT (key) DO UPDATE
     SET value = EXCLUDED.value;
 
-  RETURN next_payload;
+  RETURN v_payload;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.touch_admin_write_marker(text, text[], text[], integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.touch_admin_write_marker(text, text[], text[]) FROM PUBLIC;
 
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-    REVOKE ALL ON FUNCTION public.touch_admin_write_marker(text, text[], text[], integer) FROM anon;
+    REVOKE ALL ON FUNCTION public.touch_admin_write_marker(text, text[], text[]) FROM anon;
   END IF;
-
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-    REVOKE ALL ON FUNCTION public.touch_admin_write_marker(text, text[], text[], integer) FROM authenticated;
+    REVOKE ALL ON FUNCTION public.touch_admin_write_marker(text, text[], text[]) FROM authenticated;
   END IF;
-
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
-    GRANT EXECUTE ON FUNCTION public.touch_admin_write_marker(text, text[], text[], integer) TO service_role;
+    GRANT EXECUTE ON FUNCTION public.touch_admin_write_marker(text, text[], text[]) TO service_role;
   END IF;
 END $$;

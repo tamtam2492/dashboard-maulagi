@@ -1,5 +1,7 @@
 const ADMIN_WRITE_MARKER_KEY = 'admin_write_marker';
-const ADMIN_WRITE_MARKER_WINDOW_MS = Math.max(10000, Number(process.env.ADMIN_WRITE_MARKER_WINDOW_MS || 60000) || 60000);
+const ADMIN_WRITE_MARKER_WINDOW_MS = 60000;
+const ADMIN_WRITE_MARKER_MAX_SCOPES = 20;
+const ADMIN_WRITE_MARKER_MAX_PERIODES = 24;
 const ADMIN_WRITE_MARKER_RPC_NAME = 'touch_admin_write_marker';
 const PERIODE_RE = /^\d{4}-\d{2}$/;
 const FALLBACK_MARKER_SCOPES = Object.freeze([
@@ -36,16 +38,24 @@ function normalizeMarkerScope(value) {
   return String(value || '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '_').slice(0, 40);
 }
 
+function capMarkerItems(values, maxItems) {
+  return values.slice(0, maxItems);
+}
+
 function normalizeMarkerScopes(values) {
-  return [...new Set((Array.isArray(values) ? values : [values])
-    .map((value) => normalizeMarkerScope(value))
-    .filter(Boolean))];
+  return capMarkerItems([
+    ...new Set((Array.isArray(values) ? values : [values])
+      .map((value) => normalizeMarkerScope(value))
+      .filter(Boolean)),
+  ], ADMIN_WRITE_MARKER_MAX_SCOPES);
 }
 
 function normalizeMarkerPeriodes(values) {
-  return [...new Set((Array.isArray(values) ? values : [values])
-    .map((value) => String(value || '').trim())
-    .filter((value) => PERIODE_RE.test(value)))];
+  return capMarkerItems([
+    ...new Set((Array.isArray(values) ? values : [values])
+      .map((value) => String(value || '').trim())
+      .filter((value) => PERIODE_RE.test(value))),
+  ], ADMIN_WRITE_MARKER_MAX_PERIODES);
 }
 
 function buildAdminWriteMarkerToken(version, changedAt) {
@@ -99,11 +109,11 @@ function createAdminWriteMarker(options = {}) {
   };
 }
 
-function shouldCompactMarker(currentMarker, nowMs, windowMs = ADMIN_WRITE_MARKER_WINDOW_MS) {
+function isMarkerWithinWindow(currentMarker, nowMs) {
   if (!currentMarker || !currentMarker.window_started_at) return false;
   const startedAtMs = Date.parse(currentMarker.window_started_at);
   if (!Number.isFinite(startedAtMs)) return false;
-  return nowMs - startedAtMs < Math.max(10000, Number(windowMs) || ADMIN_WRITE_MARKER_WINDOW_MS);
+  return nowMs - startedAtMs < ADMIN_WRITE_MARKER_WINDOW_MS;
 }
 
 function mergeAdminWriteMarker(currentMarker, incoming, options = {}) {
@@ -116,7 +126,7 @@ function mergeAdminWriteMarker(currentMarker, incoming, options = {}) {
     periodes: normalizeMarkerPeriodes(incoming && incoming.periodes),
   };
 
-  if (shouldCompactMarker(currentMarker, nowMs, options.windowMs)) {
+  if (isMarkerWithinWindow(currentMarker, nowMs)) {
     return createAdminWriteMarker({
       version: nextVersion,
       now,
@@ -187,13 +197,11 @@ async function publishAdminWriteMarkerViaRpc(supabase, options = {}) {
   const scopes = normalizeMarkerScopes(options.scopes);
   const periodes = normalizeMarkerPeriodes(options.periodes);
   const source = normalizeMarkerSource(options.source);
-  const windowSeconds = Math.max(10, Math.ceil((Number(options.windowMs) || ADMIN_WRITE_MARKER_WINDOW_MS) / 1000));
 
   const { data, error } = await supabase.rpc(ADMIN_WRITE_MARKER_RPC_NAME, {
     p_source: source,
     p_scopes: scopes,
     p_periodes: periodes,
-    p_window_seconds: windowSeconds,
   });
 
   if (error) throw error;
@@ -210,7 +218,6 @@ async function publishAdminWriteMarker(supabase, options = {}) {
     source: normalizedSource,
     scopes: normalizedScopes.length ? normalizedScopes : ['admin'],
     periodes: normalizedPeriodes,
-    windowMs: options.windowMs,
     now: options.now,
   };
 
@@ -226,13 +233,14 @@ async function publishAdminWriteMarker(supabase, options = {}) {
   const currentMarker = await readAdminWriteMarker(supabase);
   const nextMarker = mergeAdminWriteMarker(currentMarker, fallbackMarkerOptions, {
     now: options.now,
-    windowMs: options.windowMs,
   });
   return writeAdminWriteMarker(supabase, nextMarker);
 }
 
 module.exports = {
   ADMIN_WRITE_MARKER_KEY,
+  ADMIN_WRITE_MARKER_MAX_PERIODES,
+  ADMIN_WRITE_MARKER_MAX_SCOPES,
   ADMIN_WRITE_MARKER_RPC_NAME,
   ADMIN_WRITE_MARKER_WINDOW_MS,
   FALLBACK_MARKER_SCOPES,
@@ -245,5 +253,5 @@ module.exports = {
   parseAdminWriteMarker,
   publishAdminWriteMarker,
   readAdminWriteMarker,
-  shouldCompactMarker,
+  isMarkerWithinWindow,
 };

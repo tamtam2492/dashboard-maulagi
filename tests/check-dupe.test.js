@@ -5,6 +5,7 @@ const {
   buildDupeSummary,
   getInputErrorStatusCode,
   normalizeUploadFields,
+  shouldLogInputError,
   shouldFallbackToInternalOcrWorker,
 } = require('../api/input');
 
@@ -87,5 +88,15 @@ test('normalizeUploadFields menerima alias field lama tanpa mengubah field utama
 test('getInputErrorStatusCode mengklasifikasikan parse multipart sebagai 400', () => {
   assert.equal(getInputErrorStatusCode(new Error('Unexpected end of form')), 400);
   assert.equal(getInputErrorStatusCode(new Error('Content-Type upload harus multipart/form-data.')), 400);
+  assert.equal(getInputErrorStatusCode(new Error('Tanggal NONCOD yang dipilih sudah lunas atau belum tersedia.')), 400);
   assert.equal(getInputErrorStatusCode(new Error('Hal lain dari database')), 500);
+});
+
+test('shouldLogInputError hanya true untuk error input 5xx', () => {
+  const clientError = new Error('Tanggal NONCOD yang dipilih sudah lunas atau belum tersedia.');
+  clientError.clientInputError = true;
+
+  assert.equal(shouldLogInputError(clientError), false);
+  assert.equal(shouldLogInputError(new Error('Unexpected end of form')), false);
+  assert.equal(shouldLogInputError(new Error('Hal lain dari database')), true);
 });

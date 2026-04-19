@@ -1,14 +1,17 @@
 const { cors } = require('./_cors');
 const { rateLimit } = require('./_ratelimit');
+const { ensureAllowedMethod, normalizeText } = require('./_request-validation');
 const { getSupabase } = require('./_supabase');
 
 const limiter = rateLimit({ windowMs: 60 * 1000, max: 300 });
 
 module.exports = async (req, res) => {
   if (cors(req, res, { methods: 'GET, OPTIONS' })) return;
+  if (!ensureAllowedMethod(req, res, 'GET')) return;
   if (await limiter(req, res)) return;
 
-  const { id, path } = req.query;
+  const id = normalizeText(req.query && req.query.id, 240);
+  const path = normalizeText(req.query && req.query.path, 240);
 
   // --- Mode 1: Supabase storage path → proxy image bytes ---
   if (path) {

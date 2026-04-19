@@ -5,6 +5,11 @@ const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { requireAdmin, requireAuth } = require('./_auth');
 const { sendOpsNotification, shouldNotifySource } = require('./_ops-notifier');
+const {
+  normalizeBoundedInt,
+  normalizeQueryFlag,
+  normalizeText,
+} = require('./_request-validation');
 const { getSupabase } = require('./_supabase');
 const { clearAllSessionCookies, clearSessionCookie, readSessionCookies, setSessionCookie } = require('./_session-cookie');
 
@@ -63,7 +68,7 @@ async function withAuthSlowWatch(message, meta, task) {
 
 function isNotifyTestRequest(req) {
   return req.method === 'POST' && (
-    String(req.query?.notify_test || '').trim() === '1'
+    normalizeQueryFlag(req.query?.notify_test)
     || String(req.body?.action || '').trim() === 'notify_test'
   );
 }
@@ -152,7 +157,7 @@ async function handleLogsRoute(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
+      const limit = normalizeBoundedInt(req.query.limit, { fallback: 100, min: 1, max: 500 });
       const { data, error } = await supabase
         .from('error_logs')
         .select('*')
@@ -190,7 +195,7 @@ module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   if (cors(req, res, { methods: 'GET, POST, DELETE, OPTIONS', headers: 'Content-Type, X-Admin-Token, X-Ops-Secret' })) return;
 
-  if (String(req.query.ops || '').trim() === 'logs') {
+  if (normalizeText(req.query.ops, 40) === 'logs') {
     return handleLogsRoute(req, res);
   }
 
@@ -200,8 +205,8 @@ module.exports = async (req, res) => {
   // GET /api/auth?key=... — cek apakah password sudah pernah dibuat
   if (req.method === 'GET') {
     try {
-      if (req.query.session === '1') {
-        const requestedRole = String(req.query.role || '').trim() === 'admin' ? 'admin' : 'dashboard';
+      if (normalizeQueryFlag(req.query.session)) {
+        const requestedRole = normalizeText(req.query.role, 20) === 'admin' ? 'admin' : 'dashboard';
         return withAuthSlowWatch('Pemeriksaan sesi login lambat lebih dari 10 detik.', {
           method: 'GET',
           action: 'session_check',
@@ -214,7 +219,8 @@ module.exports = async (req, res) => {
       }
 
       const supabase = getSupabase();
-      const key = ALLOWED_KEYS.includes(req.query.key) ? req.query.key : PW_KEY;
+      const requestedKey = normalizeText(req.query.key, 40);
+      const key = ALLOWED_KEYS.includes(requestedKey) ? requestedKey : PW_KEY;
       return withAuthSlowWatch('Pemeriksaan status password lambat lebih dari 10 detik.', {
         method: 'GET',
         action: 'password_status',

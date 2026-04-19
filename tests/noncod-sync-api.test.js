@@ -57,3 +57,33 @@ test('timingSafeSecretEqual helper noncod-sync hanya true untuk secret yang sama
   assert.equal(handler.timingSafeSecretEqual('abc123', 'abc123'), true);
   assert.equal(handler.timingSafeSecretEqual('abc123', 'abc124'), false);
 });
+
+test('noncod route utama menolak POST tanpa subroute khusus', async () => {
+  const req = {
+    method: 'POST',
+    url: '/api/noncod',
+    query: {},
+    headers: {},
+  };
+  const res = createResponse();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 405);
+  assert.deepEqual(res.body, { error: 'Method not allowed.' });
+});
+
+test('noncod menolak method di luar allowlist sebelum menyentuh flow lain', async () => {
+  const req = {
+    method: 'PATCH',
+    url: '/api/noncod',
+    query: {},
+    headers: {},
+  };
+  const res = createResponse();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 405);
+  assert.deepEqual(res.body, { error: 'Method not allowed.' });
+});

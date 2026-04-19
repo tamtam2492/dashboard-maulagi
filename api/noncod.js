@@ -35,6 +35,12 @@ const {
 const { publishAdminWriteMarker } = require('./_admin-write-marker');
 const { getSupabase } = require('./_supabase');
 const { excelSerialToDate, loadWorkbookFromBuffer, worksheetToObjects } = require('./_excel');
+const {
+  ensureAllowedMethod,
+  normalizeBoundedInt,
+  normalizeQueryFlag,
+  normalizeText,
+} = require('./_request-validation');
 const { getPeriodeFromDate, normalizeTransferKet } = require('./_transfer-utils');
 
 const PERIODE_RE = /^\d{4}-\d{2}$/;
@@ -800,8 +806,8 @@ async function handleManualStatusRoute(req, res) {
   if (req.method === 'GET') {
     try {
       const result = await listStatusOverrideRows(supabase, {
-        query: req.query.q || '',
-        limit: req.query.limit || 100,
+        query: normalizeText(req.query.q, 160),
+        limit: normalizeBoundedInt(req.query.limit, { fallback: 100, min: 1, max: 1000 }),
       });
       res.json(result);
       return true;
@@ -834,7 +840,7 @@ async function handleManualStatusRoute(req, res) {
 
   if (req.method === 'DELETE') {
     try {
-      const nomorResi = String(req.query.nomor_resi || req.body?.nomor_resi || '').trim();
+      const nomorResi = normalizeText(req.query.nomor_resi || req.body?.nomor_resi, 120);
       if (!nomorResi) {
         res.status(400).json({ error: 'Nomor resi wajib diisi.' });
         return true;
@@ -887,7 +893,7 @@ async function handlePipelineRoute(req, res) {
 
   const supabase = getSupabase();
 
-  const reason = String(req.body?.reason || 'background_sync').trim() || 'background_sync';
+  const reason = normalizeText(req.body?.reason || 'background_sync', 120) || 'background_sync';
   const requestedPeriodes = normalizePeriodeList(req.body?.periodes)
     .filter((periode) => isValidPeriodeParam(periode));
   const force = req.body?.force !== false;
@@ -957,17 +963,21 @@ async function handlePipelineRoute(req, res) {
 async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   if (cors(req, res, { methods: 'GET, POST, PUT, DELETE, OPTIONS', headers: 'Content-Type, X-Admin-Token, X-Sync-Secret' })) return;
+  if (!ensureAllowedMethod(req, res, ['GET', 'POST', 'PUT', 'DELETE'])) return;
+
+  const isManualStatusRoute = normalizeQueryFlag(req.query.manual_status);
+  const isPipelineRoute = normalizeQueryFlag(req.query.pipeline);
 
   // DELETE: admin only
-  if (req.method === 'DELETE' && req.query.manual_status !== '1') {
+  if (req.method === 'DELETE' && !isManualStatusRoute) {
     if (!(await requireAdmin(req, res))) return;
   }
 
-  if (req.query.manual_status === '1') {
+  if (isManualStatusRoute) {
     if (await handleManualStatusRoute(req, res)) return;
   }
 
-  if (req.query.pipeline === '1') {
+  if (isPipelineRoute) {
     if (await handlePipelineRoute(req, res)) return;
   }
 
@@ -975,9 +985,9 @@ async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const supabase = getSupabase();
-      const periode = (req.query.periode || '').trim();
-      const mode = String(req.query.mode || 'noncod').trim().toLowerCase();
-      const forceSync = req.query.sync === '1' || req.query.refresh === '1';
+      const periode = normalizeText(req.query.periode, 20);
+      const mode = normalizeText(req.query.mode || 'noncod', 20).toLowerCase();
+      const forceSync = normalizeQueryFlag(req.query.sync) || normalizeQueryFlag(req.query.refresh);
       if (!periode || !isValidPeriodeParam(periode)) {
         return res.status(400).json({ error: 'Parameter periode wajib (YYYY-MM) dengan bulan 01-12.' });
       }
@@ -1185,7 +1195,7 @@ async function handler(req, res) {
   if (req.method === 'DELETE') {
     try {
       const supabase = getSupabase();
-      const periode = (req.query.periode || '').trim();
+      const periode = normalizeText(req.query.periode, 20);
       if (!periode || !isValidPeriodeParam(periode)) {
         return res.status(400).json({ error: 'Parameter periode wajib (YYYY-MM) dengan bulan 01-12.' });
       }

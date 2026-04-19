@@ -1,6 +1,7 @@
 /**
  * Rate limiter for Vercel serverless.
- * Default store is in-memory, with optional Redis REST backend for multi-instance deployments.
+ * Local/test may use in-memory storage, while production expects Redis REST unless
+ * RATE_LIMIT_ALLOW_MEMORY_FALLBACK=1 is explicitly enabled for temporary emergency use.
  *
  * Usage:
  *   const { rateLimit } = require('./_ratelimit');
@@ -10,7 +11,46 @@
  */
 
 const memoryHits = new Map();
+const runtimeAlerts = new Set();
 let cleanupTimer = null;
+
+function normalizeText(value, maxLength = 200) {
+  return String(value || '').trim().slice(0, maxLength);
+}
+
+function isTruthyFlag(value) {
+  return ['1', 'true', 'yes', 'on'].includes(normalizeText(value, 20).toLowerCase());
+}
+
+function isProductionEnvironment(env = process.env) {
+  const nodeEnv = normalizeText(env.NODE_ENV, 40).toLowerCase();
+  const vercelEnv = normalizeText(env.VERCEL_ENV, 40).toLowerCase();
+  return nodeEnv === 'production' || vercelEnv === 'production';
+}
+
+function isMemoryFallbackAllowed(env = process.env) {
+  if (isTruthyFlag(env.RATE_LIMIT_ALLOW_MEMORY_FALLBACK)) return true;
+  return !isProductionEnvironment(env);
+}
+
+function logRateLimitAlertOnce(level, code, message, meta = {}) {
+  const alertKey = `${level}:${code}`;
+  if (runtimeAlerts.has(alertKey)) return;
+  runtimeAlerts.add(alertKey);
+
+  const detailText = Object.entries(meta)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => `${key}=${normalizeText(value, 200)}`)
+    .join(' ');
+  const line = `[rate-limit] ${message}${detailText ? ` ${detailText}` : ''}`;
+
+  if (level === 'error') {
+    console.error(line);
+    return;
+  }
+
+  console.warn(line);
+}
 
 function ensureCleanupTimer() {
   if (cleanupTimer) return;
@@ -43,9 +83,15 @@ function getLimiterBucket(bucket) {
     .replace(/[^a-z0-9:_-]+/g, '-') || 'default';
 }
 
+function normalizeRedisConfigValue(value) {
+  const trimmed = String(value || '').trim();
+  const quotedMatch = trimmed.match(/^(["'])(.*)\1$/);
+  return quotedMatch ? quotedMatch[2].trim() : trimmed;
+}
+
 function getRedisConfig() {
-  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  const url = normalizeRedisConfigValue(process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL);
+  const token = normalizeRedisConfigValue(process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN);
   if (!url || !token) return null;
   return { url: url.replace(/\/$/, ''), token };
 }
@@ -115,6 +161,12 @@ function applyRateLimitHeaders(res, max, result, store) {
   }
 }
 
+function blockUnavailableRateLimit(res, max, store) {
+  applyRateLimitHeaders(res, max, { remaining: 0, retryAfter: 0 }, store);
+  res.status(503).json({ error: 'Layanan sementara tidak tersedia. Coba lagi sebentar.' });
+  return true;
+}
+
 function rateLimit({ windowMs = 60000, max = 10, bucket = 'default' } = {}) {
   ensureCleanupTimer();
   const limiterBucket = getLimiterBucket(bucket);
@@ -122,6 +174,8 @@ function rateLimit({ windowMs = 60000, max = 10, bucket = 'default' } = {}) {
   return async function check(req, res) {
     const limiterKey = `ratelimit:${limiterBucket}:${getLimiterScope(req)}:${getClientIp(req)}`;
     const redisConfig = getRedisConfig();
+    const productionEnvironment = isProductionEnvironment();
+    const memoryFallbackAllowed = isMemoryFallbackAllowed();
 
     let result;
     let store = 'memory';
@@ -129,12 +183,43 @@ function rateLimit({ windowMs = 60000, max = 10, bucket = 'default' } = {}) {
       try {
         result = await checkRedisLimit(redisConfig, limiterKey, windowMs, max);
         store = 'redis';
-      } catch (_) {
+      } catch (err) {
+        const errorMessage = normalizeText(err && err.message, 200) || 'unknown';
+        if (!memoryFallbackAllowed) {
+          logRateLimitAlertOnce('error', 'redis-unavailable', 'Redis rate limit gagal di production; request ditolak sampai store pulih.', {
+            bucket: limiterBucket,
+            scope: getLimiterScope(req),
+            error: errorMessage,
+          });
+          return blockUnavailableRateLimit(res, max, 'redis-unavailable');
+        }
+
         result = checkMemoryLimit(limiterKey, windowMs, max);
         store = 'memory-fallback';
+        logRateLimitAlertOnce('warn', productionEnvironment ? 'redis-memory-fallback-production' : 'redis-memory-fallback', productionEnvironment
+          ? 'Redis rate limit gagal di production; override emergency mengaktifkan fallback in-memory.'
+          : 'Redis rate limit gagal; fallback ke in-memory limiter.', {
+          bucket: limiterBucket,
+          scope: getLimiterScope(req),
+          error: errorMessage,
+        });
       }
     } else {
+      if (!memoryFallbackAllowed) {
+        logRateLimitAlertOnce('error', 'redis-required-missing', 'Redis rate limit wajib aktif di production; request ditolak sampai env Upstash tersedia atau override emergency diaktifkan.', {
+          bucket: limiterBucket,
+          scope: getLimiterScope(req),
+        });
+        return blockUnavailableRateLimit(res, max, 'redis-required');
+      }
+
       result = checkMemoryLimit(limiterKey, windowMs, max);
+      if (productionEnvironment) {
+        logRateLimitAlertOnce('warn', 'memory-fallback-override', 'Production memakai fallback in-memory untuk rate limit karena override emergency aktif.', {
+          bucket: limiterBucket,
+          scope: getLimiterScope(req),
+        });
+      }
     }
 
     applyRateLimitHeaders(res, max, result, store);

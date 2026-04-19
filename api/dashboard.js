@@ -9,6 +9,12 @@ const {
 } = require('./_cleanup-maintenance');
 const { logError } = require('./_logger');
 const { rateLimit } = require('./_ratelimit');
+const {
+  ensureAllowedMethod,
+  normalizeBoundedInt,
+  normalizeQueryFlag,
+  normalizeText,
+} = require('./_request-validation');
 const { normalizeBankName } = require('./_bank');
 const { MK_HOST, httpReq, ckStr, loginMaukirim } = require('./_maukirim');
 const { getSupabase } = require('./_supabase');
@@ -31,19 +37,19 @@ try {
 }
 
 function isVisitRequest(req) {
-  return String(req.query.visit || '').trim() === '1';
+  return normalizeQueryFlag(req.query.visit);
 }
 
 function isUpdateCountRequest(req) {
-  return String(req.query.update || '').trim() === '1';
+  return normalizeQueryFlag(req.query.update);
 }
 
 function isMaukirimRequest(req) {
-  return String(req.query.maukirim || '').trim() === '1';
+  return normalizeQueryFlag(req.query.maukirim);
 }
 
 function isWatchRequest(req) {
-  return String(req.query.watch || '').trim() === '1';
+  return normalizeQueryFlag(req.query.watch);
 }
 
 function normalizeCabangName(value) {
@@ -55,9 +61,11 @@ function normalizeCabangName(value) {
 }
 
 function getBatchSize(req) {
-  const requested = parseInt(req.query.batchSize, 10);
-  if (!Number.isFinite(requested)) return DEFAULT_BATCH_SIZE;
-  return Math.min(Math.max(requested, 100), MAX_BATCH_SIZE);
+  return normalizeBoundedInt(req.query.batchSize, {
+    fallback: DEFAULT_BATCH_SIZE,
+    min: 100,
+    max: MAX_BATCH_SIZE,
+  });
 }
 
 async function runCleanup(supabase) {
@@ -228,7 +236,7 @@ async function handleUpdateCountRoute(res) {
 }
 
 async function handleMaukirimRoute(req, res) {
-  const cabang = String(req.query.cabang || '').trim().toUpperCase();
+  const cabang = normalizeText(req.query.cabang, 120).toUpperCase();
   try {
     const all = await getMaukirimOrders();
     const cabangKey = normalizeCabangName(cabang);
@@ -343,7 +351,7 @@ async function buildDashboardPayload(supabase, batchSize) {
 
 async function handleVisitRoute(req, res) {
   try {
-    const visitorId = String(req.query.vid || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+    const visitorId = normalizeText(req.query.vid, 128).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
     if (!visitorId) return res.json({ today: 0 });
 
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
@@ -377,6 +385,7 @@ async function handleVisitRoute(req, res) {
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store, max-age=0");
   if (cors(req, res)) return;
+  if (!ensureAllowedMethod(req, res, 'GET')) return;
 
   if (isVisitRequest(req)) {
     return handleVisitRoute(req, res);

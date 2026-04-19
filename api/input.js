@@ -199,6 +199,10 @@ function getInputErrorStatusCode(err) {
     : 500;
 }
 
+function shouldLogInputError(err) {
+  return getInputErrorStatusCode(err) >= 500;
+}
+
 function buildInputMarkerScopes(options = {}) {
   const scopes = ['overview', 'noncod', 'transfer', 'audit', 'admin_monitor'];
   if (options.adminPendingUpload || options.pendingPayload) scopes.push('pending_allocation');
@@ -733,9 +737,9 @@ async function buildAdminPendingPlan(supabase, fields, normalizedCabang) {
   const roundedNominal = Math.round(normalizedNominal);
   const reason = String(fields.pending_reason || fields.carryover_reason || '').trim();
 
-  if (!targetDate) throw new Error('Tanggal NONCOD wajib diisi.');
+  if (!targetDate) throw createClientInputError('Tanggal NONCOD wajib diisi.');
   if (!Number.isFinite(normalizedNominal) || !(normalizedNominal > 0)) {
-    throw new Error('Nominal harus lebih dari 0.');
+    throw createClientInputError('Nominal harus lebih dari 0.');
   }
 
   const periodes = [...new Set([...getRecentPeriodes(), getPeriodeFromDate(targetDate)])].filter(Boolean);
@@ -751,7 +755,7 @@ async function buildAdminPendingPlan(supabase, fields, normalizedCabang) {
   const effectiveRows = applyStatusOverrides(noncodRows, overrideMap);
   const byDate = aggregateOngkirByDate(effectiveRows);
   if (!Object.keys(byDate).length) {
-    throw new Error('Belum ada data NONCOD untuk cabang ini.');
+    throw createClientInputError('Belum ada data NONCOD untuk cabang ini.');
   }
 
   const allCandidateDates = Object.keys(byDate);
@@ -765,7 +769,7 @@ async function buildAdminPendingPlan(supabase, fields, normalizedCabang) {
 
   const currentOutstanding = getOutstandingNominalForDate(byDate, existingTransfers, targetDate);
   if (!(currentOutstanding > 0)) {
-    throw new Error('Tanggal NONCOD yang dipilih sudah lunas atau belum tersedia.');
+    throw createClientInputError('Tanggal NONCOD yang dipilih sudah lunas atau belum tersedia.');
   }
 
   const currentNominal = Math.min(currentOutstanding, roundedNominal);
@@ -1258,9 +1262,11 @@ async function handler(req, res) {
     });
 
   } catch (err) {
-    console.error(err);
-    logError('input', err.message, { method: req.method });
     const statusCode = getInputErrorStatusCode(err);
+    if (shouldLogInputError(err)) {
+      console.error(err);
+      logError('input', err.message, { method: req.method });
+    }
     return res.status(statusCode).json({ error: statusCode === 400 ? err.message : 'Gagal menyimpan data.' });
   }
 }
@@ -1274,4 +1280,5 @@ module.exports.getAreaScope = getAreaScope;
 module.exports.getScopeLabel = getScopeLabel;
 module.exports.getInputErrorStatusCode = getInputErrorStatusCode;
 module.exports.normalizeUploadFields = normalizeUploadFields;
+module.exports.shouldLogInputError = shouldLogInputError;
 module.exports.shouldFallbackToInternalOcrWorker = shouldFallbackToInternalOcrWorker;

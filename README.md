@@ -44,6 +44,7 @@ Alur utamanya:
 |-- api/           # Fungsi serverless Vercel dan helper backend
 |-- lib/           # Modul browser/shared logic
 |-- scripts/       # Utilitas lokal, template AWS Lambda, dan arsip lama
+|-- supabase/      # Konfigurasi Supabase CLI dan migration database yang ditrack
 |-- tests/         # Test Node bawaan
 |-- *.html         # Halaman aplikasi
 |-- sql-*.sql      # SQL tambahan untuk indeks dan keamanan
@@ -90,6 +91,7 @@ Tambahan penting di dalam folder `scripts/`:
 ### Prasyarat
 
 - Node.js 18 atau lebih baru.
+- Node.js 20 atau lebih baru bila menjalankan Supabase CLI lewat `npx supabase`.
 - Akun dan proyek Supabase.
 - Proyek Vercel untuk menjalankan API secara lokal maupun produksi.
 
@@ -129,6 +131,7 @@ OCR_PIPELINE_TRIGGER_SECRET=your-ocr-trigger-secret
 OCR_PIPELINE_TRIGGER_TIMEOUT_MS=15000
 UPSTASH_REDIS_REST_URL=https://your-upstash-instance.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your-upstash-token
+RATE_LIMIT_ALLOW_MEMORY_FALLBACK=0
 NONCOD_SYNC_SECRET=your-vercel-sync-endpoint-secret
 NONCOD_PIPELINE_TRIGGER_URL=https://your-lambda-or-worker-url
 NONCOD_PIPELINE_TRIGGER_SECRET=your-trigger-secret
@@ -143,7 +146,9 @@ Kebutuhan utama:
 - `GROQ_API_KEY` dipakai worker OCR. Jika production OCR diarahkan ke AWS Lambda, isi env ini di Lambda OCR worker. Jika masih memakai self-trigger fallback ke Vercel, isi juga di Vercel.
 - `OCR_SYNC_SECRET` mengamankan worker internal `/api/input?ocr=1&worker=1`. Jika belum diisi, backend akan fallback ke `NONCOD_SYNC_SECRET` bila tersedia.
 - `OCR_PIPELINE_TRIGGER_URL` dan `OCR_PIPELINE_TRIGGER_SECRET` mengarahkan enqueue OCR dari Vercel ke worker Lambda/background endpoint.
-- `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN` dipakai rate limiter lintas instance.
+- `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN` dipakai rate limiter lintas instance, dan dianggap jalur utama untuk production multi-instance.
+- Simpan value Redis production tanpa quote pembungkus dan tanpa whitespace ekstra. Backend sekarang menormalkan nilai env yang terkutip atau ber-spasi, tetapi format raw yang bersih tetap yang direkomendasikan.
+- `RATE_LIMIT_ALLOW_MEMORY_FALLBACK` hanya untuk override emergency sementara. Biarkan kosong atau `0` di production normal; jika diisi `1`, backend akan tetap jalan dengan limiter in-memory sambil mencatat warning runtime.
 - `NONCOD_SYNC_SECRET` mengamankan endpoint worker internal `/api/noncod-sync`.
 - Jika app berjalan di Vercel, `NONCOD_SYNC_SECRET` juga cukup untuk mode self-trigger langsung ke deployment aktif lewat `VERCEL_URL`.
 - `NONCOD_PIPELINE_TRIGGER_URL` dan `NONCOD_PIPELINE_TRIGGER_SECRET` hanya perlu diisi bila trigger background harus diarahkan ke Lambda atau endpoint lain di luar self-trigger langsung.
@@ -153,12 +158,14 @@ Kebutuhan utama:
 File yang aman disimpan di GitHub:
 
 - Source code aplikasi di folder `api/`, `lib/`, `scripts/`, dan `tests/`.
+- File konfigurasi dan migration Supabase di folder `supabase/`, selama tidak berisi secret aktif.
 - File HTML, CSS, SQL, dan konfigurasi deploy seperti `vercel.json`, [sql-security.sql](sql-security.sql), dan [sql-admin-write-marker.sql](sql-admin-write-marker.sql).
 - [.env.example](.env.example) karena hanya berisi placeholder, bukan kredensial aktif.
 
 File yang tidak boleh masuk GitHub:
 
 - Semua file env lokal yang berisi secret aktif seperti `.env`, `.env.local`, dan `.env.production.notifier`.
+- Artifact lokal Supabase seperti `supabase/.branches/` dan `supabase/.temp/`.
 - Folder atau file generated lokal seperti `.vercel/`, `tmp/`, `testsprite_tests/`, dan `TESTSPRITE-PRD.md`.
 - Dump kredensial, keypair, proxy URL bertanam user:password, dan file one-off hasil export operasional.
 
@@ -166,12 +173,28 @@ Guardrail repo saat ini:
 
 - `.gitignore` sudah menahan `.env`, `.env*.local`, `.env*.notifier`, `.vercel`, `testsprite_tests/`, `TESTSPRITE-PRD.md`, dan beberapa artifact lokal lain.
 - `.vercelignore` juga menahan file test, tmp, dan artifact generated agar tidak ikut terdeploy.
+- `supabase/.gitignore` menahan artifact CLI lokal seperti `.branches`, `.temp`, dan override env lokal Supabase.
 
 Aturan praktis sebelum push:
 
 1. Pastikan `git status --short` tidak menampilkan file env lokal, file credential, atau artifact generated.
 2. Kalau secret pernah terlanjur committed, jangan hanya hapus dari working tree; rotate secret tersebut di provider terkait.
 3. Anggap semua token, private key, cookie session, dan URL yang memuat kredensial sebagai data tidak aman untuk repo.
+
+## Masukan dan Pelaporan Aman
+
+Repo ini menerima masukan teknis, koreksi dokumentasi, laporan bug, dan kritik arsitektur selama disampaikan secara spesifik dan bisa ditindaklanjuti.
+
+Pedoman praktis saat membuka issue atau PR:
+
+- Sertakan gejala, dampak, dan langkah reproduksi minimum yang relevan.
+- Kritik teknis terhadap keputusan desain, hardening production, tradeoff performa, atau kontrol keamanan sangat diterima jika dijelaskan dengan risiko konkret atau alternatif yang bisa diuji.
+- Hindari menempelkan secret aktif seperti `SUPABASE_SERVICE_ROLE_KEY`, password, cookie sesi, bearer token, atau connection string database.
+- Hindari mengunggah data operasional mentah seperti bukti transfer, payload transaksi lengkap, nomor telepon, atau data pelanggan yang tidak perlu.
+- Jika perlu menyertakan log, redaksi identifier sensitif dan sisakan hanya konteks teknis yang dibutuhkan.
+- Untuk isu keamanan yang belum diperbaiki, jangan buka detail exploit penuh di issue publik; cukup laporkan gejala dan dampaknya dengan data yang sudah disanitasi.
+
+Tujuan section ini bukan membatasi kritik, tetapi menjaga agar diskusi teknis tetap berguna tanpa memperlebar risiko kebocoran data atau kredensial.
 
 ## Model Keamanan dan Batas Trust
 
@@ -221,8 +244,13 @@ Proyek ini mengandalkan resource berikut:
 Tambahan SQL di repo:
 
 - [sql-indexes.sql](sql-indexes.sql) untuk indeks tambahan.
-- [sql-admin-write-marker.sql](sql-admin-write-marker.sql) untuk RPC atomic `touch_admin_write_marker` yang dipakai watcher refresh workspace. Jika belum dijalankan, helper JS tetap fallback ke marker broad-scope agar refresh panel tidak miss meski scope write berbarengan, tetapi RPC tetap direkomendasikan untuk compaction yang presisi dan race yang lebih aman.
+- [sql-admin-write-marker.sql](sql-admin-write-marker.sql) untuk RPC atomic `touch_admin_write_marker` yang dipakai watcher refresh workspace. File ini tetap disimpan sebagai mirror SQL manual/fallback di SQL Editor.
 - [sql-security.sql](sql-security.sql) untuk enable RLS + revoke akses langsung pada tabel settings, cabang, transfers, noncod, visitors, dan error_logs.
+
+Tambahan workflow database yang sekarang sudah ditrack:
+
+- Folder [supabase/migrations](supabase/migrations) menyimpan migration yang didorong lewat Supabase CLI.
+- Migration marker RPC sekarang sudah tersedia di folder itu, sehingga deploy database tidak lagi bergantung penuh pada copy-paste manual di SQL Editor.
 
 ## Skrip
 
@@ -240,7 +268,7 @@ Skrip migrasi dan integrasi lama yang sifatnya one-off diarsipkan di folder [scr
 
 Arsitektur ini memang bergantung pada beberapa layanan eksternal, tetapi beberapa jalur kritis sudah punya fallback agar kegagalan satu komponen tidak selalu mematikan alur utama.
 
-- **Upstash/Redis limiter**: jika Redis REST tidak tersedia, limiter fallback ke in-memory limiter di instance aktif lewat [api/_ratelimit.js](api/_ratelimit.js).
+- **Upstash/Redis limiter**: local dan test boleh memakai limiter in-memory. Production menganggap Redis REST sebagai jalur utama; bila Redis hilang atau gagal, request akan fail-closed lewat [api/_ratelimit.js](api/_ratelimit.js) kecuali override emergency `RATE_LIMIT_ALLOW_MEMORY_FALLBACK=1` sengaja diaktifkan.
 - **OCR worker**: jika trigger worker OCR eksternal gagal, backend masih bisa fallback ke worker internal Vercel `waitUntil(...)` bila tersedia, lewat [api/input.js](api/input.js).
 - **Telegram notifier**: notifikasi bersifat fire-and-forget dan tidak memblok request utama; kegagalan Lambda notifier tidak menghentikan alur bisnis utama.
 - **NONCOD background sync**: pipeline bisa diarahkan ke Lambda terpisah, endpoint Vercel langsung, atau self-trigger via `VERCEL_URL` bila mode sederhana yang dipakai.
@@ -267,14 +295,46 @@ Yang **belum** diklaim selesai:
 
 Section ini sengaja ditulis eksplisit agar pembaca GitHub tidak salah mengira bahwa seluruh flow utama sudah punya coverage e2e penuh.
 
+## Smoke Test Manual Kritis
+
+Checklist ini dipakai setelah deploy yang menyentuh [api/input.js](api/input.js), boundary auth/session, integrasi storage, pipeline OCR, atau marker refresh dashboard. Gunakan data dummy yang sudah disanitasi; jangan pakai bukti transfer asli, data pelanggan, nomor telepon, cookie sesi, atau secret aktif di screenshot/log.
+
+1. Login sebagai admin dan buka [input.html](input.html). Pastikan halaman tidak mentok di error auth, spinner tak berujung, atau error frontend langsung setelah load.
+2. Upload satu gambar bukti dummy berukuran kecil. Jika OCR aktif, pastikan job bergerak dari enqueue ke polling hasil `GET /api/input?ocr=1&job_id=...` tanpa macet. Jika OCR sedang dimatikan, isi field manual dan lanjutkan sampai siap submit.
+3. Submit transfer ke cabang dan periode uji khusus. Harapkan hanya satu sukses submit, tanpa duplicate error palsu, timeout panjang, atau retry berulang dari browser.
+4. Verifikasi hasil bisnis minimum. Data transfer baru harus muncul di workspace yang relevan seperti [dashboard.html](dashboard.html) atau [rekap.html](rekap.html), dan watcher `GET /api/dashboard?watch=1` harus menunjukkan marker berubah setelah write berhasil.
+5. Verifikasi artefak backend minimum. File bukti dummy harus tersimpan di bucket `bukti-transfer`, log operasional tidak boleh memuat error baru yang relevan, dan bila OCR production diarahkan ke Lambda maka trigger utama harus menuju worker eksternal. Fallback internal `waitUntil(...)` diperlakukan hanya sebagai jalur preview/dev atau emergency rollback.
+6. Cleanup seluruh artefak uji. Hapus transfer dummy dari panel admin atau endpoint admin yang sesuai, hapus override/status dengan prefix `SMOKE_TEST_...` bila ada, dan bersihkan file bukti atau state OCR sementara yang memang dibuat khusus untuk pengujian.
+7. Catat hasil smoke test di catatan deploy singkat: environment, waktu uji, skenario yang lolos, kegagalan yang ditemukan, dan status cleanup.
+
+## Supabase CLI dan Migrasi
+
+Workflow database yang direkomendasikan untuk repo ini sekarang adalah lewat Supabase CLI.
+
+Langkah minimum:
+
+1. Install dependency repo dengan `npm install`.
+2. Login CLI dengan `npx supabase login`.
+3. Inisialisasi folder Supabase sekali per repo dengan `npx supabase init` bila folder `supabase/` belum ada.
+4. Link ke project remote dengan `npx supabase link --project-ref <project-ref>`.
+5. Dorong migration yang sudah ditrack dengan `npx supabase db push`.
+
+Catatan penting:
+
+- Migration marker RPC sudah disimpan di [supabase/migrations](supabase/migrations), sehingga CLI adalah jalur deploy database yang paling rapi dan repeatable.
+- [sql-admin-write-marker.sql](sql-admin-write-marker.sql) tetap berguna sebagai mirror manual bila SQL Editor perlu dipakai untuk inspeksi atau recovery cepat.
+- [sql-security.sql](sql-security.sql) masih berupa script manual terpisah; bila ingin seluruh perubahan database sepenuhnya tertata lewat migration, pindahkan script ini ke folder migration juga.
+- Jangan commit file lokal yang berisi secret, profile override, atau artifact sementara dari CLI.
+
 ## Deploy
 
 1. Hubungkan repository ke project Vercel.
 2. Isi semua environment variable di Vercel Project Settings.
-3. Jalankan [sql-admin-write-marker.sql](sql-admin-write-marker.sql) di Supabase SQL Editor agar helper marker global bisa update row `admin_write_marker` secara atomic. Tanpa langkah ini, aplikasi tetap memakai fallback broad-scope non-atomic yang aman untuk refresh fungsional, tetapi kurang presisi saat write bersamaan.
-4. Jalankan [sql-security.sql](sql-security.sql) di Supabase SQL Editor agar semua tabel aplikasi memakai RLS.
-5. Pastikan backend memakai `SUPABASE_SERVICE_ROLE_KEY`, bukan fallback ke anon key.
-6. Deploy branch main.
+3. Jalankan migration database dengan `npx supabase db push` setelah repo dilink ke project Supabase yang benar.
+4. Jika migration CLI tidak dipakai, jalankan [sql-admin-write-marker.sql](sql-admin-write-marker.sql) di Supabase SQL Editor sebagai fallback manual untuk memasang RPC `touch_admin_write_marker`.
+5. Jalankan [sql-security.sql](sql-security.sql) di Supabase SQL Editor agar semua tabel aplikasi memakai RLS.
+6. Pastikan backend memakai `SUPABASE_SERVICE_ROLE_KEY`, bukan fallback ke anon key.
+7. Deploy branch main.
 
 ## Background Sync NONCOD
 
@@ -348,6 +408,7 @@ Catatan operasional:
 
 - Untuk traffic production paralel, arahkan `OCR_PIPELINE_TRIGGER_URL` ke Lambda agar OCR tidak berbagi concurrency dengan handler input utama di Vercel.
 - `OCR_SYNC_SECRET` tetap berguna sebagai fallback internal untuk preview/dev atau emergency rollback.
+- Jalur production yang direkomendasikan adalah trigger eksternal lewat `OCR_PIPELINE_TRIGGER_URL`; worker internal `waitUntil(...)` dipertahankan sebagai fallback saat preview/dev atau rollback darurat.
 - Jika trigger Lambda OCR gagal tetapi request masih berjalan di Vercel, app akan fallback ke worker internal `waitUntil(...)` agar user tidak langsung mentok di error trigger.
 - Artifact build Lambda disiapkan oleh [scripts/aws/build-ocr-worker-package.js](scripts/aws/build-ocr-worker-package.js).
 - Upload artifact dari file zip hasil `npm run package:ocr-worker`, bukan hanya copy `index.js` ke editor AWS Lambda.

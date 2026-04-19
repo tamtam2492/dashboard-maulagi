@@ -28,6 +28,11 @@ const {
 const { getSupabase } = require('./_supabase');
 const { publishAdminWriteMarker, readAdminWriteMarker } = require('./_admin-write-marker');
 const {
+  ensureAllowedMethod,
+  normalizeQueryFlag,
+  normalizeText,
+} = require('./_request-validation');
+const {
   buildTransferUpdate,
   getAffectedTransferPeriodes,
   getPeriodeFromDate,
@@ -141,7 +146,7 @@ async function handleCarryoverRoute(req, res, supabase) {
   if (req.method === 'GET') {
     try {
       const result = await listCarryoverOverrideRows(supabase, {
-        periode: req.query.periode || '',
+        periode: normalizeText(req.query.periode, 20),
       });
       res.json(result);
       return true;
@@ -261,7 +266,7 @@ async function handlePendingAllocationRoute(req, res, supabase) {
   if (req.method === 'GET') {
     try {
       const result = await listPendingAllocationRows(supabase, {
-        periode: req.query.periode || '',
+        periode: normalizeText(req.query.periode, 20),
       });
       res.json(result);
       return true;
@@ -307,6 +312,11 @@ async function handlePendingAllocationRoute(req, res, supabase) {
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   if (cors(req, res, { methods: 'GET, POST, PUT, DELETE, OPTIONS', headers: 'Content-Type, X-Admin-Token' })) return;
+  if (!ensureAllowedMethod(req, res, ['GET', 'POST', 'PUT', 'DELETE'])) return;
+
+  const isCarryoverRoute = normalizeQueryFlag(req.query.carryover);
+  const isPendingAllocationRoute = normalizeQueryFlag(req.query.pending_allocation);
+  const isWatchRoute = normalizeQueryFlag(req.query.watch);
 
   // Transfer review and all write operations are admin only
   if (['GET', 'POST', 'PUT', 'DELETE'].includes(req.method)) {
@@ -316,15 +326,15 @@ module.exports = async (req, res) => {
   try {
   const supabase = getSupabase();
 
-  if (req.query.carryover === '1') {
+  if (isCarryoverRoute) {
     if (await handleCarryoverRoute(req, res, supabase)) return;
   }
 
-  if (req.query.pending_allocation === '1') {
+  if (isPendingAllocationRoute) {
     if (await handlePendingAllocationRoute(req, res, supabase)) return;
   }
 
-  if (req.query.watch === '1') {
+  if (isWatchRoute) {
     if (req.method !== 'GET') {
       return res.status(405).json({ error: 'Method not allowed.' });
     }
@@ -334,7 +344,7 @@ module.exports = async (req, res) => {
 
   // GET ?periode=2026-04
   if (req.method === 'GET') {
-    const { periode } = req.query;
+    const periode = normalizeText(req.query.periode, 20);
     if (!periode || !/^\d{4}-\d{2}$/.test(periode)) {
       return res.status(400).json({ error: 'Parameter periode tidak valid (format: YYYY-MM).' });
     }
@@ -364,7 +374,10 @@ module.exports = async (req, res) => {
 
   // POST — split action
   if (req.method === 'POST') {
-    const { action, id, rows } = req.body;
+    const body = req.body || {};
+    const action = normalizeText(body.action, 40);
+    const id = normalizeText(body.id, 120);
+    const rows = body.rows;
 
     if (action !== 'split') return res.status(400).json({ error: 'Action tidak dikenal.' });
     if (!id) return res.status(400).json({ error: 'ID transfer diperlukan.' });
@@ -457,7 +470,8 @@ module.exports = async (req, res) => {
   // PUT — edit tgl_inputan (dan optional ket) satu baris
   if (req.method === 'PUT') {
     const body = req.body || {};
-    const { id, tgl_inputan, ket } = body;
+    const id = normalizeText(body.id, 120);
+    const { tgl_inputan, ket } = body;
     const hasNominal = Object.prototype.hasOwnProperty.call(body, 'nominal');
     if (!id) return res.status(400).json({ error: 'ID diperlukan.' });
     if (!isValidTransferDate(tgl_inputan)) {
@@ -500,7 +514,7 @@ module.exports = async (req, res) => {
 
   // DELETE — hapus satu baris transfer
   if (req.method === 'DELETE') {
-    const id = String(req.query.id || req.body?.id || '').trim();
+    const id = normalizeText(req.query.id || req.body?.id, 120);
     if (!id) return res.status(400).json({ error: 'ID diperlukan.' });
 
     const { data: existing, error: findErr } = await supabase

@@ -2,6 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  ADMIN_WRITE_MARKER_MAX_PERIODES,
+  ADMIN_WRITE_MARKER_MAX_SCOPES,
   FALLBACK_MARKER_SCOPES,
   createFallbackMarkerOptions,
   createAdminWriteMarker,
@@ -90,6 +92,82 @@ test('mergeAdminWriteMarker membuka window baru setelah compaction lewat', () =>
     scopes: ['admin_cabang', 'audit'],
     periodes: [],
   });
+});
+
+test('mergeAdminWriteMarker membatasi scope dan periode saat burst dalam window yang sama', () => {
+  const currentScopes = Array.from({ length: 18 }, (_, index) => `scope_${index + 1}`);
+  const currentPeriodes = Array.from({ length: 23 }, (_, index) => {
+    const year = 2025 + Math.floor(index / 12);
+    const month = String(index % 12 + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  });
+
+  const currentMarker = createAdminWriteMarker({
+    now: new Date('2026-04-18T10:11:12.000Z'),
+    version: 8,
+    source: 'transfer_bulk',
+    scopes: currentScopes,
+    periodes: currentPeriodes,
+  });
+
+  const nextMarker = mergeAdminWriteMarker(currentMarker, {
+    source: 'manual_status_bulk',
+    scopes: ['scope_18', 'scope_19', 'scope_20', 'scope_21', 'scope_22', 'scope_23'],
+    periodes: ['2026-12', '2027-01', '2027-02'],
+  }, {
+    now: new Date('2026-04-18T10:11:40.000Z'),
+  });
+
+  assert.equal(nextMarker.scopes.length, ADMIN_WRITE_MARKER_MAX_SCOPES);
+  assert.equal(nextMarker.periodes.length, ADMIN_WRITE_MARKER_MAX_PERIODES);
+  assert.deepEqual(nextMarker.scopes, [
+    'scope_1',
+    'scope_2',
+    'scope_3',
+    'scope_4',
+    'scope_5',
+    'scope_6',
+    'scope_7',
+    'scope_8',
+    'scope_9',
+    'scope_10',
+    'scope_11',
+    'scope_12',
+    'scope_13',
+    'scope_14',
+    'scope_15',
+    'scope_16',
+    'scope_17',
+    'scope_18',
+    'scope_19',
+    'scope_20',
+  ]);
+  assert.deepEqual(nextMarker.periodes, [
+    '2025-01',
+    '2025-02',
+    '2025-03',
+    '2025-04',
+    '2025-05',
+    '2025-06',
+    '2025-07',
+    '2025-08',
+    '2025-09',
+    '2025-10',
+    '2025-11',
+    '2025-12',
+    '2026-01',
+    '2026-02',
+    '2026-03',
+    '2026-04',
+    '2026-05',
+    '2026-06',
+    '2026-07',
+    '2026-08',
+    '2026-09',
+    '2026-10',
+    '2026-11',
+    '2026-12',
+  ]);
 });
 
 test('createFallbackMarkerOptions melebarkan scope fallback saat RPC marker belum aktif', () => {
