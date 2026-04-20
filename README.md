@@ -12,6 +12,10 @@
 
 **ID:** Aplikasi web internal berbasis serverless untuk operasional transfer, monitoring cabang, pelaporan NONCOD/DFOD berbasis MauKirim, dan workflow admin operasional.
 
+**EN:** Runtime secrets are managed outside the repo, with Bitwarden Secrets Manager as the source of truth and automated sync targets for Vercel and AWS Lambda.
+
+**ID:** Runtime secret dikelola di luar repo, dengan Bitwarden Secrets Manager sebagai source of truth dan target sinkronisasi otomatis ke Vercel serta AWS Lambda.
+
 ---
 
 ## What It Does / Fungsi Utama
@@ -39,6 +43,16 @@
 **EN:** The project is structured to keep the main app simple on Vercel while offloading background-heavy work to external workers.
 
 **ID:** Proyek ini disusun agar aplikasi utama tetap sederhana di Vercel, sementara pekerjaan background yang berat dipindahkan ke worker eksternal.
+
+### Operational rules / Aturan operasional
+
+**EN:** Business behavior is intentionally strict. MauKirim remains the source of truth for raw NONCOD data, reconciliation stays FIFO by business date, and transfer matching must preserve the current operational rules.
+
+**ID:** Perilaku bisnis sengaja dibuat ketat. MauKirim tetap menjadi source of truth untuk data NONCOD mentah, rekonsiliasi tetap FIFO berdasarkan tanggal bisnis, dan matching transfer harus mempertahankan aturan operasional yang berlaku sekarang.
+
+See `ATURAN-BISNIS-APLIKASI.md` for the authoritative business rules.
+
+Lihat `ATURAN-BISNIS-APLIKASI.md` untuk aturan bisnis yang menjadi acuan utama.
 
 ### Hybrid architecture / Arsitektur hybrid
 
@@ -143,6 +157,54 @@ Lihat `.env.example` untuk template lengkap.
 
 ---
 
+## Runtime Secret Sync / Sinkronisasi Runtime Secret
+
+**EN:** Runtime secret management is intentionally split from source code. Bitwarden Secrets Manager is the canonical source, while Vercel and AWS Lambda are treated as runtime targets only.
+
+**ID:** Pengelolaan runtime secret sengaja dipisahkan dari source code. Bitwarden Secrets Manager adalah sumber kanonik, sedangkan Vercel dan AWS Lambda hanya menjadi target runtime.
+
+### GitHub workflow / Workflow GitHub
+
+The repository includes `.github/workflows/runtime-secret-sync.yml` with two modes:
+
+- `workflow_dispatch` for manual verify or sync runs
+- scheduled nightly sync at `17 2 * * *`
+
+**Required GitHub repository secrets / Secret GitHub yang wajib ada:**
+
+- `BW_ACCESS_TOKEN`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `VERCEL_TOKEN`
+
+**EN:** The workflow prepares Vercel project metadata, loads secrets from Bitwarden by canonical IDs, then verifies or syncs them to Vercel and Lambda without printing secret values.
+
+**ID:** Workflow menyiapkan metadata project Vercel, memuat secret dari Bitwarden berdasarkan ID kanonik, lalu memverifikasi atau menyinkronkannya ke Vercel dan Lambda tanpa mencetak nilai secret.
+
+### Local maintenance scripts / Skrip lokal
+
+Use these commands for local verification or manual sync:
+
+```bash
+npm run local:verify-bws-runtime -- --source env --target all
+npm run local:sync-bws-runtime -- --project-id <bitwarden-project-id> --target all
+npm run local:sync-vercel-env -- --file .env.local --environment production
+```
+
+**EN:** The sync tooling validates secret shape before deployment, including semantic validation for `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` so an anon key cannot silently replace backend credentials.
+
+**ID:** Tooling sync ini memvalidasi bentuk secret sebelum deploy, termasuk validasi semantik untuk `SUPABASE_ANON_KEY` dan `SUPABASE_SERVICE_ROLE_KEY` agar anon key tidak diam-diam menggantikan kredensial backend.
+
+### Optional runtime keys / Key runtime opsional
+
+These keys are treated as optional and do not block the main release when absent:
+
+- `OCR_PIPELINE_TRIGGER_URL`
+- `OCR_PIPELINE_TRIGGER_SECRET`
+- `TELEGRAM_MESSAGE_THREAD_ID`
+
+---
+
 ## Available Scripts / Skrip Tersedia
 
 | Command | Purpose |
@@ -150,7 +212,12 @@ Lihat `.env.example` untuk template lengkap.
 | `npm run lint` | Syntax check |
 | `npm run test` | Run test suite |
 | `npm run check` | Run lint and tests |
+| `npm run local:verify-bws-runtime` | Verify runtime secrets from env or Bitwarden without applying changes |
+| `npm run local:sync-bws-runtime` | Sync runtime secrets from Bitwarden or env to Vercel and Lambda |
+| `npm run local:sync-vercel-env` | Sync selected `.env` keys to Vercel environments safely |
+| `npm run build:ocr-worker` | Build OCR Lambda package contents |
 | `npm run package:ocr-worker` | Build zip-ready OCR Lambda package |
+| `npm run build:noncod-worker` | Build NONCOD Lambda package contents |
 | `npm run package:noncod-worker` | Build zip-ready NONCOD Lambda package |
 | `npm run local:cleanup` | Cleanup local operational test data |
 | `npm run local:seed-cabang` | Seed branch master data |
@@ -162,3 +229,5 @@ Lihat `.env.example` untuk template lengkap.
 - Main pages live at `index.html`, `dashboard.html`, `input.html`, `rekap.html`, `noncod.html`, and `admin.html`.
 - Database migrations tracked in `supabase/migrations` are complemented by manual SQL helpers such as `sql-security.sql`, `sql-indexes.sql`, and `sql-admin-write-marker.sql`.
 - AWS Lambda templates for notifier, OCR worker, and NONCOD sync worker are available under `scripts/aws/`.
+- Runtime secret sync is designed to avoid reading committed env files in CI and to avoid printing sensitive values in logs.
+- Changes to Vercel production environment variables require a redeploy before the live runtime uses the new values.

@@ -10,6 +10,9 @@
     "package:noncod-worker": "node scripts/aws/package-noncod-sync-worker.js",
     "build:ocr-worker": "node scripts/aws/build-ocr-worker-package.js",
     "package:ocr-worker": "node scripts/aws/package-ocr-worker.js",
+    "local:sync-bws-runtime": "node scripts/local/sync-bws-runtime.js",
+    "local:verify-bws-runtime": "node scripts/local/sync-bws-runtime.js --verify-only",
+    "local:sync-vercel-env": "node scripts/local/sync-vercel-env.js",
     "local:cleanup": "node -r dotenv/config scripts/local/cleanup.js",
     "local:cleanup:dry": "node -r dotenv/config scripts/local/cleanup.js --dry-run",
     "local:seed-cabang": "node -r dotenv/config scripts/local/seed-cabang.js"
