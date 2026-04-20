@@ -181,6 +181,10 @@ The repository includes `.github/workflows/runtime-secret-sync.yml` with two mod
 
 **ID:** Workflow menyiapkan metadata project Vercel, memasang CLI `bws`, membaca langsung project Bitwarden yang dikonfigurasi, lalu memverifikasi atau menyinkronkannya ke Vercel dan Lambda tanpa mencetak nilai secret.
 
+**EN:** In live `sync` mode, when the target includes Vercel, the workflow also triggers a fresh production redeploy so updated Vercel environment variables become active in the running deployment.
+
+**ID:** Pada mode `sync` live, jika target mencakup Vercel, workflow juga memicu redeploy production baru agar environment variable Vercel yang sudah diperbarui benar-benar aktif di deployment yang sedang berjalan.
+
 **EN:** This avoids brittle UUID-only secret loading in GitHub Actions, so secret rotation inside Bitwarden does not immediately break the workflow as long as the required key names remain available in the target project.
 
 **ID:** Ini menghindari pemuatan secret berbasis UUID statis di GitHub Actions, sehingga rotasi secret di Bitwarden tidak langsung mematahkan workflow selama nama key wajib tetap tersedia di project target.
