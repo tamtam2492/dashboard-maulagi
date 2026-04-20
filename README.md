@@ -177,9 +177,13 @@ The repository includes `.github/workflows/runtime-secret-sync.yml` with two mod
 - `AWS_SECRET_ACCESS_KEY`
 - `VERCEL_TOKEN`
 
-**EN:** The workflow prepares Vercel project metadata, loads secrets from Bitwarden by canonical IDs, then verifies or syncs them to Vercel and Lambda without printing secret values.
+**EN:** The workflow prepares Vercel project metadata, installs the `bws` CLI, reads the configured Bitwarden project directly, then verifies or syncs secrets to Vercel and Lambda without printing secret values.
 
-**ID:** Workflow menyiapkan metadata project Vercel, memuat secret dari Bitwarden berdasarkan ID kanonik, lalu memverifikasi atau menyinkronkannya ke Vercel dan Lambda tanpa mencetak nilai secret.
+**ID:** Workflow menyiapkan metadata project Vercel, memasang CLI `bws`, membaca langsung project Bitwarden yang dikonfigurasi, lalu memverifikasi atau menyinkronkannya ke Vercel dan Lambda tanpa mencetak nilai secret.
+
+**EN:** This avoids brittle UUID-only secret loading in GitHub Actions, so secret rotation inside Bitwarden does not immediately break the workflow as long as the required key names remain available in the target project.
+
+**ID:** Ini menghindari pemuatan secret berbasis UUID statis di GitHub Actions, sehingga rotasi secret di Bitwarden tidak langsung mematahkan workflow selama nama key wajib tetap tersedia di project target.
 
 ### Local maintenance scripts / Skrip lokal
 
