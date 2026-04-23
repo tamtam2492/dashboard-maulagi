@@ -7,6 +7,10 @@ const { cors } = require('./_cors');
 const { logError } = require('./_logger');
 const { normalizeBankName } = require('./_bank');
 const {
+  pruneProofSignatureRegistryByTransferIds,
+  replaceProofSignatureRegistryTransferIds,
+} = require('./_proof-signature');
+const {
   MAX_NONCOD_CARRYOVER_AMOUNT,
   deleteCarryoverOverride,
   listCarryoverOverrideRows,
@@ -22,8 +26,15 @@ const {
   normalizePendingTransferId,
 } = require('./_noncod-pending-allocations');
 const {
+  buildTransferAllocationPlan,
+  deleteTransferAllocation,
+  loadTransferAllocationContext,
+  readTransferAllocationRowsByTransferIds,
+  splitTransferAllocationRecord,
+  upsertTransferAllocation,
+} = require('./_noncod-transfer-allocations');
+const {
   markNoncodSyncDirty,
-  queueNoncodPipelineTrigger,
 } = require('./_noncod-sync-pipeline');
 const { getSupabase } = require('./_supabase');
 const { publishAdminWriteMarker, readAdminWriteMarker } = require('./_admin-write-marker');
@@ -105,7 +116,146 @@ async function clearCabangHoldSafe(supabase, transferId, context) {
   }
 }
 
-async function queuePipelineRefreshSafe(supabase, periodes, reason, context) {
+async function clearTransferAllocationSafe(supabase, transferId, context) {
+  const normalizedTransferId = normalizeText(transferId, 120);
+  if (!normalizedTransferId) return;
+
+  try {
+    await deleteTransferAllocation(supabase, normalizedTransferId);
+  } catch (err) {
+    logError('transfer-allocation', err.message, {
+      method: context,
+      transferId: normalizedTransferId,
+      action: 'delete_transfer_allocation',
+    });
+  }
+}
+
+async function rebuildTransferAllocationSafe(supabase, transfer, source, context) {
+  const transferId = normalizeText(transfer && transfer.id, 120);
+  const cabang = normalizeText(transfer && transfer.nama_cabang, 120);
+  const transferDate = normalizeTransferDateValue(transfer && transfer.tgl_inputan);
+  const transferNominal = roundTransferNominal(transfer && transfer.nominal);
+  if (!transferId || !cabang || !transferDate || !(transferNominal > 0)) return;
+
+  try {
+    const allocationContext = await loadTransferAllocationContext(supabase, {
+      cabang,
+      targetDates: [transferDate],
+      excludeTransferIds: [transferId],
+    });
+    const plans = buildTransferAllocationPlan({
+      noncodRows: allocationContext.effectiveRows,
+      existingTransfers: allocationContext.existingTransfers,
+      existingAllocationRows: allocationContext.existingAllocationRows,
+      plannedRows: [{ tgl_inputan: transferDate, nominal: transferNominal }],
+    });
+    const plan = plans[0] || { allocations: [], unallocatedNominal: transferNominal };
+
+    await upsertTransferAllocation(supabase, {
+      transfer_id: transferId,
+      cabang,
+      transfer_date: transferDate,
+      transfer_nominal: transferNominal,
+      source,
+      allocations: plan.allocations,
+      unallocated_nominal: plan.unallocatedNominal,
+      created_at: transfer && transfer.timestamp,
+      updated_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    logError('transfer-allocation', err.message, {
+      method: context,
+      transferId,
+      action: 'rebuild_transfer_allocation',
+      source,
+    });
+  }
+}
+
+async function replaceTransferAllocationAfterSplitSafe(supabase, oldTransfer, newTransfers, source, context) {
+  const oldTransferId = normalizeText(oldTransfer && oldTransfer.id, 120);
+  const cabang = normalizeText(oldTransfer && oldTransfer.nama_cabang, 120);
+  if (!oldTransferId || !cabang || !Array.isArray(newTransfers) || !newTransfers.length) return;
+
+  try {
+    const existingAllocation = (await readTransferAllocationRowsByTransferIds(supabase, [oldTransferId]))[0] || null;
+    let records = [];
+
+    if (existingAllocation) {
+      records = splitTransferAllocationRecord(existingAllocation, newTransfers.map((row) => ({
+        ...row,
+        nama_cabang: row.nama_cabang || cabang,
+      })));
+    } else {
+      const allocationContext = await loadTransferAllocationContext(supabase, {
+        cabang,
+        targetDates: newTransfers.map((row) => row.tgl_inputan),
+        excludeTransferIds: [oldTransferId],
+      });
+      const plans = buildTransferAllocationPlan({
+        noncodRows: allocationContext.effectiveRows,
+        existingTransfers: allocationContext.existingTransfers,
+        existingAllocationRows: allocationContext.existingAllocationRows,
+        plannedRows: newTransfers.map((row) => ({
+          tgl_inputan: row.tgl_inputan,
+          nominal: row.nominal,
+        })),
+      });
+      records = newTransfers.map((row, index) => ({
+        transfer_id: row.id,
+        cabang,
+        transfer_date: row.tgl_inputan,
+        transfer_nominal: row.nominal,
+        source,
+        allocations: plans[index] ? plans[index].allocations : [],
+        unallocated_nominal: plans[index] ? plans[index].unallocatedNominal : roundTransferNominal(row.nominal),
+        created_at: row.timestamp || oldTransfer.timestamp,
+        updated_at: row.timestamp || new Date().toISOString(),
+      }));
+    }
+
+    for (const record of records) {
+      await upsertTransferAllocation(supabase, record);
+    }
+    await clearTransferAllocationSafe(supabase, oldTransferId, context);
+  } catch (err) {
+    logError('transfer-allocation', err.message, {
+      method: context,
+      transferId: oldTransferId,
+      newTransferIds: newTransfers.map((row) => row.id).filter(Boolean),
+      action: 'replace_transfer_allocation_after_split',
+      source,
+    });
+  }
+}
+
+async function pruneProofRegistrySafe(supabase, transferIds, context) {
+  try {
+    await pruneProofSignatureRegistryByTransferIds(supabase, transferIds);
+  } catch (err) {
+    logError('transfer-proof-signature', err.message, {
+      method: context,
+      transferIds: Array.isArray(transferIds) ? transferIds : [transferIds],
+      action: 'prune_proof_registry',
+    });
+  }
+}
+
+async function replaceProofRegistrySafe(supabase, oldTransferId, newTransfers, context) {
+  try {
+    await replaceProofSignatureRegistryTransferIds(supabase, oldTransferId, newTransfers);
+  } catch (err) {
+    logError('transfer-proof-signature', err.message, {
+      method: context,
+      transferId: String(oldTransferId || '').trim(),
+      newTransferIds: (Array.isArray(newTransfers) ? newTransfers : []).map((row) => String(row && row.id || '').trim()).filter(Boolean),
+      action: 'replace_proof_registry_transfer_ids',
+    });
+  }
+}
+
+async function markPipelineDirtySafe(supabase, periodes, reason, context) {
   const affectedPeriodes = [...new Set((periodes || []).filter(Boolean))];
   if (!affectedPeriodes.length) return;
 
@@ -114,15 +264,10 @@ async function queuePipelineRefreshSafe(supabase, periodes, reason, context) {
       reason,
       periodes: affectedPeriodes,
     });
-    queueNoncodPipelineTrigger({
-      reason,
-      periodes: affectedPeriodes,
-      source: 'transfer',
-    });
   } catch (err) {
     logError('noncod-sync', err.message, {
       method: context,
-      action: 'queue_after_transfer_write',
+      action: 'mark_dirty_after_transfer_write',
       periodes: affectedPeriodes,
     });
   }
@@ -425,7 +570,10 @@ module.exports = async (req, res) => {
     if (delErr) return res.status(500).json({ error: 'Gagal menghapus transfer asli: ' + delErr.message });
 
     // Insert baris baru
-    const { error: insErr } = await supabase.from('transfers').insert(newRows);
+    const { data: insertedRows, error: insErr } = await supabase
+      .from('transfers')
+      .insert(newRows)
+      .select('id, timestamp, tgl_inputan, nominal, nama_cabang');
     if (insErr) {
       // Rollback: restore row asli jika insert gagal
       const { timestamp, tgl_inputan: ti, periode: p, nama_bank: nb, nama_cabang: nc, nominal: n, bukti_url: bu, ket: k } = orig;
@@ -452,19 +600,21 @@ module.exports = async (req, res) => {
     await clearCarryoverOverrideSafe(supabase, id, 'POST');
     await clearPendingAllocationSafe(supabase, id, 'POST');
     await clearCabangHoldSafe(supabase, id, 'POST');
+    await replaceTransferAllocationAfterSplitSafe(supabase, orig, insertedRows || [], 'admin_transfer_split', 'POST');
+    await replaceProofRegistrySafe(supabase, id, insertedRows || [], 'POST');
     await publishAdminWriteMarkerSafe(supabase, {
       source: 'transfer_split',
       scopes: ['overview', 'noncod', 'transfer', 'audit', 'admin_monitor'],
       periodes: getAffectedTransferPeriodes([orig.tgl_inputan, ...newRows.map((row) => row.tgl_inputan)]),
     }, 'POST');
-    await queuePipelineRefreshSafe(
+    await markPipelineDirtySafe(
       supabase,
       getAffectedTransferPeriodes([orig.tgl_inputan, ...newRows.map((row) => row.tgl_inputan)]),
       'transfer_split',
       'POST',
     );
 
-    return res.json({ success: true, inserted: newRows.length });
+    return res.json({ success: true, inserted: Array.isArray(insertedRows) ? insertedRows.length : newRows.length });
   }
 
   // PUT — edit tgl_inputan (dan optional ket) satu baris
@@ -483,7 +633,7 @@ module.exports = async (req, res) => {
 
     const { data: existing, error: findErr } = await supabase
       .from('transfers')
-      .select('id, tgl_inputan')
+      .select('id, tgl_inputan, nominal, nama_cabang, timestamp')
       .eq('id', id)
       .maybeSingle();
     if (findErr) return res.status(500).json({ error: findErr.message });
@@ -492,18 +642,24 @@ module.exports = async (req, res) => {
     const update = buildTransferUpdate(tgl_inputan, ket, hasNominal ? body.nominal : undefined);
     if (!update) return res.status(400).json({ error: 'Data transfer tidak valid.' });
 
-    const { error: updErr } = await supabase.from('transfers').update(update).eq('id', id);
+    const { data: updated, error: updErr } = await supabase
+      .from('transfers')
+      .update(update)
+      .eq('id', id)
+      .select('id, tgl_inputan, nominal, nama_cabang, timestamp')
+      .maybeSingle();
     if (updErr) return res.status(500).json({ error: updErr.message });
 
     await clearCarryoverOverrideSafe(supabase, id, 'PUT');
     await clearPendingAllocationSafe(supabase, id, 'PUT');
     await clearCabangHoldSafe(supabase, id, 'PUT');
+    await rebuildTransferAllocationSafe(supabase, updated || { ...existing, ...update }, 'admin_transfer_update', 'PUT');
     await publishAdminWriteMarkerSafe(supabase, {
       source: 'transfer_update',
       scopes: ['overview', 'noncod', 'transfer', 'audit', 'admin_monitor'],
       periodes: getAffectedTransferPeriodes([existing.tgl_inputan, update.tgl_inputan]),
     }, 'PUT');
-    await queuePipelineRefreshSafe(
+    await markPipelineDirtySafe(
       supabase,
       getAffectedTransferPeriodes([existing.tgl_inputan, update.tgl_inputan]),
       'transfer_update',
@@ -531,12 +687,14 @@ module.exports = async (req, res) => {
     await clearCarryoverOverrideSafe(supabase, id, 'DELETE');
     await clearPendingAllocationSafe(supabase, id, 'DELETE');
     await clearCabangHoldSafe(supabase, id, 'DELETE');
+    await clearTransferAllocationSafe(supabase, id, 'DELETE');
+    await pruneProofRegistrySafe(supabase, [id], 'DELETE');
     await publishAdminWriteMarkerSafe(supabase, {
       source: 'transfer_delete',
       scopes: ['overview', 'noncod', 'transfer', 'audit', 'admin_monitor'],
       periodes: [getPeriodeFromDate(existing.tgl_inputan)],
     }, 'DELETE');
-    await queuePipelineRefreshSafe(
+    await markPipelineDirtySafe(
       supabase,
       [getPeriodeFromDate(existing.tgl_inputan)],
       'transfer_delete',

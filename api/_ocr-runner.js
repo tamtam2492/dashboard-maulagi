@@ -29,7 +29,7 @@ async function requestGroqOcr(imageDataUrl, env = process.env, fetchImpl = globa
           content: [
             {
               type: 'text',
-              text: 'Task: Analyze this image. First, determine if it is a bank transfer receipt, payment proof, or financial transaction screenshot. Output MUST be a valid raw JSON object ONLY. No markdown, no backticks, no preamble. Use exactly these fields and valid JSON types: {"is_receipt": boolean, "Channel": string|null, "Total_Bayar": integer|null, "Jumlah_Kirim_Uang": integer|null, "Admin": integer|null, "Admin_Dibayar": boolean|null}. Use null when a value is unknown. "Total_Bayar" is the total amount paid by sender. "Jumlah_Kirim_Uang" is the actual amount sent/received by destination. "Admin" is the admin fee actually paid after promo/discount, not just any crossed-out number shown on screen. If admin is struck through, crossed out, labeled Gratis/free/waived, promo-applied, or Total_Bayar equals Jumlah_Kirim_Uang, set Admin to 0 and Admin_Dibayar to false. If admin is truly charged, set Admin_Dibayar to true. If the image is NOT a bank receipt/payment proof/transaction screenshot, set is_receipt to false and all other fields to null.',
+              text: 'Task: Analyze this image. First, determine if it is a bank transfer receipt, payment proof, or financial transaction screenshot. Output MUST be a valid raw JSON object ONLY. No markdown, no backticks, no preamble. Use exactly these fields and valid JSON types: {"is_receipt": boolean, "Channel": string|null, "Total_Bayar": integer|null, "Jumlah_Kirim_Uang": integer|null, "Admin": integer|null, "Admin_Dibayar": boolean|null, "Tanggal_Transfer": string|null, "Waktu_Transfer": string|null}. Use null when a value is unknown. "Total_Bayar" is the total amount paid by sender. "Jumlah_Kirim_Uang" is the actual amount sent/received by destination. "Admin" is the admin fee actually paid after promo/discount, not just any crossed-out number shown on screen. If admin is struck through, crossed out, labeled Gratis/free/waived, promo-applied, or Total_Bayar equals Jumlah_Kirim_Uang, set Admin to 0 and Admin_Dibayar to false. If admin is truly charged, set Admin_Dibayar to true. "Tanggal_Transfer" is the transaction date visible on the receipt in YYYY-MM-DD format (e.g. "2026-04-19"). "Waktu_Transfer" is the transaction time visible on the receipt in HH:MM:SS format (e.g. "18:36:05"). If the image is NOT a bank receipt/payment proof/transaction screenshot, set is_receipt to false and all other fields to null.',
             },
             {
               type: 'image_url',
@@ -75,6 +75,7 @@ async function requestGroqOcr(imageDataUrl, env = process.env, fetchImpl = globa
     admin: resolved.effectiveAdmin,
     admin_dibayar: resolved.adminDibayar,
     nominal: resolved.nominal,
+    transfer_datetime: parsed.transferDatetime || null,
   };
 }
 

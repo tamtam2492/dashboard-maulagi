@@ -12,6 +12,13 @@ function normalizeStatus(status) {
   return ['queued', 'processing', 'succeeded', 'failed'].includes(status) ? status : 'queued';
 }
 
+function normalizeTransferDatetime(value) {
+  const text = String(value || '').trim();
+  // Format: YYYY-MM-DDTHH:MM:SS
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(text)) return text;
+  return null;
+}
+
 function normalizeResult(result) {
   if (!result || typeof result !== 'object' || Array.isArray(result)) return null;
   return {
@@ -23,6 +30,7 @@ function normalizeResult(result) {
       ? null
       : !!result.admin_dibayar,
     nominal: Number.isFinite(Number(result.nominal)) ? Number(result.nominal) : null,
+    transfer_datetime: normalizeTransferDatetime(result.transfer_datetime),
   };
 }
 
@@ -93,8 +101,7 @@ function getOcrPipelineTriggerConfig(env = process.env) {
     url,
     mode: getOcrPipelineTriggerMode(env),
     secret: normalizeText(env.OCR_PIPELINE_TRIGGER_SECRET, 500)
-      || normalizeText(env.OCR_SYNC_SECRET, 500)
-      || normalizeText(env.NONCOD_SYNC_SECRET, 500),
+      || normalizeText(env.OCR_SYNC_SECRET, 500),
     service: normalizeText(env.OCR_PIPELINE_SERVICE, 120) || 'dashboard-maulagi',
     timeoutMs: Number(env.OCR_PIPELINE_TRIGGER_TIMEOUT_MS || DEFAULT_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS,
   };

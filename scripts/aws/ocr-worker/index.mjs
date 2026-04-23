@@ -79,14 +79,13 @@ export const handler = async (event) => {
     const sharedSecret = String(
       process.env.OCR_PIPELINE_TRIGGER_SECRET
       || process.env.OCR_SYNC_SECRET
-      || process.env.NONCOD_SYNC_SECRET
       || ''
     ).trim();
     const hasHttpEnvelope = !!(event && (event.body !== undefined || event.headers));
 
     if (hasHttpEnvelope && sharedSecret) {
       const headers = normalizeHeaders(event.headers);
-      const inboundSecret = headers['x-ocr-secret'] || headers['x-sync-secret'] || headers['x-ops-secret'] || '';
+      const inboundSecret = headers['x-ocr-secret'] || '';
       if (!timingSafeSecretEqual(inboundSecret, sharedSecret)) {
         return json(401, { error: 'Unauthorized.' });
       }

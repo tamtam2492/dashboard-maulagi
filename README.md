@@ -76,9 +76,15 @@ flowchart LR
 
 ### Async pipelines / Pipeline asinkron
 
-**EN:** OCR and NONCOD refresh flows use background triggers so user-facing requests can return quickly while longer work continues outside the main request path.
+**EN:** OCR still uses a background trigger so user-facing requests can return quickly while longer processing continues outside the main request path.
 
-**ID:** Alur OCR dan refresh NONCOD memakai trigger background agar request user bisa selesai cepat sementara pekerjaan yang lebih panjang berjalan di luar request utama.
+**ID:** Alur OCR tetap memakai trigger background agar request user bisa selesai cepat sementara pekerjaan yang lebih panjang berjalan di luar request utama.
+
+**EN:** NONCOD refresh is now manual-only: admins upload the MauKirim workbook directly, while regular reads keep serving the last valid database snapshot.
+
+**ID:** Refresh NONCOD sekarang manual-only: admin upload workbook MauKirim langsung, sedangkan request baca biasa tetap menyajikan snapshot database terakhir yang valid.
+
+**ID:** Prinsip arsitektur NONCOD saat ini: snapshot dibaca dari database, dan refresh snapshot dilakukan eksplisit lewat upload manual admin.
 
 ### Access model / Model akses
 
@@ -151,43 +157,20 @@ Lihat `.env.example` untuk template lengkap.
 | `MAUKIRIM_WA` + `MAUKIRIM_PASS` | NONCOD/DFOD synchronization |
 | `GROQ_API_KEY` | OCR processing |
 | `OCR_PIPELINE_TRIGGER_URL` + `OCR_PIPELINE_TRIGGER_SECRET` | OCR background worker trigger |
-| `NONCOD_PIPELINE_TRIGGER_URL` + `NONCOD_PIPELINE_TRIGGER_SECRET` | NONCOD background worker trigger |
 | `TELEGRAM_NOTIFY_URL` + `TELEGRAM_NOTIFY_SECRET` | Operational notification relay |
 | `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | Multi-instance rate limiting |
 
 ---
 
-## Runtime Secret Sync / Sinkronisasi Runtime Secret
+## Runtime Secret Management / Manajemen Runtime Secret
 
 **EN:** Runtime secret management is intentionally split from source code. Bitwarden Secrets Manager is the canonical source, while Vercel and AWS Lambda are treated as runtime targets only.
 
 **ID:** Pengelolaan runtime secret sengaja dipisahkan dari source code. Bitwarden Secrets Manager adalah sumber kanonik, sedangkan Vercel dan AWS Lambda hanya menjadi target runtime.
 
-### GitHub workflow / Workflow GitHub
+**EN:** There is no scheduled GitHub sync workflow for runtime secrets. Verification or sync is done manually from a trusted local environment when needed.
 
-The repository includes `.github/workflows/runtime-secret-sync.yml` with two modes:
-
-- `workflow_dispatch` for manual verify or sync runs
-- scheduled nightly sync at `17 2 * * *`
-
-**Required GitHub repository secrets / Secret GitHub yang wajib ada:**
-
-- `BW_ACCESS_TOKEN`
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `VERCEL_TOKEN`
-
-**EN:** The workflow prepares Vercel project metadata, installs the `bws` CLI, reads the configured Bitwarden project directly, then verifies or syncs secrets to Vercel and Lambda without printing secret values.
-
-**ID:** Workflow menyiapkan metadata project Vercel, memasang CLI `bws`, membaca langsung project Bitwarden yang dikonfigurasi, lalu memverifikasi atau menyinkronkannya ke Vercel dan Lambda tanpa mencetak nilai secret.
-
-**EN:** In live `sync` mode, when the target includes Vercel, the workflow also triggers a fresh production redeploy so updated Vercel environment variables become active in the running deployment.
-
-**ID:** Pada mode `sync` live, jika target mencakup Vercel, workflow juga memicu redeploy production baru agar environment variable Vercel yang sudah diperbarui benar-benar aktif di deployment yang sedang berjalan.
-
-**EN:** This avoids brittle UUID-only secret loading in GitHub Actions, so secret rotation inside Bitwarden does not immediately break the workflow as long as the required key names remain available in the target project.
-
-**ID:** Ini menghindari pemuatan secret berbasis UUID statis di GitHub Actions, sehingga rotasi secret di Bitwarden tidak langsung mematahkan workflow selama nama key wajib tetap tersedia di project target.
+**ID:** Tidak ada workflow GitHub terjadwal untuk sinkronisasi runtime secret. Verifikasi atau sync dilakukan manual dari environment lokal yang tepercaya saat diperlukan.
 
 ### Local maintenance scripts / Skrip lokal
 
@@ -203,12 +186,21 @@ npm run local:sync-vercel-env -- --file .env.local --environment production
 
 **ID:** Tooling sync ini memvalidasi bentuk secret sebelum deploy, termasuk validasi semantik untuk `SUPABASE_ANON_KEY` dan `SUPABASE_SERVICE_ROLE_KEY` agar anon key tidak diam-diam menggantikan kredensial backend.
 
+### NONCOD Manual Upload Checklist / Checklist Upload Manual NONCOD
+
+- Pastikan admin memilih periode yang benar sebelum upload workbook.
+- Upload file XLSX MauKirim lewat halaman NONCOD admin.
+- Snapshot periode akan direconcile by `nomor_resi`, jadi upload ulang file yang sama tidak membuat row dobel.
+- Request baca biasa tetap memakai snapshot terakhir yang valid sampai admin mengunggah workbook baru.
+
 ### Optional runtime keys / Key runtime opsional
 
 These keys are treated as optional and do not block the main release when absent:
 
 - `OCR_PIPELINE_TRIGGER_URL`
 - `OCR_PIPELINE_TRIGGER_SECRET`
+- `NONCOD_PIPELINE_TRIGGER_URL`
+- `NONCOD_PIPELINE_TRIGGER_SECRET`
 - `TELEGRAM_MESSAGE_THREAD_ID`
 
 ---

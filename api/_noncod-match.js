@@ -5,6 +5,7 @@ const NONCOD_MATCH_TOLERANCE = 10000;
 const NONCOD_SPLIT_TOLERANCE = 500;
 const PERIODE_RE = /^\d{4}-\d{2}$/;
 const PREFETCHED_CONTEXT_TTL_MS = 30 * 1000;
+const MAUKIRIM_SYNC_KEY_PREFIX = 'maukirim_sync_';
 const EXCLUDED_NONCOD_STATUSES = new Set(['BATAL', 'VOID']);
 
 const prefetchedContexts = new Map();
@@ -46,6 +47,37 @@ function getSearchByDate(byDate, preferredPeriode) {
   return filterByPreferredPeriode(byDate, normalizedPeriode);
 }
 
+function getSyncSettingKey(periode) {
+  const normalizedPeriode = String(periode || '').trim();
+  return PERIODE_RE.test(normalizedPeriode) ? (MAUKIRIM_SYNC_KEY_PREFIX + normalizedPeriode) : '';
+}
+
+function parseSyncMeta(value) {
+  if (!value) return null;
+  if (typeof value === 'object' && !Array.isArray(value)) return value;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+async function readNoncodSnapshotVersion(supabase, preferredPeriode) {
+  const key = getSyncSettingKey(preferredPeriode);
+  if (!key) return '';
+
+  const { data, error } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', key)
+    .maybeSingle();
+  if (error) throw error;
+
+  const syncMeta = parseSyncMeta(data && data.value);
+  return String(syncMeta && syncMeta.syncedAt || '').trim();
+}
+
 function groupTransfersByDate(existingTransfers) {
   const transfersByDate = {};
   const paidNominalByDate = {};
@@ -75,6 +107,48 @@ function getOutstandingCandidates(byDate, existingTransfers) {
   return annotateCandidates(buildDateCandidates(byDate), existingTransfers)
     .filter(c => c.remainingNominal > 0)
     .sort((a, b) => a.tanggal_buat.localeCompare(b.tanggal_buat));
+}
+
+function formatNominalMessage(value) {
+  return 'Rp ' + Number(value || 0).toLocaleString('id-ID');
+}
+
+function buildHistoricalCoverageHint(byDate, existingTransfers, nominal) {
+  const normalizedNominal = Number(nominal || 0);
+  if (!(normalizedNominal > 0)) return '';
+
+  const candidates = annotateCandidates(buildDateCandidates(byDate), existingTransfers)
+    .slice()
+    .sort((a, b) => a.tanggal_buat.localeCompare(b.tanggal_buat));
+
+  const exactSingle = candidates.find((candidate) => (
+    Number(candidate.totalOngkir || 0) === normalizedNominal
+    && Number(candidate.remainingNominal || 0) !== normalizedNominal
+  ));
+  if (exactSingle) {
+    if (Number(exactSingle.remainingNominal || 0) <= 0) {
+      return ' Nominal ini sama dengan total NONCOD tgl ' + exactSingle.tanggal_buat + ', tetapi tanggal itu sudah lunas.';
+    }
+    return ' Nominal ini sama dengan total NONCOD tgl ' + exactSingle.tanggal_buat + ', tetapi outstanding tanggal itu tinggal ' + formatNominalMessage(exactSingle.remainingNominal) + '.';
+  }
+
+  for (let startIndex = 0; startIndex < candidates.length - 1; startIndex += 1) {
+    const first = candidates[startIndex];
+    for (let nextIndex = startIndex + 1; nextIndex < candidates.length; nextIndex += 1) {
+      const second = candidates[nextIndex];
+      const rawTotal = Number(first.totalOngkir || 0) + Number(second.totalOngkir || 0);
+      if (rawTotal !== normalizedNominal) continue;
+
+      const remainingTotal = Number(first.remainingNominal || 0) + Number(second.remainingNominal || 0);
+      if (remainingTotal === normalizedNominal) continue;
+      if (remainingTotal <= 0) {
+        return ' Nominal ini sama dengan gabungan total NONCOD tgl ' + first.tanggal_buat + ' + ' + second.tanggal_buat + ', tetapi dua tanggal itu sudah tertutup transfer.';
+      }
+      return ' Nominal ini sama dengan gabungan total NONCOD tgl ' + first.tanggal_buat + ' + ' + second.tanggal_buat + ', tetapi sisa outstanding gabungannya tinggal ' + formatNominalMessage(remainingTotal) + '.';
+    }
+  }
+
+  return '';
 }
 
 function buildCabangHoldTransfers(byDate, existingTransfers, holdRows) {
@@ -133,6 +207,20 @@ function findPublicInputAllocation(byDate, existingTransfers, nominal) {
     };
   }
 
+  // Tahap 1: cari exact match satu tanggal dari seluruh outstanding (bukan hanya tertua).
+  // Jika ditemukan, langsung gunakan tanggal itu tanpa perlu FIFO prefix.
+  const exactSingle = outstandingDates.find((c) => Number(c.remainingNominal || 0) === normalizedNominal);
+  if (exactSingle) {
+    return {
+      dates: [{ ...exactSingle, plannedNominal: exactSingle.remainingNominal }],
+      allocatedTotal: normalizedNominal,
+      holdNominal: 0,
+      outstandingDates,
+      firstOutstanding: outstandingDates[0],
+    };
+  }
+
+  // Tahap 2: tidak ada exact match satu tanggal — jalankan FIFO prefix dari tertua.
   let remainingTransfer = normalizedNominal;
   const dates = [];
 
@@ -348,12 +436,13 @@ function readPrefetchedContext(contextKey) {
   return entry ? entry.context : null;
 }
 
-function buildEmptyContext(normalizedCabang, preferredPeriode, message) {
+function buildEmptyContext(normalizedCabang, preferredPeriode, message, snapshotVersion = '') {
   const normalizedPreferredPeriode = String(preferredPeriode || '').trim();
   return {
     normalizedCabang,
     normalizedPreferredPeriode,
     hasPreferredPeriode: PERIODE_RE.test(normalizedPreferredPeriode),
+    snapshotVersion: String(snapshotVersion || '').trim(),
     searchByDate: {},
     existingTransfers: [],
     hasData: false,
@@ -365,19 +454,33 @@ async function loadNoncodMatchContext(supabase, { namaCabang, preferredPeriode }
   const normalizedCabang = String(namaCabang || '').trim().toUpperCase();
   const normalizedPreferredPeriode = String(preferredPeriode || '').trim();
   const hasPreferredPeriode = PERIODE_RE.test(normalizedPreferredPeriode);
+  const snapshotVersion = hasPreferredPeriode
+    ? await readNoncodSnapshotVersion(supabase, normalizedPreferredPeriode)
+    : '';
 
   if (!normalizedCabang) {
-    return buildEmptyContext('', normalizedPreferredPeriode, 'Cabang wajib dipilih.');
+    return buildEmptyContext('', normalizedPreferredPeriode, 'Cabang wajib dipilih.', snapshotVersion);
   }
 
-  const periodes = getRecentPeriodes();
+  const periodes = hasPreferredPeriode ? [normalizedPreferredPeriode] : getRecentPeriodes();
 
-  const { data: noncodRows, error: ncErr } = await supabase
-    .from('noncod')
-    .select('tanggal_buat, ongkir, metode_pembayaran, nomor_resi, status_terakhir')
-    .in('periode', periodes)
-    .eq('cabang', normalizedCabang);
-  if (ncErr) throw ncErr;
+  const PAGE_SIZE = 1000;
+  let noncodRows = [];
+  let page = 0;
+  while (true) {
+    const from = page * PAGE_SIZE;
+    const { data: pageRows, error: ncErr } = await supabase
+      .from('noncod')
+      .select('tanggal_buat, ongkir, metode_pembayaran, nomor_resi, status_terakhir')
+      .in('periode', periodes)
+      .eq('cabang', normalizedCabang)
+      .range(from, from + PAGE_SIZE - 1);
+    if (ncErr) throw ncErr;
+    if (!pageRows || !pageRows.length) break;
+    noncodRows = noncodRows.concat(pageRows);
+    if (pageRows.length < PAGE_SIZE) break;
+    page++;
+  }
 
   const overrideMap = await readStatusOverridesByResi(supabase, (noncodRows || []).map((row) => row.nomor_resi));
   const effectiveRows = applyStatusOverrides(noncodRows, overrideMap);
@@ -388,6 +491,7 @@ async function loadNoncodMatchContext(supabase, { namaCabang, preferredPeriode }
       normalizedCabang,
       normalizedPreferredPeriode,
       'Tidak ada data NONCOD untuk ' + normalizedCabang + (hasPreferredPeriode ? (' pada periode aktif ' + normalizedPreferredPeriode + '.') : '.'),
+      snapshotVersion,
     );
   }
 
@@ -397,6 +501,7 @@ async function loadNoncodMatchContext(supabase, { namaCabang, preferredPeriode }
       normalizedCabang,
       normalizedPreferredPeriode,
       'Tidak ada data NONCOD untuk ' + normalizedCabang + ' pada periode ' + normalizedPreferredPeriode + '.',
+      snapshotVersion,
     );
   }
 
@@ -415,6 +520,7 @@ async function loadNoncodMatchContext(supabase, { namaCabang, preferredPeriode }
     normalizedCabang,
     normalizedPreferredPeriode,
     hasPreferredPeriode,
+    snapshotVersion,
     searchByDate,
     existingTransfers: [...(existingTransfers || []), ...holdTransfers],
     cabangHoldRows,
@@ -459,6 +565,11 @@ function resolveNoncodDateMatchFromContext(context, nominal) {
     const firstOutstanding = allocation.firstOutstanding;
     const firstDateLabel = firstOutstanding && firstOutstanding.tanggal_buat ? firstOutstanding.tanggal_buat : '';
     const firstNominal = firstOutstanding ? Number(firstOutstanding.remainingNominal || 0) : 0;
+    const historicalHint = buildHistoricalCoverageHint(
+      context.searchByDate,
+      context.existingTransfers,
+      normalizedNominal,
+    );
     return {
       match: null,
       candidates: [],
@@ -466,7 +577,7 @@ function resolveNoncodDateMatchFromContext(context, nominal) {
       message: 'Nominal Rp ' + normalizedNominal.toLocaleString('id-ID') +
         ' belum cukup untuk outstanding tertua ' + context.normalizedCabang +
         (firstDateLabel ? (' tanggal ' + firstDateLabel) : '') +
-        ' sebesar Rp ' + firstNominal.toLocaleString('id-ID') + '.',
+        ' sebesar Rp ' + firstNominal.toLocaleString('id-ID') + '.' + historicalHint,
     };
   }
 
@@ -539,10 +650,15 @@ async function findNoncodDateMatch(supabase, { namaCabang, nominal, preferredPer
   }
 
   let context = readPrefetchedContext(contextKey);
+  let snapshotVersion = '';
+  if (context && PERIODE_RE.test(normalizedPreferredPeriode)) {
+    snapshotVersion = await readNoncodSnapshotVersion(supabase, normalizedPreferredPeriode);
+  }
   if (
     !context ||
     context.normalizedCabang !== normalizedCabang ||
-    String(context.normalizedPreferredPeriode || '').trim() !== normalizedPreferredPeriode
+    String(context.normalizedPreferredPeriode || '').trim() !== normalizedPreferredPeriode ||
+    String(context.snapshotVersion || '').trim() !== snapshotVersion
   ) {
     context = await loadNoncodMatchContext(supabase, {
       namaCabang: normalizedCabang,

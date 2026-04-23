@@ -14,3 +14,5 @@ tmp/vercel-env-pull
 .env*.local
 testsprite_tests/
 TESTSPRITE-PRD.md
+
+.env*.local

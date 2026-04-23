@@ -37,14 +37,23 @@ const {
   upsertPendingAllocation,
 } = require('./_noncod-pending-allocations');
 const {
+  buildTransferAllocationPlan,
+  deleteTransferAllocations,
+  loadTransferAllocationContext,
+  upsertTransferAllocation,
+} = require('./_noncod-transfer-allocations');
+const {
+  buildProofSignatureKey,
   buildProofSignaturePayload,
   formatProofDuplicateMessage,
+  listLiveProofTransferIds,
+  normalizeProofTransferIds,
   parseProofSignatureValue,
+  removeProofTransferIds,
 } = require('./_proof-signature');
 const { publishAdminWriteMarker } = require('./_admin-write-marker');
 const {
   markNoncodSyncDirty,
-  queueNoncodPipelineTrigger,
 } = require('./_noncod-sync-pipeline');
 const { getSupabase } = require('./_supabase');
 const {
@@ -61,6 +70,9 @@ const ocrLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, bucket: 'input-ocr-
 const ocrStatusLimiter = rateLimit({ windowMs: 60 * 1000, max: 240, bucket: 'input-ocr-status' }); // OCR polling per IP
 const dupeLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, bucket: 'input-dupe' }); // dupe/prefetch checks per IP
 const MAX_OCR_IMAGE_SIZE = 5 * 1024 * 1024;
+const MAUKIRIM_SYNC_KEY_PREFIX = 'maukirim_sync_';
+const MAUKIRIM_AUTO_SYNC_INTERVAL_MS = 30 * 60 * 1000;
+const PERIODE_RE = /^\d{4}-\d{2}$/;
 
 // Parse multipart/form-data tanpa dependency eksternal tambahan (pakai busboy)
 const Busboy = require('busboy');
@@ -107,7 +119,6 @@ function authorizeOcrWorkerRequest(req) {
   const expectedSecret = String(
     process.env.OCR_PIPELINE_TRIGGER_SECRET
     || process.env.OCR_SYNC_SECRET
-    || process.env.NONCOD_SYNC_SECRET
     || ''
   ).trim();
   if (!expectedSecret) return false;
@@ -160,6 +171,14 @@ function normalizeUploadFields(rawFields = {}) {
     nominal: fields.nominal,
     periode: String(fields.periode || '').trim(),
     context_key: String(fields.context_key || fields.contextKey || '').trim(),
+    transfer_datetime: (() => {
+      const v = String(fields.transfer_datetime || '').trim();
+      return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(v) ? v : null;
+    })(),
+    proof_hash: (() => {
+      const v = String(fields.proof_hash || '').trim().toLowerCase();
+      return /^[0-9a-f]{64}$/.test(v) ? v : null;
+    })(),
   };
 }
 
@@ -207,6 +226,67 @@ function buildInputMarkerScopes(options = {}) {
   const scopes = ['overview', 'noncod', 'transfer', 'audit', 'admin_monitor'];
   if (options.adminPendingUpload || options.pendingPayload) scopes.push('pending_allocation');
   return [...new Set(scopes)];
+}
+
+function isValidPeriodeParam(periode) {
+  const normalized = String(periode || '').trim();
+  if (!PERIODE_RE.test(normalized)) return false;
+
+  const month = Number(normalized.slice(5, 7));
+  return Number.isInteger(month) && month >= 1 && month <= 12;
+}
+
+function getSyncSettingKey(periode) {
+  return MAUKIRIM_SYNC_KEY_PREFIX + periode;
+}
+
+function isAutoSyncablePeriode(periode, referenceDate = new Date()) {
+  const [year, month] = String(periode || '').split('-').map(Number);
+  if (!year || !month) return false;
+  const target = new Date(year, month - 1, 1);
+  const now = new Date(referenceDate);
+  const earliest = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+  const latest = new Date(now.getFullYear(), now.getMonth(), 1);
+  return target >= earliest && target <= latest;
+}
+
+function parseSyncMeta(value) {
+  if (!value) return null;
+  try {
+    const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readSyncMeta(supabase, periode) {
+  if (!isValidPeriodeParam(periode)) return null;
+
+  const { data } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', getSyncSettingKey(periode))
+    .maybeSingle();
+
+  return parseSyncMeta(data && data.value);
+}
+
+function isSyncMetaFresh(meta, now = Date.now()) {
+  if (!meta || !meta.syncedAt) return false;
+  const syncedAtMs = Date.parse(meta.syncedAt);
+  if (!Number.isFinite(syncedAtMs)) return false;
+  return now - syncedAtMs < MAUKIRIM_AUTO_SYNC_INTERVAL_MS;
+}
+
+function getNoncodSnapshotGuardMessage(periode, syncMeta, options = {}) {
+  return '';
+}
+
+async function getNoncodSnapshotGuardIssue(supabase, periode, options = {}) {
+  if (!isValidPeriodeParam(periode)) return '';
+  const syncMeta = await readSyncMeta(supabase, periode);
+  return getNoncodSnapshotGuardMessage(periode, syncMeta, options);
 }
 
 async function failQueuedOcrJob(jobState, message, logMeta = {}) {
@@ -378,63 +458,39 @@ function buildPlanExactKey(dateText, nominal) {
   return String(dateText || '').trim() + '|' + Number(nominal || 0);
 }
 
-function getScopeLabel(areaName, fallback = 'Cabang ini') {
-  const normalizedArea = String(areaName || '').trim().toUpperCase();
-  return normalizedArea ? 'Area ' + normalizedArea : fallback;
+function getScopeLabel(scopeName, fallback = 'Cabang ini') {
+  const normalizedScope = String(scopeName || '').trim().toUpperCase();
+  return normalizedScope || fallback;
 }
 
 async function getAreaScope(supabase, namaCabang) {
   const normalizedCabang = String(namaCabang || '').trim().toUpperCase();
   if (!normalizedCabang) {
-    return { areaName: '', cabangNames: [] };
+    return { areaName: '', scopeName: '', cabangNames: [] };
   }
-
-  const { data: cabangRow, error: cabangError } = await supabase
-    .from('cabang')
-    .select('nama, area')
-    .eq('nama', normalizedCabang)
-    .maybeSingle();
-
-  if (cabangError) throw cabangError;
-
-  const areaName = String(cabangRow?.area || '').trim().toUpperCase();
-  if (!areaName) {
-    return { areaName: '', cabangNames: [normalizedCabang] };
-  }
-
-  const { data: areaCabangRows, error: areaCabangError } = await supabase
-    .from('cabang')
-    .select('nama')
-    .eq('area', areaName)
-    .order('nama', { ascending: true });
-
-  if (areaCabangError) throw areaCabangError;
-
-  const cabangNames = Array.from(new Set((areaCabangRows || [])
-    .map((row) => String(row.nama || '').trim().toUpperCase())
-    .filter(Boolean)));
 
   return {
-    areaName,
-    cabangNames: cabangNames.length > 0 ? cabangNames : [normalizedCabang],
+    areaName: '',
+    scopeName: normalizedCabang,
+    cabangNames: [normalizedCabang],
   };
 }
 
-function buildDupeSummary({ exactDupes, branchDayTransfers, nominal, areaName }) {
+function buildDupeSummary({ exactDupes, branchDayTransfers, nominal, areaName, scopeName }) {
   const normalizedNominal = Number(nominal || 0);
   const branchTransfers = Array.isArray(branchDayTransfers) ? branchDayTransfers : [];
   const dupes = Array.isArray(exactDupes) ? exactDupes : [];
   const branchDayCount = branchTransfers.length;
   const branchDayTotal = branchTransfers.reduce((sum, row) => sum + Number(row.nominal || 0), 0);
   const lastTransfer = branchTransfers[0] || null;
-  const scopeLabel = getScopeLabel(areaName);
+  const scopeLabel = getScopeLabel(scopeName || areaName);
 
   if (dupes.length > 0) {
     return {
       tone: 'warn',
       exactMatch: true,
       title: scopeLabel + ' sudah punya nominal yang sama',
-      message: 'Ada transfer tersimpan dengan area, tanggal rekap, dan nominal yang sama. Cek ulang agar tidak double upload bukti.',
+      message: 'Ada transfer tersimpan dengan cabang, tanggal rekap, dan nominal yang sama. Cek ulang agar tidak double upload bukti.',
       branchDayCount,
       branchDayTotal,
       lastTransfer,
@@ -448,7 +504,7 @@ function buildDupeSummary({ exactDupes, branchDayTransfers, nominal, areaName })
       tone: 'info',
       exactMatch: false,
       title: scopeLabel + ' sudah punya transfer di tanggal yang sama',
-      message: 'Masih bisa disimpan bila ini transfer berbeda, tetapi cek area, tanggal rekap, dan nominal agar tidak tertukar atau dobel.',
+      message: 'Masih bisa disimpan bila ini transfer berbeda, tetapi cek cabang, tanggal rekap, dan nominal agar tidak tertukar atau dobel.',
       branchDayCount,
       branchDayTotal,
       lastTransfer,
@@ -496,7 +552,7 @@ async function getDuplicateContext(supabase, { nama_cabang, tgl_inputan, nominal
   const normalizedNominal = Number(nominal || 0);
   const normalizedPlanRows = normalizePlanRows(planRows, normalizedDate, normalizedNominal);
   const targetDates = Array.from(new Set(normalizedPlanRows.map((row) => row.tgl_inputan)));
-  const { areaName, cabangNames } = await getAreaScope(supabase, nama_cabang);
+  const { areaName, scopeName, cabangNames } = await getAreaScope(supabase, nama_cabang);
 
   const branchDayQuery = supabase
     .from('transfers')
@@ -517,11 +573,13 @@ async function getDuplicateContext(supabase, { nama_cabang, tgl_inputan, nominal
     branchDayTransfers,
     nominal: normalizedNominal,
     areaName,
+    scopeName,
   });
 
   return {
     areaName,
-    scopeType: 'area',
+    scopeName,
+    scopeType: 'branch',
     matchedCabangNames: cabangNames,
     dupes,
     areaDayTransfers: branchDayTransfers,
@@ -532,6 +590,56 @@ async function getDuplicateContext(supabase, { nama_cabang, tgl_inputan, nominal
     branchDayTotal: summary.branchDayTotal,
     summary,
   };
+}
+
+async function inspectProofRegistryDuplicate(supabase, proofKey) {
+  const normalizedKey = String(proofKey || '').trim();
+  if (!supabase || !normalizedKey) {
+    return { proofDuplicate: false, existingProof: null };
+  }
+
+  const { data: proofSetting, error: proofError } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', normalizedKey)
+    .maybeSingle();
+
+  if (proofError) throw proofError;
+  if (!proofSetting || !proofSetting.value) {
+    return { proofDuplicate: false, existingProof: null };
+  }
+
+  let existingProof = parseProofSignatureValue(proofSetting.value);
+  let proofDuplicate = true;
+
+  if (existingProof) {
+    const referencedTransferIds = normalizeProofTransferIds(existingProof);
+    if (referencedTransferIds.length) {
+      const liveTransferIds = await listLiveProofTransferIds(supabase, existingProof);
+      if (!liveTransferIds.length) {
+        const { error: staleProofDeleteError } = await supabase
+          .from('settings')
+          .delete()
+          .eq('key', normalizedKey);
+        if (staleProofDeleteError) throw staleProofDeleteError;
+        proofDuplicate = false;
+        existingProof = null;
+      } else if (liveTransferIds.length !== referencedTransferIds.length) {
+        const staleTransferIds = referencedTransferIds.filter((id) => !liveTransferIds.includes(id));
+        const refreshedProof = removeProofTransferIds(existingProof, staleTransferIds);
+        if (refreshedProof) {
+          const { error: staleProofUpdateError } = await supabase.from('settings').upsert({
+            key: normalizedKey,
+            value: JSON.stringify(refreshedProof),
+          });
+          if (staleProofUpdateError) throw staleProofUpdateError;
+          existingProof = refreshedProof;
+        }
+      }
+    }
+  }
+
+  return { proofDuplicate, existingProof };
 }
 
 async function handleDupeRoute(req, res) {
@@ -546,6 +654,8 @@ async function handleDupeRoute(req, res) {
       periode,
       prefetch,
       context_key: contextKey,
+      transfer_datetime: transferDatetime,
+      proof_hash: proofHash,
     } = normalizedFields;
 
     if (!nama_cabang) {
@@ -571,6 +681,26 @@ async function handleDupeRoute(req, res) {
 
     if (!nominal) {
       return res.status(400).json({ error: 'Field tidak lengkap.' });
+    }
+
+    // Cek duplikat bukti SEBELUM NONCOD match — jika duplikat, langsung return
+    if (proofHash) {
+      const proofState = await inspectProofRegistryDuplicate(supabase, buildProofSignatureKey(proofHash));
+      if (proofState.proofDuplicate) {
+        return res.status(200).json({ proofDuplicate: true });
+      }
+    }
+    if (transferDatetime && nominal) {
+      const { data: dtDupes } = await supabase
+        .from('transfers')
+        .select('id')
+        .eq('nama_bank', normalizeBankName(normalizedFields.nama_bank || ''))
+        .eq('nominal', Number(nominal))
+        .eq('transfer_datetime', transferDatetime)
+        .limit(1);
+      if (dtDupes && dtDupes.length > 0) {
+        return res.status(200).json({ proofDuplicate: true });
+      }
     }
 
     let noncodMatch = null;
@@ -617,7 +747,7 @@ async function handleDupeRoute(req, res) {
       planRows,
     });
 
-    return res.status(200).json({ ...result, noncodMatch, tgl_inputan: effectiveDate });
+    return res.status(200).json({ ...result, noncodMatch, tgl_inputan: effectiveDate, proofDuplicate: false });
   } catch (err) {
     console.error(err);
     logError('check-dupe', err.message, { method: 'POST' });
@@ -938,7 +1068,7 @@ async function handler(req, res) {
     const normalizedFields = normalizeUploadFields(fields);
 
     // Validasi fields
-    const { tgl_inputan, nama_bank, nama_cabang, nominal, periode } = normalizedFields;
+    const { tgl_inputan, nama_bank, nama_cabang, nominal, periode, transfer_datetime: transferDatetime } = normalizedFields;
     if (!nama_bank || !nama_cabang || !nominal) {
       return res.status(400).json({ error: 'Semua field wajib diisi.' });
     }
@@ -1006,6 +1136,26 @@ async function handler(req, res) {
       throw new Error('Rencana sinkron NONCOD tidak valid.');
     }
 
+    const allocationContext = await loadTransferAllocationContext(supabase, {
+      cabang: normalizedCabang,
+      targetDates: normalizedPlannedRows.map((row) => row.tgl_inputan),
+    });
+    const allocationPlans = buildTransferAllocationPlan({
+      noncodRows: allocationContext.effectiveRows,
+      existingTransfers: allocationContext.existingTransfers,
+      existingAllocationRows: allocationContext.existingAllocationRows,
+      plannedRows: normalizedPlannedRows,
+    });
+    const invalidAllocationPlan = allocationPlans.find((plan, index) => (
+      !plan
+      || plan.tgl_inputan !== normalizedPlannedRows[index].tgl_inputan
+      || plan.nominal !== normalizedPlannedRows[index].nominal
+      || Number(plan.unallocatedNominal || 0) > 0
+    ));
+    if (invalidAllocationPlan) {
+      throw new Error('Sinkron alokasi NONCOD tidak konsisten.');
+    }
+
     const primaryDate = normalizedPlannedRows[0].tgl_inputan;
 
     const proofSignature = buildProofSignaturePayload({
@@ -1022,18 +1172,11 @@ async function handler(req, res) {
       return res.status(400).json({ error: 'Bukti transfer tidak valid.' });
     }
 
-    const { data: existingProofSetting, error: existingProofError } = await supabase
-      .from('settings')
-      .select('value')
-      .eq('key', proofSignature.key)
-      .maybeSingle();
+    const proofState = await inspectProofRegistryDuplicate(supabase, proofSignature.key);
 
-    if (existingProofError) throw existingProofError;
-
-    if (existingProofSetting && existingProofSetting.value) {
-      const existingProof = parseProofSignatureValue(existingProofSetting.value);
+    if (proofState.proofDuplicate) {
       return res.status(409).json({
-        error: formatProofDuplicateMessage(existingProof),
+        error: formatProofDuplicateMessage(proofState.existingProof),
       });
     }
 
@@ -1072,6 +1215,7 @@ async function handler(req, res) {
       nominal: row.nominal,
       ket: normalizedKet,
       bukti_url: buktiUrl,
+      transfer_datetime: transferDatetime || null,
     }));
 
     // Insert ke tabel transfers
@@ -1088,6 +1232,16 @@ async function handler(req, res) {
     }
 
     const insertedRows = Array.isArray(data) ? data : [];
+
+    if (insertedRows.length !== normalizedPlannedRows.length) {
+      if (insertedRows.length > 0) {
+        await supabase.from('transfers').delete().in('id', insertedRows.map((row) => row.id)).catch(() => {});
+      }
+      if (buktiUrl) {
+        await supabase.storage.from('bukti-transfer').remove([buktiUrl]).catch(() => {});
+      }
+      throw new Error('Jumlah transfer tersimpan tidak sesuai dengan rencana NONCOD.');
+    }
 
     if (adminPendingUpload && pendingPayload) {
       try {
@@ -1166,6 +1320,49 @@ async function handler(req, res) {
       }
     }
 
+    try {
+      for (let index = 0; index < insertedRows.length; index += 1) {
+        const insertedRow = insertedRows[index];
+        const allocationPlan = allocationPlans[index] || null;
+        await upsertTransferAllocation(supabase, {
+          transfer_id: insertedRow.id,
+          cabang: normalizedCabang,
+          transfer_date: insertedRow.tgl_inputan,
+          transfer_nominal: insertedRow.nominal,
+          source: adminPendingUpload ? 'input_admin_pending' : 'input_public',
+          proof_key: proofSignature.key,
+          allocations: allocationPlan ? allocationPlan.allocations : [],
+          unallocated_nominal: allocationPlan ? allocationPlan.unallocatedNominal : insertedRow.nominal,
+          created_at: insertedRow.timestamp || timestamp,
+          updated_at: insertedRow.timestamp || timestamp,
+        });
+      }
+    } catch (allocationError) {
+      if (adminPendingUpload && pendingPayload && insertedRows[0] && insertedRows[0].id) {
+        await deletePendingAllocation(supabase, insertedRows[0].id).catch(() => {});
+      }
+      if (!adminPendingUpload && holdPayload && insertedRows[0] && insertedRows[0].id) {
+        await deleteCabangHold(supabase, insertedRows[0].id).catch(() => {});
+      }
+      if (insertedRows.length > 0) {
+        const rollbackResult = await supabase
+          .from('transfers')
+          .delete()
+          .in('id', insertedRows.map((row) => row.id));
+        if (rollbackResult.error) {
+          logError('input', rollbackResult.error.message, {
+            method: req.method,
+            action: 'rollback_transfer_allocation_insert',
+            transferIds: insertedRows.map((row) => row.id),
+          });
+        }
+      }
+      if (buktiUrl) {
+        await supabase.storage.from('bukti-transfer').remove([buktiUrl]).catch(() => {});
+      }
+      throw allocationError;
+    }
+
     const proofRegistryValue = JSON.stringify({
       signature: proofSignature.signature,
       transferId: insertedRows[0] ? insertedRows[0].id : null,
@@ -1193,6 +1390,9 @@ async function handler(req, res) {
       }
       if (!adminPendingUpload && holdPayload && insertedRows[0] && insertedRows[0].id) {
         await deleteCabangHold(supabase, insertedRows[0].id).catch(() => {});
+      }
+      if (insertedRows.length > 0) {
+        await deleteTransferAllocations(supabase, insertedRows.map((row) => row.id)).catch(() => {});
       }
       if (insertedRows.length > 0) {
         const rollbackResult = await supabase
@@ -1236,15 +1436,10 @@ async function handler(req, res) {
         periodes: affectedPeriodes,
         timestamp,
       });
-      queueNoncodPipelineTrigger({
-        reason: adminPendingUpload ? 'input_admin_pending' : 'input',
-        periodes: affectedPeriodes,
-        source: 'input',
-      });
     } catch (pipelineError) {
       logError('noncod-sync', pipelineError.message, {
         method: req.method,
-        action: 'queue_after_input',
+        action: 'mark_dirty_after_input',
         transferIds: insertedRows.map((row) => row.id),
       });
     }
@@ -1279,6 +1474,12 @@ module.exports.normalizeTransferRow = normalizeTransferRow;
 module.exports.getAreaScope = getAreaScope;
 module.exports.getScopeLabel = getScopeLabel;
 module.exports.getInputErrorStatusCode = getInputErrorStatusCode;
+module.exports.inspectProofRegistryDuplicate = inspectProofRegistryDuplicate;
+module.exports.getNoncodSnapshotGuardIssue = getNoncodSnapshotGuardIssue;
+module.exports.getNoncodSnapshotGuardMessage = getNoncodSnapshotGuardMessage;
+module.exports.isAutoSyncablePeriode = isAutoSyncablePeriode;
+module.exports.isSyncMetaFresh = isSyncMetaFresh;
 module.exports.normalizeUploadFields = normalizeUploadFields;
+module.exports.readSyncMeta = readSyncMeta;
 module.exports.shouldLogInputError = shouldLogInputError;
 module.exports.shouldFallbackToInternalOcrWorker = shouldFallbackToInternalOcrWorker;

@@ -5,6 +5,7 @@
     { "source": "/api/input", "destination": "/api/input.js" },
     { "source": "/api/auth", "destination": "/api/auth.js" },
     { "source": "/api/transfer", "destination": "/api/transfer.js" },
+    { "source": "/api/version", "destination": "/api/version.js" },
     { "source": "/api/noncod-sync", "destination": "/api/noncod?pipeline=1" },
     { "source": "/api/noncod-status", "destination": "/api/noncod?manual_status=1" },
     { "source": "/api/noncod", "destination": "/api/noncod.js" },
@@ -57,6 +58,12 @@
     },
     {
       "source": "/rekap.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0" }
+      ]
+    },
+    {
+      "source": "/lib/maulagi-sovereign.css",
       "headers": [
         { "key": "Cache-Control", "value": "no-store, max-age=0" }
       ]

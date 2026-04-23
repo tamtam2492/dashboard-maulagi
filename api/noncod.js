@@ -1,3 +1,6 @@
+const { Readable } = require('stream');
+const crypto = require('crypto');
+
 const { requireAdmin, getViewerSession } = require('./_auth');
 const { normalizeBankName } = require('./_bank');
 const { cors } = require('./_cors');
@@ -5,14 +8,22 @@ const { logError } = require('./_logger');
 const { loginMaukirim, downloadOrdersWorkbook } = require('./_maukirim');
 const {
   aggregateOngkirByDate,
+  buildCabangHoldTransfers,
   findSequentialAllocationDates,
   getRecentPeriodes,
 } = require('./_noncod-match');
+const { listCabangHoldRows } = require('./_noncod-cabang-holds');
 const {
   deletePendingAllocation,
   listPendingAllocationRows,
   upsertPendingAllocation,
 } = require('./_noncod-pending-allocations');
+const {
+  buildTransferAllocationPlan,
+  deleteTransferAllocations,
+  readTransferAllocationRowsByTransferIds,
+  upsertTransferAllocation,
+} = require('./_noncod-transfer-allocations');
 const {
   applyStatusOverrides,
   deleteStatusOverride,
@@ -23,15 +34,9 @@ const {
 const {
   getNoncodPipelineTriggerConfig,
   isNoncodPipelineTriggerEnabled,
-  markNoncodSyncBuilding,
-  markNoncodSyncFailed,
-  markNoncodSyncPublished,
-  markNoncodSyncQueued,
-  normalizePeriodeList,
-  queueNoncodPipelineTrigger,
+  mergePeriodeLists,
   readNoncodSyncPipelineState,
-  sendNoncodPipelineTrigger,
-  timingSafeSecretEqual,
+  writeNoncodSyncPipelineState,
 } = require('./_noncod-sync-pipeline');
 const { publishAdminWriteMarker } = require('./_admin-write-marker');
 const { getSupabase } = require('./_supabase');
@@ -43,13 +48,7 @@ const {
   normalizeText,
 } = require('./_request-validation');
 const { getPeriodeFromDate, normalizeTransferKet } = require('./_transfer-utils');
-
-let vercelWaitUntil = null;
-try {
-  ({ waitUntil: vercelWaitUntil } = require('@vercel/functions'));
-} catch {
-  vercelWaitUntil = null;
-}
+const Busboy = require('busboy');
 
 const PERIODE_RE = /^\d{4}-\d{2}$/;
 const EXCLUDED_NONCOD_STATUSES = new Set(['BATAL', 'VOID']);
@@ -84,18 +83,14 @@ function createMetric() {
 }
 
 const MAUKIRIM_SYNC_KEY_PREFIX = 'maukirim_sync_';
-const MAUKIRIM_AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
+const MAUKIRIM_AUTO_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 const NONCOD_BACKGROUND_REFRESH_COOLDOWN_MS = 60 * 1000;
+const MAX_MANUAL_WORKBOOK_SIZE = 15 * 1024 * 1024;
+const NONCOD_MANUAL_UPLOAD_ONLY = true;
 const syncPendingByPeriode = new Map();
 
-function scheduleNoncodBackgroundTask(task) {
-  if (!task || typeof task.then !== 'function') return false;
-  if (typeof vercelWaitUntil === 'function') {
-    vercelWaitUntil(task);
-    return true;
-  }
-  task.catch(() => {});
-  return false;
+function isNoncodManualUploadOnly() {
+  return NONCOD_MANUAL_UPLOAD_ONLY;
 }
 
 function isValidPeriodeParam(periode) {
@@ -126,7 +121,6 @@ function planNoncodAutoRefresh(options = {}) {
   const pipelineState = options.pipelineState || {};
   const rowCount = Math.max(0, Number(options.rowCount) || 0);
   const backgroundTriggerEnabled = !!options.backgroundTriggerEnabled;
-  const forceSync = !!options.forceSync;
   const hasSyncMeta = !!options.syncMeta;
   const canRefresh = !!(syncInfo.enabled && syncInfo.eligible);
   const dirtyForPeriode = hasPeriodeInList(pipelineState.pendingPeriodes, periode);
@@ -139,14 +133,6 @@ function planNoncodAutoRefresh(options = {}) {
     return { action: 'none', status: 'idle', reason: '' };
   }
 
-  if (forceSync) {
-    return { action: 'inline', status: 'running', reason: 'force' };
-  }
-
-  if (!hasSyncMeta && rowCount === 0) {
-    return { action: 'inline', status: 'running', reason: 'bootstrap_empty' };
-  }
-
   if (buildingForPeriode) {
     return {
       action: 'none',
@@ -155,21 +141,22 @@ function planNoncodAutoRefresh(options = {}) {
     };
   }
 
-  const needsRefresh = !!(syncInfo.stale || dirtyForPeriode);
+  const missingSnapshot = !hasSyncMeta && rowCount === 0;
+  const needsRefresh = !!(missingSnapshot || syncInfo.stale || dirtyForPeriode);
   if (!needsRefresh) {
     return { action: 'none', status: 'idle', reason: '' };
   }
 
-  const reason = dirtyForPeriode ? 'dirty' : 'stale';
+  const reason = dirtyForPeriode ? 'dirty' : (missingSnapshot ? 'bootstrap_empty' : 'stale');
   if (!backgroundTriggerEnabled) {
-    return { action: 'inline', status: 'running', reason };
+    return { action: 'none', status: 'blocked', reason };
   }
 
   if (isNoncodPipelineRecentlyTriggered(pipelineState, options.now)) {
-    return { action: 'none', status: 'queued', reason };
+    return { action: 'scheduled', status: 'queued', reason };
   }
 
-  return { action: 'queue', status: 'queued', reason };
+  return { action: 'scheduled', status: 'queued', reason };
 }
 
 async function publishNoncodMarkerSafe(supabase, options, context) {
@@ -191,7 +178,7 @@ function isExcludedNoncodStatus(value) {
 }
 
 function canAutoSyncMaukirim() {
-  return !!(process.env.MAUKIRIM_WA && process.env.MAUKIRIM_PASS);
+  return !isNoncodManualUploadOnly() && !!(process.env.MAUKIRIM_WA && process.env.MAUKIRIM_PASS);
 }
 
 function isAutoSyncablePeriode(periode) {
@@ -223,6 +210,7 @@ function getAutoSyncPeriods(referenceDate = new Date()) {
 
 function buildSyncInfo(periode, meta) {
   return {
+    manualMode: isNoncodManualUploadOnly(),
     enabled: canAutoSyncMaukirim(),
     eligible: isAutoSyncablePeriode(periode),
     performed: false,
@@ -234,6 +222,238 @@ function buildSyncInfo(periode, meta) {
   };
 }
 
+function buildNoncodSyncContentHash(rows) {
+  const hash = crypto.createHash('sha1');
+  const normalizedRows = (Array.isArray(rows) ? rows : [])
+    .slice()
+    .sort((left, right) => {
+      const leftResi = String(left && left.nomor_resi || '');
+      const rightResi = String(right && right.nomor_resi || '');
+      const resiOrder = leftResi.localeCompare(rightResi);
+      if (resiOrder) return resiOrder;
+      const leftDate = String(left && left.tanggal_buat || '');
+      const rightDate = String(right && right.tanggal_buat || '');
+      return leftDate.localeCompare(rightDate);
+    });
+
+  for (const row of normalizedRows) {
+    for (const field of NONCOD_SYNC_COMPARE_FIELDS) {
+      const value = row && row[field] != null ? row[field] : '';
+      hash.update(String(value));
+      hash.update('\u001f');
+    }
+    hash.update('\u001e');
+  }
+
+  return hash.digest('hex');
+}
+
+function compareNoncodSyncContent(rows, syncMeta) {
+  const contentHash = buildNoncodSyncContentHash(rows);
+  const previousHash = normalizeText(syncMeta && syncMeta.contentHash, 80);
+  return {
+    contentHash,
+    changed: !previousHash || previousHash !== contentHash,
+  };
+}
+
+function buildUnchangedNoncodDelta(rowCount) {
+  const total = Math.max(0, Number(rowCount) || 0);
+  return {
+    inserted: 0,
+    updated: 0,
+    deleted: 0,
+    unchanged: total,
+    total,
+  };
+}
+
+function createManualUploadError(message) {
+  const error = new Error(String(message || '').trim() || 'Upload workbook manual tidak valid.');
+  error.clientInputError = true;
+  return error;
+}
+
+function getMultipartSourceStream(req) {
+  if (req && typeof req.pipe === 'function' && typeof req.on === 'function') return req;
+
+  const body = req && Object.prototype.hasOwnProperty.call(req, 'body') ? req.body : null;
+  if (Buffer.isBuffer(body)) return Readable.from([body]);
+  if (typeof body === 'string') return Readable.from([body]);
+  if (body && typeof body[Symbol.asyncIterator] === 'function') return Readable.from(body);
+  return Readable.from([]);
+}
+
+function getManualUploadStatusCode(err) {
+  if (err && err.clientInputError) return 400;
+  const message = String(err && err.message || '');
+  return /multipart|xlsx|workbook|periode|file|upload/i.test(message) ? 400 : 500;
+}
+
+async function parseManualWorkbookUpload(req) {
+  const contentType = String(req && req.headers && req.headers['content-type'] || '').trim();
+  if (!/multipart\/form-data/i.test(contentType)) {
+    throw createManualUploadError('Content-Type upload harus multipart/form-data.');
+  }
+
+  const fields = {};
+  let fileBuffer = null;
+  let fileName = '';
+  let fileMime = '';
+
+  await new Promise((resolve, reject) => {
+    const busboy = Busboy({
+      headers: req.headers,
+      limits: {
+        files: 1,
+        fileSize: MAX_MANUAL_WORKBOOK_SIZE,
+      },
+    });
+
+    let settled = false;
+    function resolveOnce() {
+      if (settled) return;
+      settled = true;
+      resolve();
+    }
+    function rejectOnce(error) {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    }
+
+    busboy.on('field', (name, value) => {
+      fields[name] = value;
+    });
+
+    busboy.on('file', (_name, file, info) => {
+      fileName = String(info && info.filename || '').trim();
+      fileMime = String(info && info.mimeType || '').trim().toLowerCase();
+      const chunks = [];
+      let totalSize = 0;
+
+      file.on('limit', () => {
+        rejectOnce(createManualUploadError('File workbook terlalu besar. Maksimal 15MB.'));
+      });
+      file.on('data', (chunk) => {
+        totalSize += chunk.length;
+        if (totalSize > MAX_MANUAL_WORKBOOK_SIZE) {
+          rejectOnce(createManualUploadError('File workbook terlalu besar. Maksimal 15MB.'));
+          file.resume();
+          return;
+        }
+        chunks.push(chunk);
+      });
+      file.on('error', (error) => {
+        rejectOnce(createManualUploadError(error && error.message ? error.message : 'Upload workbook multipart tidak valid.'));
+      });
+      file.on('end', () => {
+        fileBuffer = Buffer.concat(chunks);
+      });
+    });
+
+    busboy.on('filesLimit', () => {
+      rejectOnce(createManualUploadError('Upload workbook hanya menerima satu file XLSX.'));
+    });
+    busboy.on('partsLimit', () => {
+      rejectOnce(createManualUploadError('Upload workbook multipart tidak valid.'));
+    });
+    busboy.on('error', (error) => {
+      rejectOnce(createManualUploadError(error && error.message ? error.message : 'Upload workbook multipart tidak valid.'));
+    });
+    busboy.on('finish', resolveOnce);
+
+    getMultipartSourceStream(req).pipe(busboy);
+  });
+
+  if (!fileBuffer || !fileBuffer.length) {
+    throw createManualUploadError('File workbook XLSX wajib diunggah.');
+  }
+
+  const validMime = !fileMime
+    || fileMime.includes('spreadsheetml')
+    || fileMime.includes('application/octet-stream')
+    || fileMime.includes('ms-excel');
+  if (!validMime && !/\.xlsx$/i.test(fileName)) {
+    throw createManualUploadError('Format file harus XLSX dari MauKirim.');
+  }
+
+  return {
+    fields,
+    fileBuffer,
+    fileName,
+    fileMime,
+  };
+}
+
+async function publishManualUploadPipelineState(supabase, periode, timestamp) {
+  const currentState = await readNoncodSyncPipelineState(supabase);
+  return writeNoncodSyncPipelineState(supabase, {
+    ...currentState,
+    status: 'published',
+    dirty: false,
+    version: Math.max(0, Number(currentState && currentState.version || 0)) + 1,
+    pendingPeriodes: [],
+    buildPeriodes: [],
+    activePeriodes: mergePeriodeLists(currentState && currentState.activePeriodes, [periode]),
+    lastReason: 'manual_upload',
+    lastInputAt: timestamp,
+    lastTriggeredAt: null,
+    buildStartedAt: null,
+    lastPublishedAt: timestamp,
+    lastError: '',
+  });
+}
+
+async function importManualWorkbookSnapshot(supabase, periode, workbookBuffer) {
+  const currentMeta = await readSyncMeta(supabase, periode);
+  const importedRows = await parseWorkbookRows(workbookBuffer);
+  const cleanRows = sanitizeNoncodRows(periode, importedRows);
+  if (!cleanRows.length) {
+    throw createManualUploadError('Workbook tidak berisi data shipment yang valid untuk diimpor.');
+  }
+
+  const timestamp = new Date().toISOString();
+  const contentState = compareNoncodSyncContent(cleanRows, currentMeta);
+  const delta = contentState.changed
+    ? await reconcilePeriodeRows(supabase, periode, cleanRows)
+    : buildUnchangedNoncodDelta(cleanRows.length);
+
+  await deduplicateNoncodPeriode(supabase, periode);
+  await resolvePendingAllocations(supabase, { periodes: getRecentPeriodes() });
+
+  const meta = {
+    source: 'manual_upload',
+    syncedAt: timestamp,
+    inserted: cleanRows.length,
+    contentHash: contentState.contentHash,
+    delta: {
+      inserted: delta.inserted,
+      updated: delta.updated,
+      deleted: delta.deleted,
+      unchanged: delta.unchanged,
+      total: delta.total,
+    },
+    stats: summarizeInsertedRows(cleanRows),
+  };
+
+  await writeSyncMeta(supabase, periode, meta);
+  await publishManualUploadPipelineState(supabase, periode, timestamp);
+  await publishNoncodMarkerSafe(supabase, {
+    source: 'manual_upload',
+    scopes: ['overview', 'noncod', 'dfod', 'audit', 'admin_monitor', 'pending_allocation'],
+    periodes: [periode],
+  }, 'POST');
+
+  return {
+    periode,
+    performed: contentState.changed,
+    reusedSnapshot: !contentState.changed,
+    importedRows: cleanRows.length,
+    meta,
+  };
+}
+
 function isSyncMetaStale(meta, now = Date.now()) {
   if (!meta || !meta.syncedAt) return true;
   const syncedAtMs = Date.parse(meta.syncedAt);
@@ -241,23 +461,111 @@ function isSyncMetaStale(meta, now = Date.now()) {
   return now - syncedAtMs >= MAUKIRIM_AUTO_SYNC_INTERVAL_MS;
 }
 
-async function authorizeSyncRequest(req, res) {
-  const expectedSecret = String(process.env.NONCOD_SYNC_SECRET || '').trim();
-  const providedSecret = String(req.headers['x-sync-secret'] || '').trim();
-  if (expectedSecret && providedSecret) {
-    if (timingSafeSecretEqual(providedSecret, expectedSecret)) return true;
-    res.status(401).json({ error: 'Unauthorized.' });
-    return false;
+async function buildCabangHoldAdjustmentTransfers(supabase, rows, options = {}) {
+  const filteredRows = Array.isArray(rows) ? rows : [];
+  if (!filteredRows.length) return [];
+
+  const byDateByCabang = new Map();
+  const allDates = new Set();
+
+  for (const row of filteredRows) {
+    const statusRow = String(row && row.status_terakhir || '').trim().toUpperCase();
+    if (isExcludedNoncodStatus(statusRow)) continue;
+    if (normalizeMethod(row && row.metode_pembayaran) !== 'noncod') continue;
+
+    const cabang = String(row && row.cabang || '').trim();
+    const tanggalBuat = getRekonDateKey(row);
+    const ongkir = Number(row && row.ongkir || 0);
+    if (!cabang || !tanggalBuat || !(ongkir > 0)) continue;
+
+    if (!byDateByCabang.has(cabang)) byDateByCabang.set(cabang, new Map());
+    const cabangDates = byDateByCabang.get(cabang);
+    cabangDates.set(tanggalBuat, Number(cabangDates.get(tanggalBuat) || 0) + ongkir);
+    allDates.add(tanggalBuat);
   }
-  if (!expectedSecret && providedSecret) {
-    res.status(401).json({ error: 'Unauthorized.' });
-    return false;
+
+  if (!byDateByCabang.size || !allDates.size) return [];
+
+  const cabangNames = [...byDateByCabang.keys()];
+  const { data: existingTransfers, error: transferError } = await supabase
+    .from('transfers')
+    .select('id, tgl_inputan, nominal, nama_bank, nama_cabang, timestamp')
+    .in('nama_cabang', cabangNames)
+    .in('tgl_inputan', [...allDates]);
+  if (transferError) throw transferError;
+
+  const holdResult = await listCabangHoldRows(supabase, options.viewerCabang ? { cabang: options.viewerCabang } : {});
+  const holdRowsByCabang = new Map();
+  for (const holdRow of (holdResult && holdResult.rows) || []) {
+    const cabang = String(holdRow && holdRow.cabang || '').trim();
+    if (!cabang) continue;
+    if (!holdRowsByCabang.has(cabang)) holdRowsByCabang.set(cabang, []);
+    holdRowsByCabang.get(cabang).push(holdRow);
   }
-  if (await requireAdmin(req, res)) return true;
-  if (!res.body && !res.ended) {
-    res.status(401).json({ error: 'Unauthorized.' });
+
+  const holdTransfers = [];
+  for (const [cabang, cabangDates] of byDateByCabang.entries()) {
+    const byDate = Object.fromEntries(cabangDates.entries());
+    const cabangTransfers = (existingTransfers || []).filter((row) => String(row && row.nama_cabang || '').trim() === cabang);
+    const cabangHoldRows = holdRowsByCabang.get(cabang) || [];
+    holdTransfers.push(...buildCabangHoldTransfers(byDate, cabangTransfers, cabangHoldRows));
   }
-  return false;
+
+  return holdTransfers;
+}
+
+function applyCabangHoldAdjustments(options = {}) {
+  const holdTransfers = Array.isArray(options.holdTransfers) ? options.holdTransfers : [];
+  const byCabang = options.byCabang || {};
+  const byDay = options.byDay || {};
+  const summary = options.summary || {};
+  const monthSummary = options.monthSummary || {};
+  const periode = String(options.periode || '').trim();
+  const mode = String(options.mode || '').trim().toLowerCase();
+  let grandOngkir = Number(options.grandOngkir || 0);
+  let grandTotal = Number(options.grandTotal || 0);
+
+  for (const holdTransfer of holdTransfers) {
+    const cabang = String(holdTransfer && holdTransfer.nama_cabang || '').trim();
+    const tanggal = String(holdTransfer && holdTransfer.tgl_inputan || '').trim();
+    const nominal = Number(holdTransfer && holdTransfer.nominal || 0);
+    if (!cabang || !tanggal || !(nominal > 0)) continue;
+
+    if (summary.noncod) {
+      summary.noncod.grandOngkir = Math.max(0, Number(summary.noncod.grandOngkir || 0) - nominal);
+      summary.noncod.grandTotal = Math.max(0, Number(summary.noncod.grandTotal || 0) - nominal);
+    }
+    if (summary.all) {
+      summary.all.grandOngkir = Math.max(0, Number(summary.all.grandOngkir || 0) - nominal);
+      summary.all.grandTotal = Math.max(0, Number(summary.all.grandTotal || 0) - nominal);
+    }
+
+    if (periode && tanggal.startsWith(periode + '-')) {
+      if (monthSummary.noncod) {
+        monthSummary.noncod.grandOngkir = Math.max(0, Number(monthSummary.noncod.grandOngkir || 0) - nominal);
+        monthSummary.noncod.grandTotal = Math.max(0, Number(monthSummary.noncod.grandTotal || 0) - nominal);
+      }
+      if (monthSummary.all) {
+        monthSummary.all.grandOngkir = Math.max(0, Number(monthSummary.all.grandOngkir || 0) - nominal);
+        monthSummary.all.grandTotal = Math.max(0, Number(monthSummary.all.grandTotal || 0) - nominal);
+      }
+    }
+
+    if (mode === 'all' || mode === 'noncod') {
+      if (byCabang[cabang]) {
+        byCabang[cabang].ongkir = Math.max(0, Number(byCabang[cabang].ongkir || 0) - nominal);
+        byCabang[cabang].total = Math.max(0, Number(byCabang[cabang].total || 0) - nominal);
+      }
+      if (byDay[tanggal] && byDay[tanggal][cabang]) {
+        byDay[tanggal][cabang].ongkir = Math.max(0, Number(byDay[tanggal][cabang].ongkir || 0) - nominal);
+        byDay[tanggal][cabang].total = Math.max(0, Number(byDay[tanggal][cabang].total || 0) - nominal);
+      }
+      grandOngkir = Math.max(0, grandOngkir - nominal);
+      grandTotal = Math.max(0, grandTotal - nominal);
+    }
+  }
+
+  return { grandOngkir, grandTotal };
 }
 
 function normalizeSheetDate(val) {
@@ -502,14 +810,19 @@ async function buildPendingResolutionContext(supabase, cabang, periodes) {
   if (candidateDates.length) {
     const { data: transferRows, error: transferError } = await supabase
       .from('transfers')
-      .select('id, tgl_inputan, nominal')
+      .select('id, tgl_inputan, nominal, timestamp')
       .eq('nama_cabang', cabang)
       .in('tgl_inputan', candidateDates);
     if (transferError) throw transferError;
     existingTransfers = Array.isArray(transferRows) ? transferRows : [];
   }
 
-  return { byDate, existingTransfers };
+  const existingAllocationRows = await readTransferAllocationRowsByTransferIds(
+    supabase,
+    existingTransfers.map((row) => row.id),
+  );
+
+  return { byDate, existingTransfers, existingAllocationRows, effectiveRows };
 }
 
 async function resolvePendingAllocations(supabase, options = {}) {
@@ -562,15 +875,56 @@ async function resolvePendingAllocations(supabase, options = {}) {
         bukti_url: row.bukti_url,
       }));
 
+      const allocationPlans = buildTransferAllocationPlan({
+        noncodRows: context.effectiveRows,
+        existingTransfers: context.existingTransfers,
+        existingAllocationRows: context.existingAllocationRows,
+        plannedRows: insertRows.map((item) => ({
+          tgl_inputan: item.tgl_inputan,
+          nominal: item.nominal,
+        })),
+      });
+      const invalidAllocationPlan = allocationPlans.find((allocationPlan, index) => (
+        !allocationPlan
+        || allocationPlan.tgl_inputan !== insertRows[index].tgl_inputan
+        || allocationPlan.nominal !== insertRows[index].nominal
+        || Number(allocationPlan.unallocatedNominal || 0) > 0
+      ));
+      if (invalidAllocationPlan) {
+        throw new Error('Sinkron alokasi pending NONCOD tidak konsisten.');
+      }
+
       const { data: insertedRows, error: insertError } = await supabase
         .from('transfers')
         .insert(insertRows)
-        .select('id, tgl_inputan, nominal');
+        .select('id, timestamp, tgl_inputan, nominal');
       if (insertError) throw insertError;
 
       const inserted = Array.isArray(insertedRows) ? insertedRows : [];
+      if (inserted.length !== insertRows.length) {
+        if (inserted.length) {
+          await supabase.from('transfers').delete().in('id', inserted.map((item) => item.id)).catch(() => {});
+        }
+        throw new Error('Jumlah transfer hasil resolve pending tidak sesuai rencana.');
+      }
 
       try {
+        for (let index = 0; index < inserted.length; index += 1) {
+          const insertedRow = inserted[index];
+          const allocationPlan = allocationPlans[index] || null;
+          await upsertTransferAllocation(supabase, {
+            transfer_id: insertedRow.id,
+            cabang: row.cabang,
+            transfer_date: insertedRow.tgl_inputan,
+            transfer_nominal: insertedRow.nominal,
+            source: 'pending_allocation_resolve',
+            allocations: allocationPlan ? allocationPlan.allocations : [],
+            unallocated_nominal: allocationPlan ? allocationPlan.unallocatedNominal : insertedRow.nominal,
+            created_at: insertedRow.timestamp || row.timestamp || new Date().toISOString(),
+            updated_at: insertedRow.timestamp || row.timestamp || new Date().toISOString(),
+          });
+        }
+
         if (plan.pendingNominal > 0) {
           await upsertPendingAllocation(supabase, {
             ...row,
@@ -582,6 +936,9 @@ async function resolvePendingAllocations(supabase, options = {}) {
           await deletePendingAllocation(supabase, row.root_transfer_id);
         }
       } catch (pendingError) {
+        if (inserted.length) {
+          await deleteTransferAllocations(supabase, inserted.map((item) => item.id)).catch(() => {});
+        }
         if (inserted.length) {
           const rollbackResult = await supabase
             .from('transfers')
@@ -603,6 +960,19 @@ async function resolvePendingAllocations(supabase, options = {}) {
           id: item.id,
           tgl_inputan: item.tgl_inputan,
           nominal: item.nominal,
+          timestamp: item.timestamp,
+        });
+      });
+      allocationPlans.forEach((allocationPlan, index) => {
+        context.existingAllocationRows.push({
+          transfer_id: inserted[index] && inserted[index].id,
+          cabang: row.cabang,
+          transfer_date: inserted[index] && inserted[index].tgl_inputan,
+          transfer_nominal: inserted[index] && inserted[index].nominal,
+          allocations: allocationPlan ? allocationPlan.allocations : [],
+          unallocated_nominal: allocationPlan ? allocationPlan.unallocatedNominal : 0,
+          created_at: inserted[index] && inserted[index].timestamp,
+          updated_at: inserted[index] && inserted[index].timestamp,
         });
       });
 
@@ -707,6 +1077,10 @@ async function releaseSyncLock(supabase, periode) {
 }
 
 async function maybeSyncMaukirimPeriod(supabase, periode, options = {}) {
+  if (isNoncodManualUploadOnly()) {
+    return buildSyncInfo(periode, await readSyncMeta(supabase, periode));
+  }
+
   const enabled = canAutoSyncMaukirim();
   const eligible = isAutoSyncablePeriode(periode);
   const force = !!options.force;
@@ -733,13 +1107,17 @@ async function maybeSyncMaukirimPeriod(supabase, periode, options = {}) {
     const workbookBuffer = await downloadOrdersWorkbook(cookies, periode);
     const importedRows = await parseWorkbookRows(workbookBuffer);
     const cleanRows = sanitizeNoncodRows(periode, importedRows);
-    const delta = await reconcilePeriodeRows(supabase, periode, cleanRows);
+    const contentState = compareNoncodSyncContent(cleanRows, currentMeta);
+    const delta = contentState.changed
+      ? await reconcilePeriodeRows(supabase, periode, cleanRows)
+      : buildUnchangedNoncodDelta(cleanRows.length);
     const stats = summarizeInsertedRows(cleanRows);
     await resolvePendingAllocations(supabase, { periodes: getRecentPeriodes() });
     const meta = {
       source: 'maukirim_auto',
       syncedAt: new Date().toISOString(),
       inserted: cleanRows.length,
+      contentHash: contentState.contentHash,
       delta: {
         inserted: delta.inserted,
         updated: delta.updated,
@@ -750,7 +1128,13 @@ async function maybeSyncMaukirimPeriod(supabase, periode, options = {}) {
       stats,
     };
     await writeSyncMeta(supabase, periode, meta);
-    return { enabled: true, eligible: true, performed: true, ...meta };
+    return {
+      enabled: true,
+      eligible: true,
+      performed: contentState.changed,
+      reusedSnapshot: !contentState.changed,
+      ...meta,
+    };
   })().finally(async () => {
     syncPendingByPeriode.delete(periode);
     await releaseSyncLock(supabase, periode).catch(() => {});
@@ -764,6 +1148,15 @@ async function syncMaukirimPeriodes(supabase, periodes, options = {}) {
   const uniquePeriods = [...new Set((periodes || [])
     .map(periode => String(periode || '').trim())
     .filter(periode => isValidPeriodeParam(periode)))];
+  if (isNoncodManualUploadOnly()) {
+    return Promise.all(uniquePeriods.map(async (periode) => ({
+      periode,
+      ...buildSyncInfo(periode, await readSyncMeta(supabase, periode)),
+      skipped: true,
+      manualOnly: true,
+    })));
+  }
+
   const results = [];
 
   for (const periode of uniquePeriods) {
@@ -892,11 +1285,13 @@ async function handlePipelineRoute(req, res) {
     const supabase = getSupabase();
     const state = await readNoncodSyncPipelineState(supabase);
     const triggerConfig = getNoncodPipelineTriggerConfig();
+    const manualMode = isNoncodManualUploadOnly();
     res.json({
       state,
-      triggerEnabled: isNoncodPipelineTriggerEnabled(),
-      triggerMode: triggerConfig.mode,
-      triggerTarget: triggerConfig.url,
+      manualMode,
+      triggerEnabled: manualMode ? false : isNoncodPipelineTriggerEnabled(),
+      triggerMode: manualMode ? 'manual' : triggerConfig.mode,
+      triggerTarget: manualMode ? '' : triggerConfig.url,
     });
     return true;
   }
@@ -906,107 +1301,15 @@ async function handlePipelineRoute(req, res) {
     return true;
   }
 
-  const authorized = await authorizeSyncRequest(req, res);
-  if (!authorized) return true;
-
-  const supabase = getSupabase();
-  const triggerConfig = getNoncodPipelineTriggerConfig();
-
-  const reason = normalizeText(req.body?.reason || 'background_sync', 120) || 'background_sync';
-  const requestedPeriodes = normalizePeriodeList(req.body?.periodes)
-    .filter((periode) => isValidPeriodeParam(periode));
-  const force = req.body?.force !== false;
-
-  try {
-    if (!isNoncodPipelineTriggerEnabled()) {
-      res.status(503).json({
-        error: 'Lambda worker NONCOD belum dikonfigurasi.',
-        triggerEnabled: false,
-        triggerMode: triggerConfig.mode,
-        triggerTarget: triggerConfig.url,
-      });
-      return true;
-    }
-
-    const queuedState = await markNoncodSyncQueued(supabase, {
-      reason,
-      periodes: requestedPeriodes.length ? requestedPeriodes : getAutoSyncPeriods(),
-    });
-
-    let triggerResult;
-    try {
-      triggerResult = await sendNoncodPipelineTrigger({
-        reason,
-        periodes: requestedPeriodes,
-        source: 'noncod-pipeline-route',
-        force,
-      });
-    } catch (triggerError) {
-      triggerResult = {
-        skipped: false,
-        ok: false,
-        status: 0,
-        target: triggerConfig.url,
-        error: triggerError && triggerError.message ? triggerError.message : 'trigger_failed',
-      };
-    }
-
-    if (!triggerResult || !triggerResult.ok) {
-      const triggerFailure = triggerResult && !triggerResult.skipped
-        ? (triggerResult.error || (triggerResult.status ? ('HTTP ' + triggerResult.status) : 'trigger_failed'))
-        : 'trigger_unavailable';
-      const failedState = await markNoncodSyncFailed(supabase, {
-        reason,
-        periodes: requestedPeriodes,
-        error: 'Trigger Lambda worker gagal: ' + triggerFailure,
-      }).catch(() => null);
-      logError('noncod-sync', 'Trigger Lambda worker gagal: ' + triggerFailure, {
-        method: 'POST',
-        action: 'trigger_lambda_worker',
-        reason,
-        periodes: requestedPeriodes,
-        triggerTarget: triggerResult && triggerResult.target ? triggerResult.target : triggerConfig.url,
-      });
-      res.status(502).json({
-        error: 'Gagal memicu Lambda worker NONCOD.',
-        detail: triggerFailure,
-        state: failedState,
-        triggerEnabled: true,
-        triggerMode: triggerConfig.mode,
-        triggerTarget: triggerConfig.url,
-      });
-      return true;
-    }
-
-    res.status(202).json({
-      success: true,
-      status: queuedState.status,
-      state: queuedState,
-      triggerEnabled: true,
-      triggerMode: triggerConfig.mode,
-      triggerTarget: triggerResult.target || triggerConfig.url,
-    });
-    return true;
-  } catch (err) {
-    console.error(err);
-    const failedState = await markNoncodSyncFailed(supabase, {
-      reason,
-      periodes: requestedPeriodes,
-      error: err.message,
-    }).catch(() => null);
-    logError('noncod-sync', err.message, { method: 'POST', reason, periodes: requestedPeriodes });
-    res.status(500).json({
-      error: 'Gagal menjalankan background sync NONCOD.',
-      detail: err.message,
-      state: failedState,
-    });
-    return true;
-  }
+  res.status(410).json({
+    error: 'Route sync MauKirim NONCOD sudah dinonaktifkan. Gunakan upload workbook manual.',
+  });
+  return true;
 }
 
 async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
-  if (cors(req, res, { methods: 'GET, POST, PUT, DELETE, OPTIONS', headers: 'Content-Type, X-Admin-Token, X-Sync-Secret' })) return;
+  if (cors(req, res, { methods: 'GET, POST, PUT, DELETE, OPTIONS', headers: 'Content-Type, X-Admin-Token' })) return;
   if (!ensureAllowedMethod(req, res, ['GET', 'POST', 'PUT', 'DELETE'])) return;
 
   const isManualStatusRoute = normalizeQueryFlag(req.query.manual_status);
@@ -1025,20 +1328,56 @@ async function handler(req, res) {
     if (await handlePipelineRoute(req, res)) return;
   }
 
+  if (req.method === 'POST') {
+    if (!(await requireAdmin(req, res))) return;
+
+    try {
+      const supabase = getSupabase();
+      const upload = await parseManualWorkbookUpload(req);
+      const periode = normalizeText(upload.fields && upload.fields.periode, 20);
+      if (!periode || !isValidPeriodeParam(periode)) {
+        return res.status(400).json({ error: 'Periode workbook wajib diisi dengan format YYYY-MM.' });
+      }
+
+      const result = await importManualWorkbookSnapshot(supabase, periode, upload.fileBuffer);
+      return res.json({
+        success: true,
+        periode: result.periode,
+        importedRows: result.importedRows,
+        performed: result.performed,
+        reusedSnapshot: result.reusedSnapshot,
+        syncInfo: {
+          ...buildSyncInfo(result.periode, result.meta),
+          performed: result.performed,
+          reusedSnapshot: result.reusedSnapshot,
+        },
+      });
+    } catch (err) {
+      console.error(err);
+      const statusCode = getManualUploadStatusCode(err);
+      if (statusCode >= 500) {
+        logError('noncod-manual-upload', err.message, { method: 'POST' });
+      }
+      return res.status(statusCode).json({ error: err.message || 'Gagal mengimpor workbook NONCOD manual.' });
+    }
+  }
+
   // GET /api/noncod?periode=2026-04 — ambil summary per cabang
   if (req.method === 'GET') {
     try {
       const supabase = getSupabase();
       const periode = normalizeText(req.query.periode, 20);
       const mode = normalizeText(req.query.mode || 'noncod', 20).toLowerCase();
-      const forceSync = normalizeQueryFlag(req.query.sync) || normalizeQueryFlag(req.query.refresh);
+      const hasManualSyncRequest = normalizeQueryFlag(req.query.sync) || normalizeQueryFlag(req.query.refresh);
       if (!periode || !isValidPeriodeParam(periode)) {
         return res.status(400).json({ error: 'Parameter periode wajib (YYYY-MM) dengan bulan 01-12.' });
       }
       if (!['noncod', 'dfod', 'all'].includes(mode)) {
         return res.status(400).json({ error: 'Mode tidak valid. Gunakan noncod, dfod, atau all.' });
       }
-      if (forceSync && !(await requireAdmin(req, res))) return;
+      if (hasManualSyncRequest) {
+        return res.status(400).json({ error: 'Sync MauKirim otomatis NONCOD sudah dinonaktifkan. Gunakan upload workbook manual.' });
+      }
 
       // Cek viewer session lebih awal — viewer hanya baca snapshot DB
       const viewerSession = await getViewerSession(req);
@@ -1046,14 +1385,17 @@ async function handler(req, res) {
 
       const syncMeta = await readSyncMeta(supabase, periode);
       const pipelineState = await readNoncodSyncPipelineState(supabase);
-      const backgroundTriggerEnabled = isNoncodPipelineTriggerEnabled();
+      const manualMode = isNoncodManualUploadOnly();
+      const backgroundTriggerEnabled = !manualMode && isNoncodPipelineTriggerEnabled();
       const triggerConfig = getNoncodPipelineTriggerConfig();
       let syncInfo = buildSyncInfo(periode, syncMeta);
       syncInfo.pipeline = pipelineState;
+      syncInfo.manualMode = manualMode;
       syncInfo.triggerEnabled = backgroundTriggerEnabled;
-      syncInfo.triggerMode = triggerConfig.mode;
-      syncInfo.triggerTarget = triggerConfig.url;
-      syncInfo.stale = isSyncMetaStale(syncMeta);
+      syncInfo.triggerMode = manualMode ? 'manual' : triggerConfig.mode;
+      syncInfo.triggerTarget = manualMode ? '' : triggerConfig.url;
+      syncInfo.triggerIssue = manualMode ? '' : (triggerConfig.urlIssue || '');
+      syncInfo.stale = manualMode ? false : isSyncMetaStale(syncMeta);
       syncInfo.refreshState = { action: 'none', status: 'idle', reason: '' };
       let data = await fetchAllRowsByPeriode(supabase, periode);
 
@@ -1064,114 +1406,11 @@ async function handler(req, res) {
           syncInfo,
           syncMeta,
           rowCount: data.length,
-          forceSync,
           backgroundTriggerEnabled,
           pipelineState,
         });
 
-        if (autoRefresh.action === 'inline') {
-          try {
-            syncInfo = await maybeSyncMaukirimPeriod(supabase, periode, { force: true });
-            syncInfo.pipeline = pipelineState;
-            syncInfo.triggerEnabled = backgroundTriggerEnabled;
-            syncInfo.triggerMode = triggerConfig.mode;
-            syncInfo.triggerTarget = triggerConfig.url;
-            syncInfo.stale = false;
-            syncInfo.refreshState = {
-              action: 'inline',
-              status: 'completed',
-              reason: autoRefresh.reason,
-            };
-            data = await fetchAllRowsByPeriode(supabase, periode);
-          } catch (syncErr) {
-            console.error('[noncod sync]', syncErr.message);
-            logError('noncod', syncErr.message, { method: 'GET', action: 'sync', periode, forceSync });
-            syncInfo = {
-              ...buildSyncInfo(periode, syncMeta),
-              pipeline: pipelineState,
-              triggerEnabled: backgroundTriggerEnabled,
-              triggerMode: triggerConfig.mode,
-              triggerTarget: triggerConfig.url,
-              stale: syncInfo.stale,
-              refreshState: {
-                action: 'inline',
-                status: 'failed',
-                reason: autoRefresh.reason,
-              },
-              error: syncErr.message,
-            };
-          }
-        } else if (autoRefresh.action === 'queue') {
-          const queuedReason = 'snapshot_' + autoRefresh.reason;
-          const queuedState = await markNoncodSyncQueued(supabase, {
-            periodes: [periode],
-            reason: queuedReason,
-          });
-          const triggerRequest = {
-            reason: queuedReason,
-            periodes: [periode],
-            source: 'noncod-read',
-            force: true,
-          };
-          const runTriggerTask = async () => {
-            let triggerResult;
-            try {
-              triggerResult = await sendNoncodPipelineTrigger(triggerRequest);
-            } catch (triggerError) {
-              triggerResult = {
-                skipped: false,
-                ok: false,
-                status: 0,
-                target: triggerConfig.url,
-                error: triggerError && triggerError.message ? triggerError.message : 'trigger_failed',
-              };
-            }
-
-            if (triggerResult && triggerResult.ok) {
-              return { ok: true };
-            }
-
-            const triggerFailure = triggerResult && !triggerResult.skipped
-              ? (triggerResult.error || (triggerResult.status ? ('HTTP ' + triggerResult.status) : 'trigger_failed'))
-              : 'trigger_unavailable';
-            const failedState = await markNoncodSyncFailed(supabase, {
-              reason: queuedReason,
-              periodes: [periode],
-              error: 'Trigger background gagal: ' + triggerFailure,
-            });
-            logError('noncod-sync', 'Trigger background gagal: ' + triggerFailure, {
-              method: 'GET',
-              action: 'queue_snapshot_refresh',
-              periode,
-              triggerTarget: triggerResult && triggerResult.target ? triggerResult.target : '',
-            });
-            return {
-              ok: false,
-              failedState,
-              triggerFailure,
-            };
-          };
-
-          if (typeof vercelWaitUntil === 'function') {
-            scheduleNoncodBackgroundTask(runTriggerTask());
-            syncInfo.pipeline = queuedState;
-            syncInfo.refreshState = autoRefresh;
-          } else {
-            const triggerOutcome = await runTriggerTask();
-            if (triggerOutcome && triggerOutcome.ok) {
-              syncInfo.pipeline = queuedState;
-              syncInfo.refreshState = autoRefresh;
-            } else {
-              syncInfo.pipeline = triggerOutcome && triggerOutcome.failedState ? triggerOutcome.failedState : queuedState;
-              syncInfo.refreshState = {
-                action: 'queue',
-                status: 'failed',
-                reason: autoRefresh.reason,
-              };
-              syncInfo.error = 'Trigger background gagal: ' + (triggerOutcome && triggerOutcome.triggerFailure ? triggerOutcome.triggerFailure : 'trigger_failed');
-            }
-          }
-        } else if (autoRefresh.status !== 'idle') {
+        if (autoRefresh.status !== 'idle') {
           syncInfo.refreshState = autoRefresh;
         }
       }
@@ -1270,6 +1509,21 @@ async function handler(req, res) {
         }
       }
 
+      const holdTransfers = await buildCabangHoldAdjustmentTransfers(supabase, data, { viewerCabang });
+      const adjustedTotals = applyCabangHoldAdjustments({
+        holdTransfers,
+        byCabang,
+        byDay,
+        summary,
+        monthSummary,
+        periode,
+        mode,
+        grandOngkir,
+        grandTotal,
+      });
+      grandOngkir = adjustedTotals.grandOngkir;
+      grandTotal = adjustedTotals.grandTotal;
+
       summary.noncod.cabangCount = summaryCabang.noncod.size;
       summary.dfod.cabangCount = summaryCabang.dfod.size;
       summary.all.cabangCount = summaryCabang.all.size;
@@ -1335,14 +1589,18 @@ module.exports.buildSyncInfo = buildSyncInfo;
 module.exports.canAutoSyncMaukirim = canAutoSyncMaukirim;
 module.exports.getAutoSyncPeriods = getAutoSyncPeriods;
 module.exports.getRekonDateKey = getRekonDateKey;
+module.exports.importManualWorkbookSnapshot = importManualWorkbookSnapshot;
 module.exports.isAutoSyncablePeriode = isAutoSyncablePeriode;
+module.exports.isNoncodManualUploadOnly = isNoncodManualUploadOnly;
 module.exports.isSyncMetaStale = isSyncMetaStale;
 module.exports.maybeSyncMaukirimPeriod = maybeSyncMaukirimPeriod;
 module.exports.planPeriodeRowReconciliation = planPeriodeRowReconciliation;
 module.exports.readSyncMeta = readSyncMeta;
 module.exports.resolvePendingAllocations = resolvePendingAllocations;
 module.exports.syncMaukirimPeriodes = syncMaukirimPeriodes;
-module.exports.authorizeSyncRequest = authorizeSyncRequest;
 module.exports.isValidPeriodeParam = isValidPeriodeParam;
 module.exports.planNoncodAutoRefresh = planNoncodAutoRefresh;
-module.exports.timingSafeSecretEqual = timingSafeSecretEqual;
+module.exports.buildNoncodSyncContentHash = buildNoncodSyncContentHash;
+module.exports.compareNoncodSyncContent = compareNoncodSyncContent;
+module.exports.applyCabangHoldAdjustments = applyCabangHoldAdjustments;
+module.exports.buildCabangHoldAdjustmentTransfers = buildCabangHoldAdjustmentTransfers;

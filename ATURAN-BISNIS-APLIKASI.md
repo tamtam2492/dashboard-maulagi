@@ -21,7 +21,14 @@ Catatan ini merangkum aturan bisnis yang harus diikuti aplikasi agar hasil rekon
 
 ## Aturan Sync NONCOD
 
+- Prinsip arsitektur jalur NONCOD saat ini: snapshot dibaca dari database, dan refresh snapshot dilakukan manual oleh admin lewat upload workbook MauKirim.
 - Sync NONCOD harus bersifat incremental, bukan `delete periode lalu insert ulang`.
+- Refresh snapshot NONCOD tidak lagi dijalankan oleh worker background terjadwal; request baca biasa tetap membaca snapshot database terakhir yang valid.
+- Semua pekerjaan refresh snapshot NONCOD dijalankan saat admin melakukan upload workbook manual. Jalur ini mencakup parsing Excel, rekonsiliasi row NONCOD, resolve pending allocation, dan publish snapshot baru.
+- Tanggung jawab backend pada jalur NONCOD dibatasi ke validasi request upload, membaca snapshot database terakhir yang valid, melakukan rekonsiliasi incremental by `nomor_resi`, dan menyajikan status snapshot ke UI.
+- Write path dari Vercel seperti input, edit, split, dan delete transfer hanya boleh menandai snapshot sebagai `dirty`; refresh data NONCOD tetap menunggu upload workbook manual berikutnya.
+- Route manual `POST /api/noncod?pipeline=1` harus tetap dinonaktifkan. Trigger manual dari Vercel tidak boleh menjadi jalur operasional harian atau fallback tersembunyi.
+- Upload manual workbook harus mereconcile data periode dengan identitas utama `nomor_resi` agar upload ulang file yang sama tidak membuat duplicate row di database.
 - Saat membaca snapshot MauKirim:
   - resi baru -> insert
   - resi lama tetapi field berubah -> update
@@ -41,6 +48,8 @@ Catatan ini merangkum aturan bisnis yang harus diikuti aplikasi agar hasil rekon
 - Parent workspace menjadi satu-satunya watcher marker global. Child panel tidak boleh melakukan polling penuh sendiri-sendiri hanya untuk mendeteksi perubahan.
 - Jika marker berubah, hanya panel yang relevan yang boleh mengambil snapshot baru, dan pengambilan itu harus berupa silent snapshot swap.
 - Jika panel sedang dalam mode edit atau split, snapshot baru tidak boleh langsung menimpa form aktif; refresh boleh ditunda sampai save atau cancel.
+- Jika belum ada upload workbook terbaru, API tetap harus menyajikan snapshot terakhir yang valid; request baca biasa tidak boleh mengambil alih refresh data secara inline.
+- Status snapshot di workspace admin/dashboard harus merefleksikan mode upload manual yang sebenarnya. Jika upload manual gagal, snapshot lama tetap dipakai sampai admin berhasil mengunggah workbook baru.
 
 ## Aturan Rekonsiliasi Transfer
 
@@ -53,11 +62,13 @@ Catatan ini merangkum aturan bisnis yang harus diikuti aplikasi agar hasil rekon
 - Akumulasi harian dihitung dari seluruh row NONCOD efektif pada tanggal yang sama, setelah filter `metode_pembayaran = noncod` dan pengecualian status `BATAL`/`VOID`.
 - Outstanding bucket harian = total akumulasi harian - total transfer yang sudah menempel pada `tgl_inputan` yang sama.
 - Outstanding parsial harus tetap terkunci pada tanggal aslinya; sisa tanggal lama tidak boleh dipindah atau dilompati ke tanggal berikutnya.
-- Exact match upload public tidak memakai toleransi nominal; nominal OCR harus sama persis dengan outstanding prefix yang sedang diuji.
-- Matcher upload public berjalan FIFO prefix dari tanggal tertua yang belum lunas: tanggal 1, tanggal 1 + 2, tanggal 1 + 2 + 3, dan seterusnya.
-- Matcher upload public tidak boleh mencari kombinasi bebas dan tidak boleh meloncati tanggal yang masih memiliki outstanding.
+- Exact match upload public tidak memakai toleransi nominal; nominal OCR harus sama persis dengan outstanding yang sedang diuji.
+- Matcher upload public mengutamakan exact match satu tanggal terlebih dahulu dari seluruh tanggal outstanding (bukan hanya tertua). Jika ditemukan satu tanggal yang outstanding-nya sama persis dengan nominal transfer, tanggal tersebut langsung dipakai meskipun ada outstanding lebih tua yang belum lunas.
+- Jika tidak ada exact match satu tanggal, matcher baru menjalankan FIFO prefix dari tanggal tertua yang belum lunas: tanggal 1, tanggal 1 + 2, tanggal 1 + 2 + 3, dan seterusnya.
+- Matcher upload public tidak boleh mencari kombinasi bebas dan tidak boleh meloncati tanggal kecuali ditemukan exact match satu tanggal seperti di atas.
 - Setelah transfer cocok exact dengan outstanding NONCOD, transfer ditempel ke bucket `tanggal_buat` NONCOD yang sesuai.
 - Jika satu transfer mencakup beberapa tanggal NONCOD, nominal dipecah ke beberapa bucket tanggal yang berurutan sesuai prefix exact tersebut.
+- `transfer_datetime`, waktu pada struk bank, hasil OCR, dan teks `ket` tidak boleh dipakai sebagai anchor bucket harian; dashboard, admin, dan audit tetap harus membaca `tgl_inputan`.
 
 ## Aturan Hold Cabang
 
@@ -85,6 +96,17 @@ Catatan ini merangkum aturan bisnis yang harus diikuti aplikasi agar hasil rekon
 - Khusus admin, koreksi manual `tgl_inputan` tetap diperbolehkan jika memang perlu memperbaiki penempatan nominal transfer ke bucket NONCOD yang benar.
 - Jika satu bukti transfer mencakup beberapa tanggal NONCOD, admin boleh melakukan split ke beberapa bucket tanggal yang sesuai.
 
+## Aturan Bukti Transfer dan Proof Registry
+
+- Setiap bukti transfer publik disimpan di registry `settings` dengan key `proof_signature_<sha256 file>` sebagai guard anti-reuse struk.
+- Registry bukti harus menyimpan metadata bukti, `transferId`/`transferIds`, `tglInputanList`, dan `splitRows` agar satu bukti bisa dilacak ke satu atau beberapa row transfer aktif.
+- Upload bukti yang sama harus diblokir selama registry masih menunjuk ke row transfer yang masih hidup.
+- Jika registry menunjuk hanya ke row transfer yang sudah terhapus, entry orphan itu harus dibersihkan otomatis dan upload bukti yang sama boleh diproses ulang.
+- Jika sebagian row split lama sudah hilang tetapi sebagian lain masih hidup, registry harus dipruning ke row yang masih hidup; sistem tidak boleh mempertahankan `transferIds` basi.
+- Aksi admin split harus memindahkan registry bukti dari `transferId` lama ke hasil split baru, termasuk memperbarui `tglInputan`, `tglInputanList`, dan `splitRows`.
+- Aksi admin delete harus memangkas `transferId` terkait dari registry bukti; jika tidak ada row hidup tersisa, entry registry harus ikut dihapus.
+- Koreksi data transfer tidak boleh meninggalkan proof registry orphan yang kemudian memblokir re-upload bukti yang sah.
+
 ## Status dan Override
 
 - Data sync mentah dari MauKirim tetap disimpan apa adanya.
@@ -110,6 +132,7 @@ Catatan ini merangkum aturan bisnis yang harus diikuti aplikasi agar hasil rekon
 - `tgl_inputan` transfer = tanggal hasil tempel ke bucket NONCOD
 - upload public exact = match terhadap outstanding akumulasi harian per cabang secara FIFO prefix tanpa toleransi
 - hold cabang = saldo lebih yang mengurangi total harian berikutnya, bukan transfer bertanggal baru
+- proof registry SHA-256 = guard anti-reuse bukti yang wajib selalu sinkron dengan row transfer hidup
 - MauKirim = sumber data NONCOD mentah
 - Override admin = lapisan efektif setelah sync mentah masuk
 - workspace admin = berbasis snapshot terakhir yang valid, update silent via marker global server-side

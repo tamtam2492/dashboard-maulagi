@@ -16,6 +16,7 @@ const {
 const { getSupabase } = supabaseModule;
 const {
   getAutoSyncPeriods,
+  isNoncodManualUploadOnly,
   isValidPeriodeParam,
   syncMaukirimPeriodes,
 } = noncodModule;
@@ -81,7 +82,7 @@ export const handler = async (event) => {
     const hasHttpEnvelope = !!(event && (event.body !== undefined || event.headers));
     if (hasHttpEnvelope && triggerSecret) {
       const headers = normalizeHeaders(event.headers);
-      const inboundSecret = headers['x-sync-secret'] || headers['x-ops-secret'] || '';
+      const inboundSecret = headers['x-noncod-secret'] || '';
       if (inboundSecret !== triggerSecret) {
         return json(401, { error: 'Unauthorized.' });
       }
@@ -91,6 +92,12 @@ export const handler = async (event) => {
     reason = String(payload.reason || 'lambda_background_sync').trim() || 'lambda_background_sync';
     requestedPeriodes = getRequestedPeriodes(payload);
     const force = shouldForceSync(payload);
+
+    if (typeof isNoncodManualUploadOnly === 'function' && isNoncodManualUploadOnly()) {
+      return json(410, {
+        error: 'Sync MauKirim NONCOD dinonaktifkan. Gunakan upload workbook manual.',
+      });
+    }
 
     const supabase = getSupabase();
     const started = await markNoncodSyncBuilding(supabase, {

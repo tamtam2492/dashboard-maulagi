@@ -28,6 +28,9 @@ test('parseOcrResponseContent membaca JSON longgar dengan Unknown', () => {
     jumlahKirimUang: null,
     admin: null,
     adminDibayar: null,
+    tanggalTransfer: null,
+    waktuTransfer: null,
+    transferDatetime: null,
     raw: {
       is_receipt: true,
       Channel: 'BRI',
@@ -35,6 +38,8 @@ test('parseOcrResponseContent membaca JSON longgar dengan Unknown', () => {
       Jumlah_Kirim_Uang: undefined,
       Admin: null,
       Admin_Dibayar: undefined,
+      Tanggal_Transfer: undefined,
+      Waktu_Transfer: undefined,
     },
   });
 });
@@ -94,4 +99,18 @@ test('parseOcrResponseContent melempar error bila respons tidak punya field OCR'
     () => parseOcrResponseContent('saya tidak tahu gambar ini apa'),
     /Respons OCR kosong|Unexpected token|valid/
   );
+});
+
+test('parseOcrResponseContent mem-parse tanggal dan waktu format DD/MM/YYYY HH:MM:SS dari OCR', () => {
+  const parsed = parseOcrResponseContent('{"is_receipt": true, "Channel": "BCA", "Total_Bayar": 133000, "Tanggal_Transfer": "19/04/2026 18:36:05", "Waktu_Transfer": null}');
+  assert.equal(parsed.tanggalTransfer, '2026-04-19');
+  assert.equal(parsed.waktuTransfer, '18:36:05');
+  assert.equal(parsed.transferDatetime, '2026-04-19T18:36:05');
+});
+
+test('parseOcrResponseContent mem-parse tanggal dan waktu format YYYY-MM-DD HH:MM:SS dari OCR', () => {
+  const parsed = parseOcrResponseContent('{"is_receipt": true, "Channel": "BCA", "Total_Bayar": 133000, "Tanggal_Transfer": "2026-04-19 18:36:05", "Waktu_Transfer": "18:36:05"}');
+  assert.equal(parsed.tanggalTransfer, '2026-04-19');
+  assert.equal(parsed.waktuTransfer, '18:36:05');
+  assert.equal(parsed.transferDatetime, '2026-04-19T18:36:05');
 });

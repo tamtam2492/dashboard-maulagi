@@ -29,6 +29,7 @@
       body { background: var(--bg); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; color: var(--dark); -webkit-font-smoothing: antialiased; }
       body.embed { background: transparent; }
       body.embed .hdr-btn { display: none; }
+      body.embed .upload-btn { display: none !important; }
       body.embed .download-btn { display: none !important; }
       body.embed .page-body { max-width: none; padding: 14px 14px 24px; }
 
@@ -286,6 +287,7 @@
         </div>
         <div class="hdr-action-group">
           <div class="hdr-action" id="btnScreenshot" title="Screenshot ke Clipboard"><i class="bi bi-camera"></i><span class="ha-label">Capture</span></div>
+          <div class="hdr-action upload-btn" id="btnUploadWorkbook" title="Upload workbook manual"><i class="bi bi-upload"></i><span class="ha-label">Upload</span></div>
           <div class="hdr-action download-btn" id="btnDownload" title="Download XLSX"><i class="bi bi-download"></i><span class="ha-label">Download</span></div>
         </div>
       </div>
@@ -387,6 +389,7 @@
       </div>
       <button class="tn-close" id="trNotifCloseBtn" type="button" title="Tutup">✕</button>
     </div>
+    <input type="file" id="noncodUploadInput" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
     <div class="toast-box" id="toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>

@@ -13,6 +13,43 @@ const {
   timingSafeSecretEqual,
 } = require('../api/_noncod-sync-pipeline');
 
+test('getNoncodPipelineTriggerConfig menandai URL placeholder worker sebagai invalid', () => {
+  const env = {
+    NONCOD_PIPELINE_TRIGGER_URL: 'https://your-trigger-url.example.com/',
+    NONCOD_PIPELINE_TRIGGER_SECRET: 'worker-secret',
+  };
+
+  const config = getNoncodPipelineTriggerConfig(env);
+  assert.equal(config.mode, 'invalid');
+  assert.equal(config.urlIssue, 'placeholder_url');
+  assert.equal(isNoncodPipelineTriggerEnabled(env), false);
+});
+
+test('getNoncodPipelineTriggerConfig tidak fallback ke NONCOD_SYNC_SECRET untuk worker external', () => {
+  const env = {
+    NONCOD_PIPELINE_TRIGGER_URL: 'https://worker-id.lambda-url.ap-southeast-1.on.aws/',
+    NONCOD_SYNC_SECRET: 'route-secret',
+  };
+
+  const config = getNoncodPipelineTriggerConfig(env);
+  assert.equal(config.secret, '');
+  assert.equal(config.mode, 'external');
+  assert.equal(config.urlIssue, '');
+  assert.equal(isNoncodPipelineTriggerEnabled(env), false);
+});
+
+test('getNoncodPipelineTriggerConfig menerima URL worker Lambda yang valid', () => {
+  const env = {
+    NONCOD_PIPELINE_TRIGGER_URL: 'https://worker-id.lambda-url.ap-southeast-1.on.aws/',
+    NONCOD_PIPELINE_TRIGGER_SECRET: 'worker-secret',
+  };
+
+  const config = getNoncodPipelineTriggerConfig(env);
+  assert.equal(config.mode, 'external');
+  assert.equal(config.urlIssue, '');
+  assert.equal(isNoncodPipelineTriggerEnabled(env), true);
+});
+
 test('normalizePeriodeList merapikan, menghapus duplikat, dan menyortir periode valid', () => {
   assert.deepEqual(normalizePeriodeList(['2026-04', '2026-04', 'salah', '2026-03']), ['2026-03', '2026-04']);
 });
@@ -96,5 +133,5 @@ test('sendNoncodPipelineTrigger mengirim request ke Lambda worker external', asy
   assert.equal(result.target, 'https://example.test/trigger');
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, 'https://example.test/trigger');
-  assert.equal(calls[0].options.headers['X-Sync-Secret'], 'trigger-secret');
+  assert.equal(calls[0].options.headers['X-Noncod-Secret'], 'trigger-secret');
 });

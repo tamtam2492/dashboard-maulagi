@@ -27,38 +27,28 @@ function createResponse() {
   };
 }
 
-test('noncod-sync menolak secret yang salah', async () => {
-  const previousSecret = process.env.NONCOD_SYNC_SECRET;
-  process.env.NONCOD_SYNC_SECRET = 'server-secret';
+test('noncod pipeline route manual dinonaktifkan', async () => {
+  const req = {
+    method: 'POST',
+    url: '/api/noncod-sync',
+    query: { pipeline: '1' },
+    headers: {
+      'x-forwarded-for': '10.0.0.1',
+      'x-sync-secret': 'wrong-secret',
+    },
+    body: { reason: 'manual' },
+  };
+  const res = createResponse();
 
-  try {
-    const req = {
-      method: 'POST',
-      url: '/api/noncod-sync',
-      query: { pipeline: '1' },
-      headers: {
-        'x-forwarded-for': '10.0.0.1',
-        'x-sync-secret': 'wrong-secret',
-      },
-      body: { reason: 'manual' },
-    };
-    const res = createResponse();
+  await handler(req, res);
 
-    await handler(req, res);
-
-    assert.equal(res.statusCode, 401);
-    assert.deepEqual(res.body, { error: 'Unauthorized.' });
-  } finally {
-    process.env.NONCOD_SYNC_SECRET = previousSecret;
-  }
+  assert.equal(res.statusCode, 410);
+  assert.deepEqual(res.body, {
+    error: 'Route sync MauKirim NONCOD sudah dinonaktifkan. Gunakan upload workbook manual.',
+  });
 });
 
-test('timingSafeSecretEqual helper noncod-sync hanya true untuk secret yang sama', () => {
-  assert.equal(handler.timingSafeSecretEqual('abc123', 'abc123'), true);
-  assert.equal(handler.timingSafeSecretEqual('abc123', 'abc124'), false);
-});
-
-test('noncod route utama menolak POST tanpa subroute khusus', async () => {
+test('noncod route utama meminta auth admin untuk upload workbook manual', async () => {
   const req = {
     method: 'POST',
     url: '/api/noncod',
@@ -69,8 +59,8 @@ test('noncod route utama menolak POST tanpa subroute khusus', async () => {
 
   await handler(req, res);
 
-  assert.equal(res.statusCode, 405);
-  assert.deepEqual(res.body, { error: 'Method not allowed.' });
+  assert.equal(res.statusCode, 401);
+  assert.deepEqual(res.body, { error: 'Token diperlukan.' });
 });
 
 test('noncod menolak method di luar allowlist sebelum menyentuh flow lain', async () => {

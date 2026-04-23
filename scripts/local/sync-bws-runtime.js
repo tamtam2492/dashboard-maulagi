@@ -23,7 +23,6 @@ const BWS_SECRET_IDS = {
   TELEGRAM_NOTIFY_SERVICE: '418c70a7-89f6-420b-b1cf-b432001262ee',
   UPSTASH_REDIS_REST_URL: '5ba6978e-a333-48f1-88f0-b43200129065',
   UPSTASH_REDIS_REST_TOKEN: 'dcb5eca9-159e-44e0-a270-b432001511a0',
-  NONCOD_SYNC_SECRET: '8f0521c1-742c-4d6e-860c-b4320015f1c9',
   NONCOD_PIPELINE_TRIGGER_URL: '318ea5db-b500-4c12-8e31-b43200160e9e',
   NONCOD_PIPELINE_TRIGGER_SECRET: '67d5d81c-165d-4f22-9a75-b432001635ea',
   CRON_SECRET: 'f471c580-b6cb-4b3a-bdd0-b43200167478',
@@ -39,6 +38,11 @@ const SUPABASE_SECRET_PREFIXES = {
   SUPABASE_ANON_KEY: 'sb_publishable_',
   SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_',
 };
+const PLACEHOLDER_TRIGGER_HOST_RE = /(^|\.)example\.(com|org|net)$/;
+const EXPECTED_TRIGGER_LAMBDA_BY_KEY = Object.freeze({
+  OCR_PIPELINE_TRIGGER_URL: 'ocr-worker-maulagi',
+  NONCOD_PIPELINE_TRIGGER_URL: 'noncod-worker-maulagi',
+});
 const UNWRAP_QUOTED_KEYS = new Set([
   'SUPABASE_URL',
   'TELEGRAM_NOTIFY_URL',
@@ -62,7 +66,6 @@ const SYNC_PLAN = {
     { key: 'OCR_SYNC_SECRET', environments: ['production', 'preview', 'development'] },
     { key: 'OCR_PIPELINE_TRIGGER_URL', environments: ['production', 'preview', 'development'] },
     { key: 'OCR_PIPELINE_TRIGGER_SECRET', environments: ['production', 'preview', 'development'] },
-    { key: 'NONCOD_SYNC_SECRET', environments: ['production', 'preview', 'development'] },
     { key: 'NONCOD_PIPELINE_TRIGGER_URL', environments: ['production', 'preview', 'development'] },
     { key: 'NONCOD_PIPELINE_TRIGGER_SECRET', environments: ['production', 'preview', 'development'] },
     { key: 'TELEGRAM_NOTIFY_URL', environments: ['production', 'preview', 'development'] },
@@ -174,6 +177,62 @@ function runCommand(command, args, input = '') {
   });
 }
 
+function parseBwsTimestamp(value) {
+  const timestamp = Date.parse(String(value || '').trim());
+  return Number.isFinite(timestamp) ? timestamp : -1;
+}
+
+function shouldReplaceBwsSecret(existing, candidate) {
+  if (!existing) return true;
+
+  const candidateRevision = parseBwsTimestamp(candidate && candidate.revisionDate);
+  const existingRevision = parseBwsTimestamp(existing && existing.revisionDate);
+  if (candidateRevision !== existingRevision) {
+    return candidateRevision > existingRevision;
+  }
+
+  const candidateCreated = parseBwsTimestamp(candidate && candidate.creationDate);
+  const existingCreated = parseBwsTimestamp(existing && existing.creationDate);
+  if (candidateCreated !== existingCreated) {
+    return candidateCreated > existingCreated;
+  }
+
+  return String(candidate && candidate.id || '').trim() > String(existing && existing.id || '').trim();
+}
+
+function buildBwsSecretMap(parsed) {
+  const itemsById = new Map();
+  const latestByKey = new Map();
+
+  for (const item of parsed) {
+    const id = String(item && item.id || '').trim();
+    if (id) itemsById.set(id, item);
+
+    const key = String(item && item.key || '').trim();
+    if (!key) continue;
+
+    const current = latestByKey.get(key);
+    if (shouldReplaceBwsSecret(current, item)) {
+      latestByKey.set(key, item);
+    }
+  }
+
+  const map = new Map();
+  for (const [key, item] of latestByKey.entries()) {
+    map.set(key, String(item && item.value || ''));
+  }
+
+  for (const [key, id] of Object.entries(BWS_SECRET_IDS)) {
+    if (map.has(key)) continue;
+
+    const item = itemsById.get(id);
+    if (!item) continue;
+    map.set(key, String(item && item.value || ''));
+  }
+
+  return map;
+}
+
 function listBwsSecrets(projectId) {
   const args = ['secret', 'list', '--output', 'json'];
   if (projectId) args.push(projectId);
@@ -183,27 +242,7 @@ function listBwsSecrets(projectId) {
   }
 
   const parsed = JSON.parse(String(result.stdout || '[]'));
-  const itemsById = new Map();
-  for (const item of parsed) {
-    const id = String(item && item.id || '').trim();
-    if (!id) continue;
-    itemsById.set(id, item);
-  }
-
-  const map = new Map();
-  for (const [key, id] of Object.entries(BWS_SECRET_IDS)) {
-    const item = itemsById.get(id);
-    if (!item) continue;
-    map.set(key, String(item && item.value || ''));
-  }
-
-  for (const item of parsed) {
-    const key = String(item && item.key || '').trim();
-    if (!key) continue;
-    if (map.has(key)) continue;
-    map.set(key, String(item && item.value || ''));
-  }
-  return map;
+  return buildBwsSecretMap(parsed);
 }
 
 function getPlannedSecretKeys() {
@@ -293,6 +332,78 @@ function parseJwtPayload(token) {
   }
 }
 
+function validateWorkerTriggerUrl(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized) return 'missing';
+
+  let parsed;
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    return 'format URL worker tidak valid';
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return `protocol URL worker tidak valid: ${parsed.protocol || 'unknown'}`;
+  }
+
+  const hostname = String(parsed.hostname || '').trim().toLowerCase();
+  if (!hostname) return 'hostname URL worker tidak valid';
+  if (PLACEHOLDER_TRIGGER_HOST_RE.test(hostname)) {
+    return `URL worker masih placeholder: ${hostname}`;
+  }
+
+  return null;
+}
+
+function normalizeComparableUrl(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized) return '';
+
+  try {
+    const parsed = new URL(normalized);
+    parsed.hash = '';
+    return parsed.toString().replace(/\/+$/, '');
+  } catch {
+    return normalized.replace(/\/+$/, '');
+  }
+}
+
+function getExpectedTriggerLambdaName(key) {
+  return EXPECTED_TRIGGER_LAMBDA_BY_KEY[String(key || '').trim()] || '';
+}
+
+function readLambdaFunctionUrl(functionName, region) {
+  if (!functionName) return '';
+
+  const result = runCommand('aws', [
+    'lambda',
+    'get-function-url-config',
+    '--region',
+    region,
+    '--function-name',
+    functionName,
+    '--query',
+    'FunctionUrl',
+    '--output',
+    'text',
+  ]);
+
+  if (result.status !== 0) return '';
+  return normalizeComparableUrl(result.stdout);
+}
+
+function validateTriggerUrlMatchesLambda(key, value, lambdaUrl) {
+  const functionName = getExpectedTriggerLambdaName(key);
+  if (!functionName || !lambdaUrl) return null;
+
+  if (normalizeComparableUrl(value) !== normalizeComparableUrl(lambdaUrl)) {
+    return `${key} harus sama dengan Function URL Lambda ${functionName}`;
+  }
+
+  return null;
+}
+
 function validateSupabaseAnonKey(value) {
   const normalized = String(value || '').trim();
   if (!normalized) return 'missing';
@@ -340,11 +451,17 @@ function validateSecretValue(key, value) {
   if (key === 'SUPABASE_SERVICE_ROLE_KEY') {
     return validateSupabaseServiceRoleKey(value);
   }
+  if (key === 'NONCOD_PIPELINE_TRIGGER_URL' || key === 'OCR_PIPELINE_TRIGGER_URL') {
+    return validateWorkerTriggerUrl(value);
+  }
   return null;
 }
 
 function hasSemanticValidator(key) {
-  return key === 'SUPABASE_ANON_KEY' || key === 'SUPABASE_SERVICE_ROLE_KEY';
+  return key === 'SUPABASE_ANON_KEY'
+    || key === 'SUPABASE_SERVICE_ROLE_KEY'
+    || key === 'NONCOD_PIPELINE_TRIGGER_URL'
+    || key === 'OCR_PIPELINE_TRIGGER_URL';
 }
 
 function getLambdaTargets(options) {
@@ -382,6 +499,7 @@ function getTargetSecretKeys(options) {
 function verifySecretSemantics(secretMap, options) {
   console.log('\n[Verify: Secret semantics]');
   let failureCount = 0;
+  const lambdaUrlCache = new Map();
 
   for (const key of getTargetSecretKeys(options)) {
     if (!hasSemanticValidator(key)) continue;
@@ -393,13 +511,29 @@ function verifySecretSemantics(secretMap, options) {
     }
 
     const validationError = validateSecretValue(key, value);
-    if (!validationError) {
-      console.log(`- ok ${key}`);
+    if (validationError) {
+      failureCount += 1;
+      console.log(`- fail ${key}: ${validationError}`);
       continue;
     }
 
-    failureCount += 1;
-    console.log(`- fail ${key}: ${validationError}`);
+    const expectedFunctionName = getExpectedTriggerLambdaName(key);
+    if (expectedFunctionName && !lambdaUrlCache.has(expectedFunctionName)) {
+      lambdaUrlCache.set(expectedFunctionName, readLambdaFunctionUrl(expectedFunctionName, options.region));
+    }
+
+    const lambdaMismatchError = validateTriggerUrlMatchesLambda(
+      key,
+      value,
+      expectedFunctionName ? lambdaUrlCache.get(expectedFunctionName) : '',
+    );
+    if (lambdaMismatchError) {
+      failureCount += 1;
+      console.log(`- fail ${key}: ${lambdaMismatchError}`);
+      continue;
+    }
+
+    console.log(`- ok ${key}`);
   }
 
   return failureCount;
@@ -660,12 +794,15 @@ if (require.main === module) {
 
 module.exports = {
   BWS_SECRET_IDS,
+  buildBwsSecretMap,
+  getExpectedTriggerLambdaName,
   getLambdaTargets,
   isLambdaNotFoundError,
   isOptionalSecret,
   listEnvSecrets,
   listBwsSecrets,
   loadSecretMap,
+  normalizeComparableUrl,
   normalizeSecretValue,
   parseJwtPayload,
   parseArgs,
@@ -673,6 +810,7 @@ module.exports = {
   syncLambda,
   syncVercel,
   SYNC_PLAN,
+  validateTriggerUrlMatchesLambda,
   validateSecretValue,
   verifySecretSemantics,
   verifyLambda,

@@ -17,9 +17,130 @@ const {
   getPreferredSyncPeriodes,
   getRecentPeriodes,
   getSearchByDate,
+  findNoncodDateMatch,
+  prefetchNoncodMatchContext,
   resolveNoncodDateMatchFromContext,
   resolveMatch,
 } = require('../api/_noncod-match');
+
+function createNoncodMatchSupabaseStub(initialState = {}) {
+  const state = {
+    syncMetaByPeriode: { ...(initialState.syncMetaByPeriode || {}) },
+    noncodRows: Array.isArray(initialState.noncodRows) ? initialState.noncodRows.slice() : [],
+    transferRows: Array.isArray(initialState.transferRows) ? initialState.transferRows.slice() : [],
+    settingsRows: Array.isArray(initialState.settingsRows) ? initialState.settingsRows.slice() : [],
+  };
+
+  function buildSettingsRows() {
+    const syncRows = Object.entries(state.syncMetaByPeriode).map(([periode, meta]) => ({
+      key: 'maukirim_sync_' + periode,
+      value: JSON.stringify(meta || {}),
+    }));
+    return syncRows.concat(state.settingsRows);
+  }
+
+  function createSettingsQuery() {
+    let eqFilter = null;
+    let likeFilter = null;
+
+    return {
+      select() {
+        return this;
+      },
+      eq(column, value) {
+        eqFilter = { column, value };
+        return this;
+      },
+      like(column, value) {
+        likeFilter = { column, value };
+        return this;
+      },
+      order() {
+        return this;
+      },
+      async maybeSingle() {
+        const rows = buildSettingsRows();
+        const row = rows.find((item) => !eqFilter || item[eqFilter.column] === eqFilter.value) || null;
+        return { data: row, error: null };
+      },
+      async range(from, to) {
+        let rows = buildSettingsRows();
+        if (likeFilter && likeFilter.column === 'key') {
+          const prefix = String(likeFilter.value || '').replace(/%+$/, '');
+          rows = rows.filter((item) => String(item.key || '').startsWith(prefix));
+        }
+        return { data: rows.slice(from, to + 1), error: null };
+      },
+    };
+  }
+
+  function createNoncodQuery() {
+    let cabangFilter = '';
+    let periodeFilter = [];
+
+    return {
+      select() {
+        return this;
+      },
+      in(column, values) {
+        if (column === 'periode') periodeFilter = Array.isArray(values) ? values.slice() : [];
+        return this;
+      },
+      eq(column, value) {
+        if (column === 'cabang') cabangFilter = String(value || '').trim().toUpperCase();
+        return this;
+      },
+      async range(from, to) {
+        const rows = state.noncodRows.filter((row) => {
+          const rowCabang = String(row.cabang || '').trim().toUpperCase();
+          const rowPeriode = String(row.periode || '').trim();
+          if (cabangFilter && rowCabang !== cabangFilter) return false;
+          if (periodeFilter.length && !periodeFilter.includes(rowPeriode)) return false;
+          return true;
+        });
+        return { data: rows.slice(from, to + 1), error: null };
+      },
+    };
+  }
+
+  function createTransferQuery() {
+    let cabangFilter = '';
+    let dateFilter = [];
+
+    return {
+      select() {
+        return this;
+      },
+      eq(column, value) {
+        if (column === 'nama_cabang') cabangFilter = String(value || '').trim().toUpperCase();
+        return this;
+      },
+      async in(column, values) {
+        if (column === 'tgl_inputan') dateFilter = Array.isArray(values) ? values.slice() : [];
+        const rows = state.transferRows.filter((row) => {
+          const rowCabang = String(row.nama_cabang || '').trim().toUpperCase();
+          const rowDate = String(row.tgl_inputan || '').trim();
+          if (cabangFilter && rowCabang !== cabangFilter) return false;
+          if (dateFilter.length && !dateFilter.includes(rowDate)) return false;
+          return true;
+        });
+        return { data: rows, error: null };
+      },
+    };
+  }
+
+  return {
+    state,
+    supabase: {
+      from(table) {
+        if (table === 'settings') return createSettingsQuery();
+        if (table === 'noncod') return createNoncodQuery();
+        if (table === 'transfers') return createTransferQuery();
+        throw new Error('Unexpected table: ' + table);
+      },
+    },
+  };
+}
 
 describe('NONCOD_MATCH_TOLERANCE', () => {
   it('should be 10000', () => {
@@ -424,17 +545,19 @@ describe('findPublicInputAllocation', () => {
     assert.equal(result.dates[1].plannedNominal, 98000);
   });
 
-  it('menolak alokasi bila nominal belum cukup untuk outstanding tertua', () => {
+  it('exact match satu tanggal diprioritaskan meski ada outstanding lebih tua', () => {
     const byDate = {
       '2026-04-11': 112000,
       '2026-04-14': 19000,
     };
 
     const result = findPublicInputAllocation(byDate, [], 19000);
-    assert.equal(result.dates.length, 0);
-    assert.equal(result.allocatedTotal, 0);
+    assert.equal(result.dates.length, 1);
+    assert.equal(result.dates[0].tanggal_buat, '2026-04-14');
+    assert.equal(result.dates[0].plannedNominal, 19000);
+    assert.equal(result.allocatedTotal, 19000);
+    assert.equal(result.holdNominal, 0);
     assert.equal(result.firstOutstanding.tanggal_buat, '2026-04-11');
-    assert.equal(result.firstOutstanding.remainingNominal, 112000);
   });
 });
 
@@ -519,7 +642,7 @@ describe('resolveNoncodDateMatchFromContext', () => {
     assert.equal(result.splitMatch.dates.length, 2);
   });
 
-  it('menolak nominal yang lebih kecil dari outstanding tertua walau cocok ke tanggal berikutnya', () => {
+  it('exact match satu tanggal diprioritaskan meski ada outstanding lebih tua', () => {
     const result = resolveNoncodDateMatchFromContext({
       normalizedCabang: 'PANJAITAN',
       normalizedPreferredPeriode: '2026-04',
@@ -532,12 +655,111 @@ describe('resolveNoncodDateMatchFromContext', () => {
       },
       existingTransfers: [],
       message: null,
-    }, 19000);
+    }, 133000);
+
+    assert.equal(result.blocked, false);
+    assert.equal(result.message, null);
+    assert.ok(result.match);
+    assert.equal(result.match.tanggal_buat, '2026-04-17');
+    assert.equal(result.match.plannedNominal, 133000);
+  });
+
+  it('menjelaskan bila nominal sama dengan total harian yang sudah lunas', () => {
+    const result = resolveNoncodDateMatchFromContext({
+      normalizedCabang: 'KENDARI 01',
+      normalizedPreferredPeriode: '2026-04',
+      hasPreferredPeriode: true,
+      hasData: true,
+      searchByDate: {
+        '2026-04-14': 437000,
+        '2026-04-20': 474000,
+      },
+      existingTransfers: [
+        { tgl_inputan: '2026-04-14', nominal: 437000, id: 1 },
+      ],
+      message: null,
+    }, 437000);
 
     assert.equal(result.match, null);
-    assert.equal(result.splitMatch, undefined);
     assert.equal(result.blocked, false);
-    assert.match(result.message, /belum cukup untuk outstanding tertua/i);
+    assert.match(result.message, /2026-04-14/);
+    assert.match(result.message, /sudah lunas/);
+  });
+
+  it('menjelaskan bila nominal sama dengan gabungan dua tanggal yang sudah tertutup transfer', () => {
+    const result = resolveNoncodDateMatchFromContext({
+      normalizedCabang: 'KOLAKA',
+      normalizedPreferredPeriode: '2026-04',
+      hasPreferredPeriode: true,
+      hasData: true,
+      searchByDate: {
+        '2026-04-10': 400000,
+        '2026-04-11': 150000,
+        '2026-04-12': 150000,
+      },
+      existingTransfers: [
+        { tgl_inputan: '2026-04-11', nominal: 150000, id: 11 },
+        { tgl_inputan: '2026-04-12', nominal: 150000, id: 12 },
+      ],
+      message: null,
+    }, 300000);
+
+    assert.equal(result.match, null);
+    assert.equal(result.blocked, false);
     assert.match(result.message, /2026-04-11/);
+    assert.match(result.message, /2026-04-12/);
+    assert.match(result.message, /sudah tertutup transfer/);
+  });
+});
+
+describe('findNoncodDateMatch', () => {
+  it('mengabaikan prefetched context lama setelah snapshot periode dipublish ulang', async () => {
+    const { supabase, state } = createNoncodMatchSupabaseStub({
+      syncMetaByPeriode: {
+        '2026-04': { syncedAt: '2026-04-21T10:00:00.000Z' },
+      },
+      noncodRows: [
+        {
+          periode: '2026-04',
+          cabang: 'CABANG MT HARYONO 01',
+          tanggal_buat: '2026-04-21',
+          ongkir: 800000,
+          metode_pembayaran: 'noncod',
+          nomor_resi: '',
+          status_terakhir: 'DELIVERED',
+        },
+      ],
+      transferRows: [],
+    });
+
+    const prefetched = await prefetchNoncodMatchContext(supabase, {
+      namaCabang: 'CABANG MT HARYONO 01',
+      preferredPeriode: '2026-04',
+    });
+
+    state.syncMetaByPeriode['2026-04'] = { syncedAt: '2026-04-21T10:05:00.000Z' };
+    state.noncodRows = [
+      {
+        periode: '2026-04',
+        cabang: 'CABANG MT HARYONO 01',
+        tanggal_buat: '2026-04-21',
+        ongkir: 882000,
+        metode_pembayaran: 'noncod',
+        nomor_resi: '',
+        status_terakhir: 'DELIVERED',
+      },
+    ];
+
+    const result = await findNoncodDateMatch(supabase, {
+      namaCabang: 'CABANG MT HARYONO 01',
+      nominal: 882000,
+      preferredPeriode: '2026-04',
+      contextKey: prefetched.contextKey,
+    });
+
+    assert.ok(result.match);
+    assert.equal(result.match.tanggal_buat, '2026-04-21');
+    assert.equal(result.match.plannedNominal, 882000);
+    assert.equal(result.message, null);
   });
 });

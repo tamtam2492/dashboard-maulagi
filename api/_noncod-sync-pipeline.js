@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const DEFAULT_TIMEOUT_MS = 45000;
 const NONCOD_SYNC_PIPELINE_STATE_KEY = 'noncod_sync_pipeline_state';
 const PERIODE_RE = /^\d{4}-\d{2}$/;
+const PLACEHOLDER_TRIGGER_HOST_RE = /(^|\.)example\.(com|org|net)$/;
 
 function normalizeText(value, maxLength = 200) {
   return String(value || '').trim().slice(0, maxLength);
@@ -73,18 +74,42 @@ function parseNoncodSyncPipelineState(value) {
   }
 }
 
+function getNoncodPipelineTriggerUrlIssue(value) {
+  const normalized = normalizeText(value, 500);
+  if (!normalized) return '';
+
+  let parsed;
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    return 'invalid_url';
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return 'invalid_protocol';
+  }
+
+  const hostname = normalizeText(parsed.hostname || '', 255).toLowerCase();
+  if (!hostname) return 'invalid_host';
+  if (PLACEHOLDER_TRIGGER_HOST_RE.test(hostname)) return 'placeholder_url';
+
+  return '';
+}
+
 function getNoncodPipelineTriggerMode(env = process.env) {
   const explicitUrl = normalizeText(env.NONCOD_PIPELINE_TRIGGER_URL, 500);
-  return explicitUrl ? 'external' : 'disabled';
+  if (!explicitUrl) return 'disabled';
+  return getNoncodPipelineTriggerUrlIssue(explicitUrl) ? 'invalid' : 'external';
 }
 
 function getNoncodPipelineTriggerConfig(env = process.env) {
   const url = normalizeText(env.NONCOD_PIPELINE_TRIGGER_URL, 500);
+  const urlIssue = getNoncodPipelineTriggerUrlIssue(url);
   return {
     url,
+    urlIssue,
     mode: getNoncodPipelineTriggerMode(env),
-    secret: normalizeText(env.NONCOD_PIPELINE_TRIGGER_SECRET, 500)
-      || normalizeText(env.NONCOD_SYNC_SECRET, 500),
+    secret: normalizeText(env.NONCOD_PIPELINE_TRIGGER_SECRET, 500),
     service: normalizeText(env.NONCOD_PIPELINE_SERVICE, 120) || 'dashboard-maulagi',
     timeoutMs: Number(env.NONCOD_PIPELINE_TRIGGER_TIMEOUT_MS || DEFAULT_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS,
   };
@@ -92,7 +117,7 @@ function getNoncodPipelineTriggerConfig(env = process.env) {
 
 function isNoncodPipelineTriggerEnabled(env = process.env) {
   const config = getNoncodPipelineTriggerConfig(env);
-  return !!(config.url && config.secret);
+  return !!(config.url && !config.urlIssue && config.secret);
 }
 
 function buildNoncodPipelineTriggerPayload(options = {}, env = process.env) {
@@ -109,6 +134,7 @@ function buildNoncodPipelineTriggerPayload(options = {}, env = process.env) {
 
 async function sendNoncodPipelineTrigger(options = {}, env = process.env, fetchImpl = globalThis.fetch) {
   const config = getNoncodPipelineTriggerConfig(env);
+  if (config.urlIssue) return { skipped: true, reason: config.urlIssue, mode: config.mode, target: config.url };
   if (!config.url || !config.secret) return { skipped: true, reason: 'disabled', mode: config.mode, target: config.url || '' };
   if (typeof fetchImpl !== 'function') return { skipped: true, reason: 'fetch_unavailable', mode: config.mode, target: config.url };
 
@@ -121,16 +147,28 @@ async function sendNoncodPipelineTrigger(options = {}, env = process.env, fetchI
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Sync-Secret': config.secret,
+        'X-Noncod-Secret': config.secret,
       },
       body: JSON.stringify(payload),
       signal: controller ? controller.signal : undefined,
     });
 
+    let responseBody = null;
+    try {
+      if (response && typeof response.clone === 'function') {
+        responseBody = await response.clone().json();
+      } else if (response && typeof response.json === 'function') {
+        responseBody = await response.json();
+      }
+    } catch {
+      responseBody = null;
+    }
+
     return {
       skipped: false,
       ok: response.ok,
       status: response.status,
+      error: normalizeText(responseBody && responseBody.error, 500),
       mode: config.mode,
       target: config.url,
     };
@@ -251,6 +289,7 @@ module.exports = {
   createDefaultNoncodSyncPipelineState,
   getNoncodPipelineTriggerConfig,
   getNoncodPipelineTriggerMode,
+  getNoncodPipelineTriggerUrlIssue,
   isNoncodPipelineTriggerEnabled,
   markNoncodSyncBuilding,
   markNoncodSyncDirty,

@@ -74,6 +74,35 @@ function coerceNullableString(value) {
   return text;
 }
 
+// Normalisasi tanggal dari OCR menjadi YYYY-MM-DD atau null
+function coerceTransferDate(value) {
+  const text = String(value || '').trim();
+  if (!text || /^(null|unknown|n\/a|none|undefined)$/i.test(text)) return null;
+  // Sudah format YYYY-MM-DD (opsional ada waktu di belakang)
+  const isoMatch = text.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (isoMatch) return isoMatch[1];
+  // Format DD/MM/YYYY atau DD-MM-YYYY (opsional ada waktu di belakang)
+  const dmyMatch = text.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (dmyMatch) {
+    const [, d, m, y] = dmyMatch;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  return null;
+}
+
+// Normalisasi waktu dari OCR menjadi HH:MM:SS atau null
+function coerceTransferTime(value) {
+  const text = String(value || '').trim();
+  if (!text || /^(null|unknown|n\/a|none|undefined)$/i.test(text)) return null;
+  // Cari pola HH:MM:SS atau HH:MM di mana saja dalam string
+  const timeMatch = text.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (timeMatch) {
+    const [, h, m, s] = timeMatch;
+    return `${h.padStart(2, '0')}:${m}:${s || '00'}`;
+  }
+  return null;
+}
+
 function coerceBooleanOrNull(value) {
   if (value === true || value === false) return value;
   const text = String(value || '').trim().toLowerCase();
@@ -104,7 +133,13 @@ function parseOcrResponseContent(content) {
     Jumlah_Kirim_Uang: pickDefined(parsed.Jumlah_Kirim_Uang, looseFields.Jumlah_Kirim_Uang),
     Admin: pickDefined(parsed.Admin, looseFields.Admin),
     Admin_Dibayar: pickDefined(parsed.Admin_Dibayar, looseFields.Admin_Dibayar),
+    Tanggal_Transfer: pickDefined(parsed.Tanggal_Transfer, undefined),
+    Waktu_Transfer: pickDefined(parsed.Waktu_Transfer, undefined),
   };
+
+  const tanggalTransfer = coerceTransferDate(parsed.Tanggal_Transfer);
+  // Fallback: jika Waktu_Transfer null, coba extract waktu dari string Tanggal_Transfer
+  const waktuTransfer = coerceTransferTime(parsed.Waktu_Transfer) || coerceTransferTime(parsed.Tanggal_Transfer);
 
   return {
     isReceipt: coerceBooleanOrNull(parsed.is_receipt),
@@ -113,6 +148,9 @@ function parseOcrResponseContent(content) {
     jumlahKirimUang: coerceNullableInteger(parsed.Jumlah_Kirim_Uang),
     admin: coerceNullableInteger(parsed.Admin),
     adminDibayar: coerceBooleanOrNull(parsed.Admin_Dibayar),
+    tanggalTransfer,
+    waktuTransfer,
+    transferDatetime: tanggalTransfer && waktuTransfer ? `${tanggalTransfer}T${waktuTransfer}` : null,
     raw: parsed,
   };
 }
@@ -140,6 +178,8 @@ module.exports = {
   coerceBooleanOrNull,
   coerceNullableInteger,
   coerceNullableString,
+  coerceTransferDate,
+  coerceTransferTime,
   extractJsonCandidate,
   extractLooseField,
   extractLooseOcrFields,
