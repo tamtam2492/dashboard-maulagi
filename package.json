@@ -26,6 +26,6 @@
     "exceljs": "^4.4.0"
   },
   "devDependencies": {
-    "supabase": "^2.92.1"
+    "supabase": "^2.95.2"
   }
 }
