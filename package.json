@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.102.1",
-    "@vercel/functions": "^3.4.3",
+    "@vercel/functions": "^3.4.4",
     "bcryptjs": "^3.0.3",
     "busboy": "^1.6.0",
     "dotenv": "^17.4.1",
